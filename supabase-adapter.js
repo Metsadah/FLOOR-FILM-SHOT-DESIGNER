@@ -15,7 +15,7 @@
 (function(){
   // ── 1. PASTE YOUR VALUES HERE ─────────────────────────────────────
   const SUPABASE_URL      = 'PASTE_YOUR_PROJECT_URL_HERE';      // e.g. https://abcdefgh.supabase.co
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYXNqeWx6b3NndGl0YXhicmpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTI2NTIsImV4cCI6MjA5ODkyODY1Mn0.z6uQWEBO2gHI80-DJ9sVyC3iUPnnl5RtBF1L68z0jiQ';  // Settings → API → anon public
+  const SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_PUBLIC_KEY_HERE';  // Settings → API → anon public
   // ──────────────────────────────────────────────────────────────────
 
   if(!window.supabase){
