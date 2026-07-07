@@ -173,6 +173,25 @@
   #toolbar button.on{background:var(--accent-soft); color:var(--accent);}
   #toolbar .sep{width:1px; background:var(--border); margin:5px 3px;}
   #toolbar button svg{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
+  #inkBar{
+    position:absolute; top:62px; left:50%; transform:translateX(-50%);
+    display:none; align-items:center; gap:7px; padding:6px 10px;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    box-shadow:var(--shadow); z-index:5;
+  }
+  #inkBar.show{display:flex;}
+  #inkBar .ink-w{
+    width:30px; height:30px; border-radius:8px; display:flex; align-items:center;
+    justify-content:center; cursor:pointer; color:var(--ink2);
+  }
+  #inkBar .ink-w:hover{background:#F5F4F1;}
+  #inkBar .ink-w.on{background:var(--accent-soft);}
+  #inkBar .ink-w i{display:block; border-radius:50%; background:currentColor;}
+  #inkBar .ink-c{
+    width:20px; height:20px; border-radius:50%; cursor:pointer; border:2px solid transparent;
+  }
+  #inkBar .ink-c.on{border-color:var(--ink); box-shadow:0 0 0 2px #fff inset;}
+  #inkBar .ink-sep{width:1px; height:20px; background:var(--border);}
   #toolbar button[data-tip]:hover::after{
     content:attr(data-tip); position:absolute; top:calc(100% + 7px); left:50%; transform:translateX(-50%);
     background:#2E2D29; color:#fff; padding:4px 8px; border-radius:6px; font-size:11px; white-space:nowrap; pointer-events:none; z-index:9;
@@ -447,6 +466,7 @@
         <div id="zoomPct" title="Reset zoom">100%</div>
         <button id="zoomIn">+</button>
       </div>
+      <div id="inkBar"></div>
       <div id="hint"></div>
     </div>
 
@@ -3082,6 +3102,31 @@ function duplicateSelection(){
   sel = {type:'object', id:n.id};
   markDirty(); render(); refreshSelBar();
 }
+// ---------------------------------------------------------------- pen options
+function buildInkBar(){
+  const bar = document.getElementById('inkBar');
+  bar.innerHTML = '';
+  const weights = [2, 3, 5, 8, 12];
+  for(const w of weights){
+    const b = document.createElement('div');
+    b.className = 'ink-w' + (inkWeight === w ? ' on' : '');
+    b.title = w + 'px stroke';
+    const dot = document.createElement('i');
+    const d = Math.min(18, 4 + w*1.15);
+    dot.style.width = d + 'px'; dot.style.height = d + 'px';
+    b.appendChild(dot);
+    b.addEventListener('click', ()=>{ inkWeight = w; buildInkBar(); });
+    bar.appendChild(b);
+  }
+  bar.insertAdjacentHTML('beforeend', '<div class="ink-sep"></div>');
+  for(const c of COLORS){
+    const s = document.createElement('div');
+    s.className = 'ink-c' + (inkColor === c ? ' on' : '');
+    s.style.background = c;
+    s.addEventListener('click', ()=>{ inkColor = c; buildInkBar(); });
+    bar.appendChild(s);
+  }
+}
 function addTextAtCenter(){
   const c = toWorld(wrap.clientWidth/2, wrap.clientHeight/2);
   const o = {id:uid(), cat:'text', kind:'text', x:c.x, y:c.y, rot:0, w:240, h:40,
@@ -3109,6 +3154,9 @@ function setTool(t){
   if(t !== 'poly') polyDraw = null;
   document.querySelectorAll('#toolbar button[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool===t));
   cv.className = 'tool-' + (t==='poly' || t==='draw' || t==='crop' ? 'wall' : t);
+  const inkBar = document.getElementById('inkBar');
+  if(t === 'draw'){ buildInkBar(); inkBar.classList.add('show'); }
+  else inkBar.classList.remove('show');
   const hints = {
     select:'Drag objects to move · handles rotate / resize · drag empty space to pan · scroll to zoom · ? for help',
     wall:'Drag to draw a wall — snaps to 90° and wall ends · Shift = free angle · keeps drawing until Esc',
@@ -3797,8 +3845,29 @@ function startLibDrag(e, spec){
   if(spec.cat==='camera') drawFn = (tc,w,h,col)=>drawCameraKind(tc,spec.kind,w,h,col);
   else if(spec.cat==='actor') drawFn = (tc,w2,h2,col)=>drawActorIcon(tc, w2, h2, col, spec.kind);
   else if(spec.cat==='note') drawFn = (tc,w,h)=>drawNoteShape(tc,{w,h,color:spec.color,text:''},true);
+  else if(spec.cat==='text') drawFn = (tc,w2,h2,col)=>{
+    tc.font='700 '+(Math.min(w2,h2)*.9)+'px -apple-system,Segoe UI,sans-serif';
+    tc.textAlign='center'; tc.textBaseline='middle';
+    tc.fillStyle=col; tc.fillText('T',0,2);
+    tc.textAlign='left'; tc.textBaseline='alphabetic';
+  };
+  else if(spec.cat==='line') drawFn = (tc,w2,h2,col)=>{
+    tc.strokeStyle=col; tc.lineWidth=Math.max(4, h2*.3); tc.lineCap='round';
+    tc.beginPath(); tc.moveTo(-w2/2,h2/2); tc.lineTo(w2*.35,-h2/2); tc.stroke();
+  };
+  else if(spec.cat==='link') drawFn = (tc,w2,h2,col)=>{
+    tc.strokeStyle=col; tc.lineWidth=Math.max(4, h2*.2); tc.lineCap='round';
+    tc.beginPath(); tc.ellipse(-w2*.14,h2*.14,w2*.24,h2*.15,-Math.PI/4,0,7); tc.stroke();
+    tc.beginPath(); tc.ellipse(w2*.14,-h2*.14,w2*.24,h2*.15,-Math.PI/4,0,7); tc.stroke();
+  };
+  else if(spec.cat==='infocard') drawFn = (tc,w2,h2,col)=>{
+    tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,6);
+    tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
+    tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
+  };
   else if(def) drawFn = (tc,w,h,col)=>PROPS.custom.draw(tc,w,h,col,def);
-  else drawFn = PROPS[spec.kind].draw;
+  else if(PROPS[spec.kind]) drawFn = PROPS[spec.kind].draw;
+  else drawFn = (tc,w2,h2,col)=>{ tc.strokeStyle=col; tc.strokeRect(-w2/2,-h2/2,w2,h2); };
   libGhost.appendChild(tileCanvas(drawFn, spec.w, spec.h, spec.color||'#5B6472'));
   document.body.appendChild(libGhost);
   moveLibGhost(e);
