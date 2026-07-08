@@ -114,6 +114,7 @@
     display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 2px 6px;
     border:1px solid var(--border); border-radius:9px; cursor:grab; background:#FDFDFC;
     transition:box-shadow .12s,border-color .12s; user-select:none; position:relative;
+    touch-action:pan-y; -webkit-user-select:none; -webkit-touch-callout:none;
   }
   .lib-item:hover{border-color:var(--border2); box-shadow:var(--shadow);}
   .lib-item:active{cursor:grabbing;}
@@ -583,6 +584,25 @@ const WALL_COLOR = '#3B3A36';
 const LENSES = [10,16,20,24,28,35,50,85,100,135];
 const FRAMINGS = ['','Extreme wide','Wide','Full shot','Medium','Medium close-up','Close-up','Extreme close-up','Insert','Top shot','Over-shoulder','POV','Two-shot'];
 const SUPPORTS = ['','Tripod','Handheld','Shoulder rig','Slider','Car mount'];
+function shortUrl(u){
+  if(!u) return '';
+  let s = u.replace(/^https?:\/\//i,'').replace(/^www\./i,'');
+  if(s.length > 34) s = s.slice(0, 32) + '\u2026';
+  return s;
+}
+function trimText(ctx, t, maxW){
+  if(ctx.measureText(t).width <= maxW) return t;
+  while(t.length > 2 && ctx.measureText(t + '\u2026').width > maxW) t = t.slice(0, -1);
+  return t + '\u2026';
+}
+function videoThumbUrl(u){
+  if(!u) return null;
+  let m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?[^#]*v=|shorts\/|embed\/))([\w-]{6,15})/i);
+  if(m) return 'https://i.ytimg.com/vi/' + m[1] + '/hqdefault.jpg';
+  m = u.match(/vimeo\.com\/(\d{6,12})/i);
+  if(m) return 'https://vumbnail.com/' + m[1] + '.jpg';
+  return null;
+}
 function noteFont(o, base){
   const fs = o.fontSize || base || 13;
   return `${o.italic?'italic ':''}${o.bold?'700':'400'} ${fs}px -apple-system,Segoe UI,sans-serif`;
@@ -808,6 +828,26 @@ const PROPS = {
     ctx.lineWidth=2;
     // head
     ctx.beginPath(); ctx.arc(w/2-h*.22,0,h*.2,0,7); ctx.fillStyle=c; ctx.globalAlpha=.6; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+  }},
+  truss:{w:400,h:30,name:'Truss',draw(ctx,w,h,c){
+    ctx.strokeStyle=c;
+    ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(-w/2,-h/2); ctx.lineTo(w/2,-h/2);
+    ctx.moveTo(-w/2,h/2); ctx.lineTo(w/2,h/2); ctx.stroke();
+    ctx.lineWidth=1.6;
+    const step=Math.max(18, h*1.1);
+    ctx.beginPath();
+    let up=true;
+    for(let x=-w/2; x<w/2-1; x+=step){
+      const x2=Math.min(x+step, w/2);
+      if(up){ ctx.moveTo(x,h/2); ctx.lineTo(x2,-h/2); }
+      else  { ctx.moveTo(x,-h/2); ctx.lineTo(x2,h/2); }
+      up=!up;
+    }
+    ctx.stroke();
+    ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(-w/2,-h/2); ctx.lineTo(-w/2,h/2);
+    ctx.moveTo(w/2,-h/2); ctx.lineTo(w/2,h/2); ctx.stroke();
   }},
   monitor:{w:55,h:40,name:'Monitor',draw(ctx,w,h,c){
     baseRect(ctx,w,h,c,4);
@@ -1312,7 +1352,7 @@ const CATS = [
     'actor','actor_ant','actor_extra','actor_child','animal_dog','animal_cat','animal_horse','animal_custom'
   ].map(k=>({cat:'actor', kind:k}))},
   {name:'Grip & light', open:true, items:[
-    'cstand','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','track','jib','technocrane','monitor','camcart'
+    'cstand','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','track','jib','technocrane','truss','monitor','camcart'
   ].map(k=>({cat:'prop', kind:k}))},
   {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','neon'].map(k=>({cat:'prop', kind:k}))},
   {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','closet','kitchen','fridge','rug','stairs','stairs_curved'].map(k=>({cat:'prop', kind:k}))},
@@ -1465,7 +1505,7 @@ async function maybeDeleteImg(id){
 }
 async function ensureShotImages(shot, includeStills){
   const ids = new Set();
-  shot.objects.forEach(o=>{ if(o.cat==='image') ids.add(o.imgId); });
+  shot.objects.forEach(o=>{ if((o.cat==='image' || o.cat==='link') && o.imgId) ids.add(o.imgId); });
   if(includeStills) shot.stills.forEach(id=>ids.add(id));
   await Promise.all([...ids].map(loadStill));
 }
@@ -1803,24 +1843,64 @@ function drawObjectShape(o, ghost){
     const p1={x:o.p1.x-o.x, y:o.p1.y-o.y}, p2={x:o.p2.x-o.x, y:o.p2.y-o.y};
     ctx.strokeStyle=o.color; ctx.lineWidth=o.weight||2.5; ctx.lineCap='round';
     if(o.dashed) ctx.setLineDash([(o.weight||2.5)*3.2, (o.weight||2.5)*2.6]);
-    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y);
+    let endAng;
+    if(o.mid){
+      // curve passes through the mid handle: control = 2*mid - (p1+p2)/2
+      const m={x:o.mid.x-o.x, y:o.mid.y-o.y};
+      const cx=2*m.x-(p1.x+p2.x)/2, cy=2*m.y-(p1.y+p2.y)/2;
+      ctx.quadraticCurveTo(cx, cy, p2.x, p2.y);
+      endAng = Math.atan2(p2.y-cy, p2.x-cx);
+    } else {
+      ctx.lineTo(p2.x, p2.y);
+      endAng = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+    }
+    ctx.stroke();
     ctx.setLineDash([]);
     if(o.arrow){
-      const ang=Math.atan2(p2.y-p1.y, p2.x-p1.x), sA=(o.weight||2.5)*4+6;
-      ctx.save(); ctx.translate(p2.x,p2.y); ctx.rotate(ang);
+      const sA=(o.weight||2.5)*4+6;
+      ctx.save(); ctx.translate(p2.x,p2.y); ctx.rotate(endAng);
       ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-sA,-sA*.5); ctx.lineTo(-sA,sA*.5); ctx.closePath();
       ctx.fillStyle=o.color; ctx.fill(); ctx.restore();
     }
   } else if(o.cat === 'link'){
-    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,o.h/2);
-    ctx.fillStyle='#fff'; ctx.fill();
-    ctx.fillStyle=o.color; ctx.globalAlpha=.14; ctx.fill(); ctx.globalAlpha=1;
-    ctx.strokeStyle=o.color; ctx.lineWidth=1.6; ctx.stroke();
-    ctx.font='600 13px -apple-system,Segoe UI,sans-serif';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillStyle=shade(o.color,.7);
-    ctx.fillText((o.label||'Link')+'  \u2197', 0, 1);
-    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    const disp = o.label || shortUrl(o.url) || 'Link';
+    const thumb = o.imgId ? imgCache[o.imgId] : null;
+    if(thumb && thumb.complete && thumb.naturalWidth){
+      const stripH = 26;
+      ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10);
+      ctx.fillStyle='#fff'; ctx.fill();
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10); ctx.clip();
+      ctx.drawImage(thumb, -o.w/2, -o.h/2, o.w, o.h-stripH);
+      ctx.fillStyle='#fff';
+      ctx.fillRect(-o.w/2, o.h/2-stripH, o.w, stripH);
+      ctx.beginPath(); ctx.arc(0, -stripH/2, 15, 0, 7);
+      ctx.fillStyle='rgba(20,19,17,.55)'; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-4,-stripH/2-6); ctx.lineTo(8,-stripH/2); ctx.lineTo(-4,-stripH/2+6); ctx.closePath();
+      ctx.fillStyle='#fff'; ctx.fill();
+      ctx.font='600 11.5px -apple-system,Segoe UI,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle=shade(o.color,.7);
+      ctx.fillText(trimText(ctx, disp+'  \u2197', o.w-16), 0, o.h/2-stripH/2+1);
+      ctx.restore();
+      ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10);
+      ctx.strokeStyle=o.color; ctx.lineWidth=1.6; ctx.stroke();
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    } else {
+      ctx.font='600 13px -apple-system,Segoe UI,sans-serif';
+      const disp2 = trimText(ctx, disp+'  \u2197', 380);
+      const needW = ctx.measureText(disp2).width + 26;
+      o.w = Math.max(80, needW); o.h = 34;
+      ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,o.h/2);
+      ctx.fillStyle='#fff'; ctx.fill();
+      ctx.fillStyle=o.color; ctx.globalAlpha=.14; ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle=o.color; ctx.lineWidth=1.6; ctx.stroke();
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle=shade(o.color,.7);
+      ctx.fillText(disp2, 0, 1);
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    }
   } else if(o.cat === 'ink'){
     const pts=o.pts||[];
     if(pts.length>1){
@@ -1986,6 +2066,8 @@ function handleList(){
     if(o.cat === 'line'){
       hs.push({id:'l1', x:o.p1.x, y:o.p1.y});
       hs.push({id:'l2', x:o.p2.x, y:o.p2.y});
+      const m = o.mid || {x:(o.p1.x+o.p2.x)/2, y:(o.p1.y+o.p2.y)/2};
+      hs.push({id:'lm', x:m.x, y:m.y});
       return hs;
     }
     if(o.cat === 'ink') return hs;
@@ -2332,13 +2414,25 @@ function hitHandle(wx, wy){
   for(const h of handleList()) if(dist(wx,wy,h.x,h.y) <= r) return h;
   return null;
 }
+function linePts(o){
+  if(!o.mid) return [o.p1, o.p2];
+  const cx=2*o.mid.x-(o.p1.x+o.p2.x)/2, cy=2*o.mid.y-(o.p1.y+o.p2.y)/2;
+  const pts=[];
+  for(let i=0;i<=12;i++){
+    const t=i/12, u=1-t;
+    pts.push({x:u*u*o.p1.x+2*u*t*cx+t*t*o.p2.x, y:u*u*o.p1.y+2*u*t*cy+t*t*o.p2.y});
+  }
+  return pts;
+}
 function hitObject(shot, wx, wy){
   for(let i = shot.objects.length-1; i >= 0; i--){
     const o = shot.objects[i];
     if(o.kind === 'track') continue;
     if(o.cat === 'line'){
       const thr = Math.max(10/view.scale, (o.weight||3)/2 + 6);
-      if(ptSeg(wx,wy,o.p1.x,o.p1.y,o.p2.x,o.p2.y).d <= thr) return o;
+      const lp = linePts(o);
+      for(let j=0;j<lp.length-1;j++)
+        if(ptSeg(wx,wy,lp[j].x,lp[j].y,lp[j+1].x,lp[j+1].y).d <= thr) return o;
       continue;
     }
     const c = Math.cos(-o.rot), s = Math.sin(-o.rot);
@@ -2532,6 +2626,7 @@ cv.addEventListener('pointerdown', e => {
       else if(h.id === 'jibHead') drag = {kind:'jibHead', o, B:jibBasePos(o)};
       else if(h.id.startsWith('fov')) drag = {kind:'fov', o};
       else if(h.id === 'l1' || h.id === 'l2') drag = {kind:'lineEnd', o, end:h.id};
+      else if(h.id === 'lm') drag = {kind:'lineMid', o};
       else if(h.id.startsWith('tp')) drag = {kind:'trackPt', o, i:+h.id.slice(2)};
       else if(h.id.startsWith('ch')) drag = {kind:'craneKey', o, i:+h.id.slice(2)};
       else if(h.id.startsWith('pf')) drag = {kind:'ptfov', o, i:+h.id.slice(3)};
@@ -2567,8 +2662,9 @@ cv.addEventListener('pointerdown', e => {
     if(obj.locked){ drag = null; refreshSelBar(); render(); return; }
     if(obj.cat === 'camera') obj.mount = null; // picking a camera up releases it from a jib
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
-    if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; }
+    if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
+    if(obj.cat === 'link'){ drag.linkX0=obj.x; drag.linkY0=obj.y; }
     refreshSelBar(); render();
     return;
   }
@@ -2655,6 +2751,13 @@ cv.addEventListener('pointermove', e => {
       markDirty();
       break;
     }
+    case 'lineMid': {
+      const o = drag.o;
+      const sm = {x:(o.p1.x+o.p2.x)/2, y:(o.p1.y+o.p2.y)/2};
+      o.mid = (dist(wx,wy,sm.x,sm.y) < 8/Math.max(view.scale,.3)) ? null : {x:wx, y:wy};
+      markDirty();
+      break;
+    }
     case 'label':
       drag.o.labelDX = drag.dx0 + (wx - drag.sx);
       drag.o.labelDY = drag.dy0 + (wy - drag.sy);
@@ -2677,6 +2780,7 @@ cv.addEventListener('pointermove', e => {
         const dx = wx - drag.wx, dy = wy - drag.wy;
         o.p1 = {x:drag.p1o.x+dx, y:drag.p1o.y+dy};
         o.p2 = {x:drag.p2o.x+dx, y:drag.p2o.y+dy};
+        if(drag.mido) o.mid = {x:drag.mido.x+dx, y:drag.mido.y+dy};
         o.x = (o.p1.x+o.p2.x)/2; o.y = (o.p1.y+o.p2.y)/2;
         markDirty(); break;
       }
@@ -2905,6 +3009,12 @@ cv.addEventListener('pointerup', e => {
     if(histPushed) histSettle();
     render();
     return; // stay in draw tool for the next stroke
+  }
+  // a clean tap on a link (no real movement) opens it in a new tab
+  if(drag.kind === 'move' && drag.o && drag.o.cat === 'link' && drag.linkX0 !== undefined){
+    if(dist(drag.o.x, drag.o.y, drag.linkX0, drag.linkY0) < 4/Math.max(view.scale,.3) && drag.o.url){
+      window.open(/^https?:\/\//i.test(drag.o.url) ? drag.o.url : 'https://' + drag.o.url, '_blank');
+    }
   }
   if(drag.kind === 'drawWall'){
     if(dist(drag.x1,drag.y1,drag.x2,drag.y2) > 12){
@@ -3328,6 +3438,36 @@ function canMove(o){
   return o.cat === 'camera' || o.cat === 'actor' || (o.cat === 'prop' && MOVE_KINDS.has(o.kind));
 }
 
+async function fetchLinkThumb(o){
+  const tu = videoThumbUrl(o.url);
+  if(!tu){
+    o.imgId = null; markDirty(); render();
+    return;
+  }
+  try{
+    const res = await fetch(tu, {mode:'cors'});
+    if(!res.ok) throw new Error('http ' + res.status);
+    const blob = await res.blob();
+    const dataURL = await new Promise((ok, bad)=>{
+      const r = new FileReader();
+      r.onload = ()=>ok(r.result); r.onerror = ()=>bad(r.error);
+      r.readAsDataURL(blob);
+    });
+    const id = uid();
+    await window.storage.set('sd:img:' + id, dataURL);
+    const im = new Image();
+    im.src = dataURL;
+    imgCache[id] = im;
+    im.onload = ()=>render();
+    o.imgId = id;
+    o.w = 220; o.h = 150;
+    markDirty(); render(); refreshSelBar();
+    toast('Video thumbnail added');
+  }catch(e){
+    console.warn('thumb fetch failed', e);
+    // preview is a bonus — the plain pill still works
+  }
+}
 function sbtn(label, fn, danger){
   const b = document.createElement('button');
   b.className = 'sbtn' + (danger ? ' danger' : '');
@@ -3417,6 +3557,7 @@ function refreshSelBar(){
       selBar.appendChild(wsel);
       sbtn(o.dashed ? 'Dash: on' : 'Dash: off', ()=>{ o.dashed=!o.dashed; markDirty(); render(); refreshSelBar(); });
       sbtn(o.arrow ? 'Arrow: on' : 'Arrow: off', ()=>{ o.arrow=!o.arrow; markDirty(); render(); refreshSelBar(); });
+      if(o.mid) sbtn('Straighten', ()=>{ o.mid=null; markDirty(); render(); refreshSelBar(); });
     }
     if(o.cat === 'ink'){
       const wsel = document.createElement('select');
@@ -3431,7 +3572,8 @@ function refreshSelBar(){
       url.className = 'lbl'; url.style.width = '170px';
       url.placeholder = 'https://…';
       url.value = o.url || '';
-      url.addEventListener('input', ()=>{ o.url = url.value.trim(); markDirty(); });
+      url.addEventListener('input', ()=>{ o.url = url.value.trim(); markDirty(); render(); });
+      url.addEventListener('change', ()=>fetchLinkThumb(o));
       url.addEventListener('keydown', e=>{ if(e.key==='Enter') url.blur(); e.stopPropagation(); });
       selBar.appendChild(url);
       sbtn('Open \u2197', ()=>{
@@ -3833,8 +3975,19 @@ function buildLibrary(){
 }
 
 let libGhost = null;
+function cancelLibDrag(){
+  document.removeEventListener('pointermove', moveLibGhost);
+  document.removeEventListener('pointerup', dropLib);
+  document.removeEventListener('pointercancel', cancelLibDrag);
+  if(libGhost){ libGhost.remove(); libGhost = null; }
+  libDrag = null;
+}
 function startLibDrag(e, spec){
   e.preventDefault();
+  if(e.target && e.target.hasPointerCapture && e.target.hasPointerCapture(e.pointerId)){
+    try{ e.target.releasePointerCapture(e.pointerId); }catch(_){}
+  }
+  closeDrawers(); // on phones/tablets the drawer covers the canvas — get it out of the way
   libDrag = spec;
   libGhost = document.createElement('div');
   libGhost.style.cssText = 'position:fixed;z-index:60;pointer-events:none;opacity:.85;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--border);border-radius:9px;padding:6px;box-shadow:var(--shadow);';
@@ -3873,12 +4026,14 @@ function startLibDrag(e, spec){
   moveLibGhost(e);
   document.addEventListener('pointermove', moveLibGhost);
   document.addEventListener('pointerup', dropLib, {once:true});
+  document.addEventListener('pointercancel', cancelLibDrag, {once:true});
 }
 function moveLibGhost(e){
   if(libGhost){ libGhost.style.left = e.clientX+'px'; libGhost.style.top = e.clientY+'px'; }
 }
 function dropLib(e){
   document.removeEventListener('pointermove', moveLibGhost);
+  document.removeEventListener('pointercancel', cancelLibDrag);
   if(libGhost){ libGhost.remove(); libGhost = null; }
   if(!libDrag) return;
   const r = cv.getBoundingClientRect();
