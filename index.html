@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 <title>FLOOR — Film Shot Designer</title>
+
+<!-- PWA: install to home screen on iPad / Mac, works offline. See manifest.json + service-worker.js -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#4B6BFB">
+<link rel="icon" href="./icons/icon-32.png" sizes="32x32">
+<link rel="icon" href="./icons/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FLOOR">
 <!-- ================================================================
      Stage 2 (optional): cloud saves + login via Supabase.
      1. Follow README.md to create the Supabase project and kv table.
@@ -405,6 +416,7 @@
     <input id="shotTitle" title="Rename shot" spellcheck="false">
     <div class="topbar-right">
       <button class="btn drawer-btn" id="panelToggle" title="Shot info &amp; stills">☷</button>
+      <button class="btn" id="installBtn" title="Install FLOOR as an app" style="display:none">Install app</button>
       <button class="hbtn" id="undoBtn" title="Undo (Ctrl/⌘ Z)" disabled>↩</button>
       <button class="hbtn" id="redoBtn" title="Redo (Ctrl/⌘ ⇧ Z)" disabled>↪</button>
       <span id="saveState">Saved</span>
@@ -4699,6 +4711,34 @@ async function runPDFExport(){
   btnEl.textContent = old;
   btnEl.disabled = false;
 }
+
+// ---------------------------------------------------------------- PWA install
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./service-worker.js').catch(err=>{
+      console.warn('[FLOOR] service worker registration failed', err);
+    });
+  });
+}
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if(btn) btn.style.display = 'inline-flex';
+});
+window.addEventListener('appinstalled', ()=>{
+  const btn = document.getElementById('installBtn');
+  if(btn) btn.style.display = 'none';
+  deferredInstallPrompt = null;
+});
+document.getElementById('installBtn')?.addEventListener('click', async ()=>{
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  document.getElementById('installBtn').style.display = 'none';
+});
 
 // ---------------------------------------------------------------- mobile drawers
 document.getElementById('libToggle').addEventListener('click', ()=>{

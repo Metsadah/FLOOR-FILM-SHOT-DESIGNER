@@ -14,10 +14,15 @@ You already have the repo: `Metsadah/FLOOR-FILM-SHOT-DESIGNER`. Do this once:
 
 **1. Put the files in the repo.**
 Open **GitHub Desktop** → make sure this repository is selected (top-left).
-Click *Repository → Show in Explorer/Finder* and copy these three files into that folder:
+Click *Repository → Show in Explorer/Finder* and copy these files into that folder,
+**keeping the `icons` folder as a folder** (don't flatten it):
 
 - `index.html`   ← the app (the name matters: GitHub Pages serves `index.html` automatically)
 - `supabase-adapter.js`
+- `manifest.json`
+- `service-worker.js`
+- `icons/` (the whole folder — icon-72.png through icon-512.png, plus the two `-maskable` ones)
+- `favicon.ico`
 - `README.md`
 
 **2. Commit and push.**
@@ -38,6 +43,36 @@ https://metsadah.github.io/FLOOR-FILM-SHOT-DESIGNER/
 
 That's it. Every future improvement = copy the new `index.html` over the old one,
 commit, push — the site updates itself within a minute.
+
+---
+
+## Installing FLOOR as an app (PWA)
+
+FLOOR is a Progressive Web App: once it's hosted on GitHub Pages (step 4 above,
+served over `https://`), you can install it like a real app — no App Store needed.
+
+**On iPad (Safari):**
+1. Open the FLOOR URL in Safari.
+2. Tap the **Share** button (square with an arrow) in the toolbar.
+3. Tap **Add to Home Screen** → **Add**.
+
+FLOOR now has its own icon on your home screen and opens full-screen, no browser
+bar. It works offline for anything already loaded, and checks for a fresh version
+each time you're back online.
+
+**On Mac (Chrome, Edge, or desktop Safari):**
+- Chrome/Edge: open the URL, click the **install icon** in the address bar (or the
+  "Install app" button that appears in FLOOR's own toolbar), confirm.
+- Safari: File menu → **Add to Dock**.
+
+Either way you get a real Mac app window and a Dock icon — same app, same data,
+no separate download.
+
+**Note on browser support:** Safari (iPad/Mac) doesn't show an automatic "Install"
+prompt the way Chrome does — that's an Apple platform limitation, not a bug in
+FLOOR — which is why the manual *Add to Home Screen* / *Add to Dock* step is
+needed there. Chrome, Edge, and Android browsers will offer to install
+automatically via the button in the toolbar.
 
 > **Where is my data in Stage 1?** In your browser (IndexedDB), per device.
 > It survives restarts, but clearing site data deletes it, and your laptop and
