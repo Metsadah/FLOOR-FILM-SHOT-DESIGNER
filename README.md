@@ -17,13 +17,19 @@ Open **GitHub Desktop** → make sure this repository is selected (top-left).
 Click *Repository → Show in Explorer/Finder* and copy these files into that folder,
 **keeping the `icons` folder as a folder** (don't flatten it):
 
-- `index.html`   ← the app (the name matters: GitHub Pages serves `index.html` automatically)
+- `index.html`   ← page markup (the name matters: GitHub Pages serves `index.html` automatically)
+- `styles.css`   ← all styling
+- `js/` (the whole folder — six modules: catalog, state-render, selection, input, ui, app)
 - `supabase-adapter.js`
 - `manifest.json`
 - `service-worker.js`
-- `icons/` (the whole folder — icon-72.png through icon-512.png, plus the two `-maskable` ones)
+- `icons/` (the whole folder)
 - `favicon.ico`
-- `README.md`
+- `README.md` and `ROADMAP.md`
+
+> Since v2 the app is split into modules instead of one giant file — same
+> copy-commit-push workflow, just more files. Always copy `js/` and
+> `styles.css` along with `index.html` when updating.
 
 **2. Commit and push.**
 Back in GitHub Desktop you'll see the files listed as changes. Type a short summary
