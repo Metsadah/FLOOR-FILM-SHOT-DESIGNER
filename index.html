@@ -45,6 +45,47 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
     </div>
   </div>
 
+  <div id="tabbar">
+    <button data-tab="mood">Moodboard</button>
+    <button data-tab="script">Script</button>
+    <button data-tab="story">Storyboard</button>
+    <button data-tab="design" class="on">Shot designer</button>
+    <button data-tab="org">Production</button>
+  </div>
+  <div class="tabPageFull" id="tabScript">
+    <div class="tp-inner">
+      <div class="tp-head">
+        <h2>Script</h2>
+        <div class="tp-actions">
+          <button class="btn" id="scriptImportBtn">Import file…</button>
+          <input type="file" id="scriptFileInput" accept=".txt,.fountain,.fdx" hidden>
+          <select id="scriptType">
+            <option value="film">Film script</option>
+            <option value="av">AV script (two-column)</option>
+          </select>
+          <button class="btn primary" id="breakdownBtn">Break down script</button>
+        </div>
+      </div>
+      <textarea id="scriptText" placeholder="Write or paste your script here…&#10;&#10;Film scripts: use standard scene headings (INT. KITCHEN — DAY) and the breakdown will detect scenes, day/night and characters, and create a FLOOR scene per script scene.&#10;&#10;AV scripts: paste the video column; every paragraph becomes a scene. (Smart AV parsing with AI lands in Phase 1.)"></textarea>
+      <div id="breakdownResult"></div>
+    </div>
+  </div>
+  <div class="tabPageFull" id="tabStory">
+    <div class="tp-inner">
+      <div class="tp-head">
+        <h2>Storyboard / shot list</h2>
+        <div class="tp-actions"><span class="tp-hint">Linear order · edit descriptions inline · add a reference image per shot · "Open" jumps to that scene's board</span></div>
+      </div>
+      <div id="storyTable"></div>
+    </div>
+  </div>
+  <div class="tabPageFull" id="tabOrg">
+    <div class="tp-inner">
+      <div class="tp-head"><h2>Production</h2></div>
+      <div id="orgContent"></div>
+      <div class="tp-note">Call sheets and day planning are next on the roadmap — everything you fill in here feeds straight into them.</div>
+    </div>
+  </div>
   <div id="main">
     <!-- left -->
     <div id="sidebar">
@@ -202,5 +243,6 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
 <script src="./js/03-input.js"></script>
 <script src="./js/04-ui.js"></script>
 <script src="./js/05-app.js"></script>
+<script src="./js/06-tabs.js"></script>
 </body>
 </html>

@@ -91,7 +91,11 @@ function migrateShot(s){
     }
   });
 }
-function activeScene(){ return project.scenes.find(s => s.id === project.activeSceneId) || project.scenes[0]; }
+let activeTab = 'design'; // design | mood | script | story | org
+function activeScene(){
+  if(activeTab === 'mood' && project.moodboard) return project.moodboard;
+  return project.scenes.find(s => s.id === project.activeSceneId) || project.scenes[0];
+}
 const activeShot = activeScene; // legacy alias — every existing call site keeps working
 function findObj(id){ return activeShot().objects.find(o=>o.id===id); }
 
@@ -116,6 +120,9 @@ async function loadProject(){
     delete project.activeShotId;
   }
   project.v = Math.max(project.v||0, 4);
+  if(project.moodboard) migrateShot(project.moodboard);
+  if(!project.script) project.script = {text:'', type:'film'};
+  if(!project.production) project.production = {company:'', lead:'', notes:'', contacts:[], locations:[]};
   if(!project.customProps) project.customProps = [];
   if(!project.exportPrefs) project.exportPrefs = {grid:true, stills:true};
   if(project.shootName===undefined) project.shootName='';
@@ -267,8 +274,9 @@ function render(){
     ctx.fillStyle = 'rgba(60,58,52,.13)';
     const ox = (-view.x % g + g) % g * view.scale;
     const oy = (-view.y % g + g) % g * view.scale;
-    for(let x = ox; x < W; x += gs)
-      for(let y = oy; y < H; y += gs){ ctx.fillRect(x-1, y-1, 2, 2); }
+    if(activeTab !== 'mood')
+      for(let x = ox; x < W; x += gs)
+        for(let y = oy; y < H; y += gs){ ctx.fillRect(x-1, y-1, 2, 2); }
   }
 
   ctx.setTransform(dpr*view.scale, 0, 0, dpr*view.scale, -view.x*view.scale*dpr, -view.y*view.scale*dpr);
@@ -286,7 +294,7 @@ function render(){
   drawToolPreview();
 
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  drawRuler(W, H);
+  if(activeTab !== 'mood') drawRuler(W, H);
 
   updateSelBarPos();
   positionNoteEditor();

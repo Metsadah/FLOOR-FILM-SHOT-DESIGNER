@@ -15,7 +15,7 @@
   ::selection{background:var(--accent-soft);}
 
   /* ---------- layout ---------- */
-  #app{display:grid; grid-template-rows:48px 1fr; height:100%;}
+  #app{display:grid; grid-template-rows:48px auto 1fr; height:100%;}
   #topbar{
     display:flex; align-items:center; gap:10px; padding:0 14px;
     background:var(--panel); border-bottom:1px solid var(--border);
@@ -378,3 +378,81 @@
   #toolbar button{width:32px; height:32px;}
   #selBar{max-width:96vw; flex-wrap:wrap;}
 }
+
+/* ---------------- app tabs ---------------- */
+#tabbar{
+  display:flex; gap:2px; padding:5px 10px 0;
+  background:var(--panel); border-bottom:1px solid var(--line);
+}
+#tabbar button{
+  border:none; background:none; cursor:pointer;
+  font:600 12.5px -apple-system,Segoe UI,sans-serif; color:var(--ink2);
+  padding:8px 13px 9px; border-radius:9px 9px 0 0; position:relative;
+}
+#tabbar button:hover{ color:var(--ink); background:#F5F4F1; }
+#tabbar button.on{ color:var(--accent); }
+#tabbar button.on::after{
+  content:''; position:absolute; left:10px; right:10px; bottom:0; height:2.5px;
+  background:var(--accent); border-radius:2px 2px 0 0;
+}
+.tabPageFull{
+  display:none; overflow:auto; min-height:0;
+  background:var(--bg);
+}
+body.tab-script #tabScript, body.tab-story #tabStory, body.tab-org #tabOrg{ display:block; }
+body.tab-script #main, body.tab-story #main, body.tab-org #main{ display:none !important; }
+body.tab-script #toolbar, body.tab-story #toolbar, body.tab-org #toolbar,
+body.tab-script #hint, body.tab-story #hint, body.tab-org #hint{ display:none !important; }
+/* moodboard mode: canvas stays, scene chrome goes */
+body.tab-mood #shotList, body.tab-mood .side-head:first-child, body.tab-mood #rightPanel,
+body.tab-mood #panelToggle{ display:none !important; }
+body.tab-mood #main{ grid-template-columns: 238px 1fr; }
+body.tab-mood #toolbar button[data-tool="wall"], body.tab-mood #toolbar button[data-tool="room"],
+body.tab-mood #toolbar button[data-tool="door"], body.tab-mood #toolbar button[data-tool="window"],
+body.tab-mood #toolbar button[data-tool="gap"],
+body.tab-mood #sunBtn, body.tab-mood #playBtn{ display:none !important; }
+.tp-inner{ max-width:1000px; margin:0 auto; padding:26px 26px 60px; }
+.tp-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px; flex-wrap:wrap; }
+.tp-head h2{ font-size:17px; font-weight:650; color:var(--ink); margin:0; }
+.tp-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.tp-hint{ font-size:11px; color:var(--ink2); }
+.tp-note{ margin-top:22px; font-size:11.5px; color:var(--ink2); background:var(--panel);
+  border:1px dashed var(--line); border-radius:10px; padding:12px 14px; }
+#scriptText{
+  width:100%; min-height:52vh; resize:vertical;
+  border:1px solid var(--line); border-radius:12px; background:#fff;
+  padding:18px 20px; font:13.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--ink);
+}
+#breakdownResult{ margin-top:14px; }
+.bd-scene{ background:#fff; border:1px solid var(--line); border-radius:10px;
+  padding:10px 13px; margin-bottom:7px; font-size:12.5px; }
+.bd-scene b{ font-weight:650; }
+.bd-scene .bd-meta{ color:var(--ink2); font-size:11px; margin-top:2px; }
+#storyTable table{ width:100%; border-collapse:collapse; background:#fff;
+  border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+#storyTable th{ text-align:left; font:600 10.5px -apple-system,sans-serif; color:var(--ink2);
+  text-transform:uppercase; letter-spacing:.4px; padding:9px 11px; background:var(--panel);
+  border-bottom:1px solid var(--line); }
+#storyTable td{ padding:8px 11px; border-bottom:1px solid var(--line); font-size:12.5px; vertical-align:middle; }
+#storyTable tr.sceneRow td{ background:var(--panel); font-weight:650; }
+#storyTable input, #storyTable textarea{
+  width:100%; border:1px solid transparent; background:transparent; font-size:12.5px;
+  padding:4px 6px; border-radius:7px; resize:none; font-family:inherit;
+}
+#storyTable input:focus, #storyTable textarea:focus{ border-color:var(--line); background:#fff; outline:none; }
+.sb-ref{ width:76px; height:46px; border-radius:7px; object-fit:cover; display:block; cursor:pointer;
+  border:1px solid var(--line); background:var(--panel); }
+.sb-refBtn{ width:76px; height:46px; border:1.5px dashed var(--line); border-radius:7px;
+  background:none; color:var(--ink2); cursor:pointer; font-size:16px; }
+.org-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.org-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:15px 17px; }
+.org-card h3{ margin:0 0 10px; font-size:13px; font-weight:650; color:var(--ink); }
+.org-card label{ display:block; font-size:10.5px; color:var(--ink2); margin:8px 0 3px; }
+.org-card input, .org-card textarea{ width:100%; border:1px solid var(--line); border-radius:8px;
+  padding:7px 9px; font-size:12.5px; background:#fff; font-family:inherit; }
+.org-row{ display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+.org-row input{ flex:1; min-width:0; }
+.org-row .rm{ border:none; background:none; color:var(--ink2); cursor:pointer; font-size:15px; padding:2px 6px; }
+.org-add{ margin-top:6px; font-size:11.5px; }
+@media (max-width:800px){ .org-grid{ grid-template-columns:1fr; } }

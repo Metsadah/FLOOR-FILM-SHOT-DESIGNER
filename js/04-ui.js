@@ -495,7 +495,7 @@ function libTile(spec){
 function buildLibrary(){
   const lib = document.getElementById('library');
   lib.innerHTML = '';
-  for(const cat of CATS){
+  for(const cat of (activeTab === 'mood' ? [] : CATS)){
     const head = document.createElement('div');
     head.className = 'cat-head' + (cat.open ? '' : ' closed');
     head.innerHTML = `<span class="arr">▼</span>${esc(cat.name)}`;

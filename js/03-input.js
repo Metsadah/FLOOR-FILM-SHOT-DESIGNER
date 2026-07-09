@@ -17,7 +17,9 @@ let undoStack = [], redoStack = [];
 let histBase = null, histPushed = false, histTimer = null;
 function snapshotState(){
   return JSON.stringify({scenes:project.scenes, activeSceneId:project.activeSceneId,
-    customProps:project.customProps, shootName:project.shootName||''});
+    customProps:project.customProps, shootName:project.shootName||'',
+    moodboard:project.moodboard||null, script:project.script||null,
+    production:project.production||null});
 }
 function updateHistBtns(){
   const u = document.getElementById('undoBtn'), r = document.getElementById('redoBtn');
@@ -47,6 +49,9 @@ function applyState(s){
   const p = JSON.parse(s);
   project.scenes = p.scenes || p.shots; // tolerate pre-rename snapshots
   project.activeSceneId = p.activeSceneId ?? p.activeShotId;
+  if(p.moodboard !== undefined) project.moodboard = p.moodboard;
+  if(p.script !== undefined && p.script !== null) project.script = p.script;
+  if(p.production !== undefined && p.production !== null) project.production = p.production;
   project.customProps = p.customProps || [];
   project.shootName = p.shootName || '';
   if(!project.scenes.length){ project.scenes = [newShot(1)]; }
