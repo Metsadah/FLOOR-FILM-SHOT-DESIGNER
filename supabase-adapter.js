@@ -72,6 +72,11 @@
   }
 
   const ready = (async ()=>{
+    // wait for the page body to exist before any overlay work — this script
+    // runs in <head>, and the session check can resolve before the body parses
+    if(!document.body){
+      await new Promise(r => document.addEventListener('DOMContentLoaded', r, {once:true}));
+    }
     const {data} = await sb.auth.getSession();
     if(data.session) return data.session.user;
     return loginOverlay();
