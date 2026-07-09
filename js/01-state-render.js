@@ -92,19 +92,50 @@ function migrateShot(s){
   });
 }
 let activeTab = 'design'; // design | mood | script | story | org
-const BOARD_TABS = new Set(['mood','org']);
+const BOARD_TABS = new Set(['mood','org','write']);
 function activeScene(){
   if(activeTab === 'mood' && project.moodboard) return project.moodboard;
   if(activeTab === 'org' && project.prodboard) return project.prodboard;
+  if(activeTab === 'write' && project.scriptboard) return project.scriptboard;
   return project.scenes.find(s => s.id === project.activeSceneId) || project.scenes[0];
 }
 const activeShot = activeScene; // legacy alias — every existing call site keeps working
 function findObj(id){ return activeShot().objects.find(o=>o.id===id); }
 
 // ---------------------------------------------------------------- storage
+let currentProjectId = null;
+async function loadProjectIndex(){
+  try{
+    const r = await window.storage.get('sd:projects');
+    if(r && r.value) return JSON.parse(r.value);
+  }catch(e){}
+  return null;
+}
+async function saveProjectIndex(idx){
+  await window.storage.set('sd:projects', JSON.stringify(idx));
+}
 async function loadProject(){
   try{
-    const res = await window.storage.get('sd:project');
+    let idx = await loadProjectIndex();
+    if(!idx){
+      // first run OR migration from the single-project era
+      const legacy = await window.storage.get('sd:project').catch(()=>null);
+      const id = uid();
+      if(legacy && legacy.value){
+        await window.storage.set('sd:project:' + id, legacy.value);
+        let nm = 'My production';
+        try{ nm = JSON.parse(legacy.value).shootName || nm; }catch(e){}
+        idx = [{id, name:nm, updated:Date.now()}];
+      } else {
+        idx = [{id, name:'My production', updated:Date.now()}];
+      }
+      await saveProjectIndex(idx);
+      await window.storage.set('sd:current', id);
+    }
+    const cur = await window.storage.get('sd:current').catch(()=>null);
+    currentProjectId = (cur && cur.value && idx.some(p=>p.id===cur.value))
+      ? cur.value : idx[0].id;
+    const res = await window.storage.get('sd:project:' + currentProjectId).catch(()=>null);
     if(res && res.value){ project = JSON.parse(res.value); }
   }catch(e){ /* first run */ }
   if(!project || !project.scenes || !project.scenes.length){
@@ -124,6 +155,7 @@ async function loadProject(){
   project.v = Math.max(project.v||0, 4);
   if(project.moodboard) migrateShot(project.moodboard);
   if(project.prodboard) migrateShot(project.prodboard);
+  if(project.scriptboard) migrateShot(project.scriptboard);
   if(!project.script) project.script = {text:'', type:'film'};
   if(!project.production) project.production = {company:'', lead:'', notes:'', contacts:[], locations:[]};
   if(!project.customProps) project.customProps = [];
@@ -142,7 +174,16 @@ async function saveProject(){
   if(!dirty) return;
   dirty = false;
   try{
-    await window.storage.set('sd:project', JSON.stringify(project));
+    await window.storage.set('sd:project:' + currentProjectId, JSON.stringify(project));
+    // keep the production list in sync (name + freshness)
+    try{
+      const idx = (await loadProjectIndex()) || [];
+      const e0 = idx.find(p=>p.id===currentProjectId);
+      const nm = project.shootName || 'Untitled production';
+      if(e0){ e0.name = nm; e0.updated = Date.now(); }
+      else idx.push({id:currentProjectId, name:nm, updated:Date.now()});
+      await saveProjectIndex(idx);
+    }catch(e){}
     document.getElementById('saveState').textContent = 'Saved';
   }catch(e){
     document.getElementById('saveState').textContent = 'Save failed';
@@ -597,9 +638,229 @@ function drawObjectShape(o, ghost){
     }
   } else if(o.cat === 'infocard'){
     drawInfoCard(ctx, o);
+  } else if(o.cat === 'colorcard'){
+    const strip = 34;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10); ctx.clip();
+    ctx.fillStyle = o.hex || '#E8604C';
+    ctx.fillRect(-o.w/2, -o.h/2, o.w, o.h - strip);
+    ctx.fillStyle = '#33322E';
+    ctx.font = '700 12px -apple-system,Segoe UI,sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((o.hex||'').toUpperCase(), -o.w/2+10, o.h/2 - strip/2);
+    if(o.label){
+      ctx.font = '400 11.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#8A877F';
+      ctx.textAlign = 'right';
+      ctx.fillText(trimText(ctx, o.label, o.w/2 - 14), o.w/2-10, o.h/2 - strip/2);
+      ctx.textAlign = 'left';
+    }
+    ctx.restore();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10); ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'todo'){
+    o.items = o.items || [];
+    const lh = 24, pad = 12, top = o.label ? 30 : 10;
+    o.h = Math.max(60, top + o.items.length*lh + pad);
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.textBaseline = 'middle';
+    if(o.label){
+      ctx.font = '700 13px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#33322E';
+      ctx.fillText(o.label, -o.w/2+pad, -o.h/2 + 17);
+    }
+    o.items.forEach((it, i)=>{
+      const y = -o.h/2 + top + i*lh + lh/2;
+      ctx.strokeStyle = it.done ? o.color : '#B9B6AE';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.roundRect(-o.w/2+pad, y-7, 14, 14, 3.5);
+      if(it.done){ ctx.fillStyle = o.color; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-o.w/2+pad+3.4, y); ctx.lineTo(-o.w/2+pad+6.4, y+3.4); ctx.lineTo(-o.w/2+pad+11, y-3.4); ctx.stroke();
+      } else ctx.stroke();
+      ctx.font = '12.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = it.done ? '#B9B6AE' : '#33322E';
+      const tx = trimText(ctx, it.t || '', o.w - pad*2 - 24);
+      ctx.fillText(tx, -o.w/2+pad+22, y+.5);
+      if(it.done){
+        const tw = ctx.measureText(tx).width;
+        ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-o.w/2+pad+22, y); ctx.lineTo(-o.w/2+pad+22+tw, y); ctx.stroke();
+      }
+    });
+    if(!o.items.length){
+      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = 'rgba(74,70,54,.4)';
+      ctx.fillText('Double-click to add items\u2026', -o.w/2+pad, 0);
+    }
+    ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'table'){
+    o.cells = (o.cells && o.cells.length) ? o.cells : [['',''],['','']];
+    const nR = o.cells.length, nC = o.cells[0].length;
+    const headH = 30, rowH = 28;
+    o.h = headH + (nR-1)*rowH;
+    const colW = o.w / nC;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,8);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,8); ctx.clip();
+    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillRect(-o.w/2, -o.h/2, o.w, headH);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
+    for(let c=1;c<nC;c++){
+      ctx.beginPath(); ctx.moveTo(-o.w/2+c*colW, -o.h/2); ctx.lineTo(-o.w/2+c*colW, o.h/2); ctx.stroke();
+    }
+    for(let r=1;r<nR;r++){
+      const y = -o.h/2 + headH + (r-1)*rowH;
+      ctx.beginPath(); ctx.moveTo(-o.w/2, y); ctx.lineTo(o.w/2, y); ctx.stroke();
+    }
+    ctx.textBaseline = 'middle';
+    for(let r=0;r<nR;r++) for(let c=0;c<nC;c++){
+      if(noteEditor && noteEditor.id===o.id && noteEditor.field==='cell:'+r+':'+c) continue;
+      ctx.font = (r===0 ? '700 ' : '') + '12px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = r===0 ? '#33322E' : '#4A4636';
+      const cy = r===0 ? -o.h/2 + headH/2 : -o.h/2 + headH + (r-1)*rowH + rowH/2;
+      ctx.fillText(trimText(ctx, o.cells[r][c]||'', colW-16), -o.w/2 + c*colW + 8, cy);
+    }
+    ctx.restore();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,8); ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'file'){
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5; ctx.stroke();
+    // doc icon with folded corner
+    const ix = -o.w/2 + 14, iy = -14, iw2 = 26, ih2 = 32;
+    ctx.beginPath();
+    ctx.moveTo(ix, iy); ctx.lineTo(ix+iw2-9, iy); ctx.lineTo(ix+iw2, iy+9);
+    ctx.lineTo(ix+iw2, iy+ih2); ctx.lineTo(ix, iy+ih2); ctx.closePath();
+    ctx.fillStyle = o.color; ctx.globalAlpha = .18; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = o.color; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ix+iw2-9, iy); ctx.lineTo(ix+iw2-9, iy+9); ctx.lineTo(ix+iw2, iy+9); ctx.stroke();
+    const ext = ((o.name||'').split('.').pop()||'').slice(0,4).toUpperCase();
+    ctx.font = '700 8px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = shade(o.color,.7);
+    ctx.textAlign = 'center';
+    ctx.fillText(ext, ix+iw2/2, iy+ih2-8);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = '600 12.5px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#33322E';
+    ctx.fillText(trimText(ctx, o.name||'File', o.w - 70), ix + iw2 + 12, -8);
+    ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#8A877F';
+    ctx.fillText((o.size ? Math.round(o.size/1024) + ' KB \u00b7 ' : '') + 'select \u2192 Download', ix + iw2 + 12, 10);
+    ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'script'){
+    const fs = o.fontSize || 12.5, lh = fs*1.5, pad = 18, headH = o.mode==='av' ? 30 : 12;
+    ctx.font = fs + 'px ui-monospace,Menlo,monospace';
+    const colW = o.mode==='av' ? o.w/2 - pad*1.5 : o.w - pad*2;
+    const linesL = wrapCanvasText(ctx, o.text || '', colW);
+    const linesR = o.mode==='av' ? wrapCanvasText(ctx, o.textR || '', colW) : [];
+    o.h = Math.max(220, headH + Math.max(linesL.length, linesR.length)*lh + pad*2);
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2+2,-o.h/2+2,o.w-4,o.h-4,9); ctx.clip();
+    ctx.textBaseline = 'top';
+    const editL = noteEditor && noteEditor.id===o.id && noteEditor.field==='text';
+    const editR = noteEditor && noteEditor.id===o.id && noteEditor.field==='textR';
+    if(o.mode === 'av'){
+      ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, -o.h/2+headH-4); ctx.lineTo(0, o.h/2); ctx.stroke();
+      ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#8A877F';
+      ctx.fillText('V I D E O', -o.w/2+pad, -o.h/2+10);
+      ctx.fillText('A U D I O', pad/2, -o.h/2+10);
+    }
+    ctx.font = fs + 'px ui-monospace,Menlo,monospace';
+    ctx.fillStyle = '#33322E';
+    if(!editL) linesL.forEach((l,i)=> ctx.fillText(l, -o.w/2+pad, -o.h/2+headH+pad*.6 + i*lh));
+    if(o.mode==='av' && !editR) linesR.forEach((l,i)=> ctx.fillText(l, pad/2, -o.h/2+headH+pad*.6 + i*lh));
+    if(!o.text && !editL){
+      ctx.fillStyle = 'rgba(74,70,54,.4)';
+      ctx.fillText('Double-click to write\u2026', -o.w/2+pad, -o.h/2+headH+pad*.6);
+    }
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'sbrow'){
+    const z1 = o.w*.28, z2 = o.w*.30; // title | image | shot description
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,10); ctx.clip();
+    ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-o.w/2+z1, -o.h/2); ctx.lineTo(-o.w/2+z1, o.h/2);
+    ctx.moveTo(-o.w/2+z1+z2, -o.h/2); ctx.lineTo(-o.w/2+z1+z2, o.h/2);
+    ctx.stroke();
+    // accent stripe
+    ctx.fillStyle = o.color; ctx.fillRect(-o.w/2, -o.h/2, 5, o.h);
+    ctx.textBaseline = 'top';
+    // title zone
+    if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='title')){
+      ctx.font = '700 13px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#33322E';
+      wrapCanvasText(ctx, o.title || 'Scene', z1-24).slice(0,2)
+        .forEach((l,i)=> ctx.fillText(l, -o.w/2+14, -o.h/2+12 + i*17));
+    }
+    const sc0 = o.sceneId && project.scenes.find(x=>x.id===o.sceneId);
+    ctx.font = '10.5px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#8A877F';
+    ctx.fillText(sc0 ? '\u2192 board linked' : 'no board yet', -o.w/2+14, o.h/2-20);
+    // image zone
+    const imx = -o.w/2 + z1, imw = z2;
+    const im = o.imgId ? imgCache[o.imgId] : null;
+    if(im && im.complete && im.naturalWidth){
+      const ar = im.naturalWidth/im.naturalHeight, fr = imw/o.h;
+      let dw = imw, dh = o.h;
+      if(ar > fr) dw = o.h*ar; else dh = imw/ar;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(imx, -o.h/2, imw, o.h); ctx.clip();
+      ctx.drawImage(im, imx + imw/2 - dw/2, -dh/2, dw, dh);
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = '#D8D5CF'; ctx.setLineDash([4,4]);
+      ctx.strokeRect(imx+8, -o.h/2+8, imw-16, o.h-16);
+      ctx.setLineDash([]);
+      ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#B9B6AE';
+      ctx.textAlign = 'center';
+      ctx.fillText('+ reference', imx + imw/2, -6);
+      ctx.textAlign = 'left';
+    }
+    o._sbImgZone = {x1:imx, x2:imx+imw};
+    // shot description zone
+    if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='desc')){
+      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = o.desc ? '#4A4636' : 'rgba(74,70,54,.4)';
+      const dx = -o.w/2 + z1 + z2 + 12;
+      wrapCanvasText(ctx, o.desc || 'Double-click for shot description\u2026', o.w - z1 - z2 - 24)
+        .slice(0, Math.floor((o.h-20)/16))
+        .forEach((l,i)=> ctx.fillText(l, dx, -o.h/2+12 + i*16));
+    }
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'image'){
     const im = imgCache[o.imgId];
     if(o.underlay) ctx.globalAlpha = ghost ? .18 : .55;
+    if(o.caption && !o.underlay){
+      ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#8A877F';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      wrapCanvasText(ctx, o.caption, o.w - 8).slice(0,2)
+        .forEach((l,i)=> ctx.fillText(l, 0, o.h/2 + 7 + i*15));
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
     if(im && im.complete && im.naturalWidth){
       ctx.drawImage(im, -o.w/2, -o.h/2, o.w, o.h);
       ctx.strokeStyle = 'rgba(40,38,32,.18)'; ctx.lineWidth = 1.5/Math.max(view.scale,.3);

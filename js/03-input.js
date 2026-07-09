@@ -435,6 +435,7 @@ cv.addEventListener('pointerdown', e => {
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
     if(obj.cat === 'link'){ drag.linkX0=obj.x; drag.linkY0=obj.y; }
+    if(obj.cat === 'todo'){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
     refreshSelBar(); render();
     return;
   }
@@ -822,6 +823,19 @@ cv.addEventListener('pointerup', e => {
       window.open(/^https?:\/\//i.test(drag.o.url) ? drag.o.url : 'https://' + drag.o.url, '_blank');
     }
   }
+  // a clean tap on a to-do item toggles its checkbox
+  if(drag.kind === 'move' && drag.o && drag.o.cat === 'todo' && drag.tapX0 !== undefined){
+    if(dist(drag.o.x, drag.o.y, drag.tapX0, drag.tapY0) < 4/Math.max(view.scale,.3)){
+      const o = drag.o;
+      const lh = 24, top = o.label ? 30 : 10;
+      const ly = wy - o.y + o.h/2;
+      const i = Math.floor((ly - top)/lh);
+      if(o.items && i >= 0 && i < o.items.length){
+        o.items[i].done = !o.items[i].done;
+        markDirty(); render();
+      }
+    }
+  }
   if(drag.kind === 'drawWall'){
     if(dist(drag.x1,drag.y1,drag.x2,drag.y2) > 12){
       const w = {id:uid(), x1:drag.x1, y1:drag.y1, x2:drag.x2, y2:drag.y2, openings:[], locked:true};
@@ -919,6 +933,42 @@ cv.addEventListener('dblclick', e => {
     sel = {type:'object', id:o.id};
     refreshSelBar(); render();
     if(o.cat === 'note' || o.cat === 'text'){ openNoteEditor(o); return; }
+    if(o.cat === 'todo'){ openNoteEditor(o, 'todo'); return; }
+    if(o.cat === 'script'){
+      const pad = 18, headH = o.mode==='av' ? 30 : 12;
+      const lx = wx - o.x; // local (rot=0 for these blocks)
+      if(o.mode === 'av'){
+        const half = o.w/2 - pad*1.5;
+        if(lx < 0) openNoteEditor(o, 'text', {x:-o.w/2+pad, y:-o.h/2+headH, w:half, h:o.h-headH-pad}, o.fontSize||12.5);
+        else openNoteEditor(o, 'textR', {x:pad/2, y:-o.h/2+headH, w:half, h:o.h-headH-pad}, o.fontSize||12.5);
+      } else {
+        openNoteEditor(o, 'text', {x:-o.w/2+pad, y:-o.h/2+headH, w:o.w-pad*2, h:o.h-headH-pad}, o.fontSize||12.5);
+      }
+      return;
+    }
+    if(o.cat === 'sbrow'){
+      const lx = wx - o.x;
+      const z1 = o.w*.28, z2 = o.w*.30;
+      if(lx < -o.w/2 + z1){
+        openNoteEditor(o, 'title', {x:-o.w/2+12, y:-o.h/2+8, w:z1-22, h:40}, 13);
+      } else if(lx < -o.w/2 + z1 + z2){
+        pickSbImage(o);
+      } else {
+        openNoteEditor(o, 'desc', {x:-o.w/2+z1+z2+10, y:-o.h/2+8, w:o.w-z1-z2-20, h:o.h-16}, 12);
+      }
+      return;
+    }
+    if(o.cat === 'table'){
+      const nR = o.cells.length, nC = o.cells[0].length;
+      const headH = 30, rowH = 28, colW = o.w/nC;
+      const lx = wx - o.x + o.w/2, ly = wy - o.y + o.h/2;
+      const c = clamp(Math.floor(lx/colW), 0, nC-1);
+      const r = ly < headH ? 0 : clamp(1 + Math.floor((ly-headH)/rowH), 0, nR-1);
+      const cy = r===0 ? 0 : headH + (r-1)*rowH;
+      openNoteEditor(o, 'cell:'+r+':'+c,
+        {x:-o.w/2 + c*colW + 3, y:-o.h/2 + cy + 3, w:colW-6, h:(r===0?headH:rowH)-6}, 12);
+      return;
+    }
     if(o.cat === 'link'){
       if(o.url){ window.open(/^https?:\/\//i.test(o.url) ? o.url : 'https://'+o.url, '_blank'); }
       else toast('Add a URL in the selection bar first');

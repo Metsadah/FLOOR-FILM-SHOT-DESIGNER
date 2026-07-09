@@ -489,3 +489,39 @@ body.tab-org #orgPanel{ display:block; }
   border:1px solid var(--line); background:#fff; float:left; margin-right:12px; }
 .sb-excerpt{ font-weight:400; font-size:11px; color:var(--ink2); margin-top:3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60ch; }
+
+/* trash can */
+#trashCan{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%) scale(.7);
+  width:52px; height:52px; border-radius:16px; z-index:80;
+  background:#fff; border:1.5px solid var(--line); box-shadow:0 10px 34px rgba(40,38,32,.18);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .15s, transform .15s, background .12s;
+}
+#trashCan.show{ opacity:1; transform:translateX(-50%) scale(1); }
+#trashCan.hot{ background:#FBE9E5; border-color:#E8604C; }
+#trashCan svg{ width:22px; height:22px; stroke:var(--ink2); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+#trashCan.hot svg{ stroke:#E8604C; }
+/* production switcher */
+#projBtn{ font-weight:600; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#projPop{
+  position:fixed; top:64px; left:150px; z-index:120; display:none;
+  background:#fff; border:1px solid var(--line); border-radius:12px;
+  box-shadow:0 16px 50px rgba(40,38,32,.18); padding:12px; min-width:240px;
+}
+#projPop.show{ display:block; }
+.proj-row{
+  display:block; width:100%; text-align:left; padding:8px 10px; border-radius:8px;
+  font-size:12.5px; cursor:pointer;
+}
+.proj-row:hover{ background:#F5F4F1; }
+.proj-row.on{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+/* write board: same chrome as moodboard */
+body.tab-write #shotList, body.tab-write #sidebar > .side-head:first-child,
+body.tab-write #rightPanel, body.tab-write #panelToggle{ display:none !important; }
+body.tab-write #main{ grid-template-columns:238px 1fr; }
+body.tab-write #toolbar button[data-tool="wall"], body.tab-write #toolbar button[data-tool="room"],
+body.tab-write #toolbar button[data-tool="door"], body.tab-write #toolbar button[data-tool="window"],
+body.tab-write #toolbar button[data-tool="gap"],
+body.tab-write #sunBtn, body.tab-write #playBtn{ display:none !important; }
+body.tab-write #sceneLbl{ display:none !important; }

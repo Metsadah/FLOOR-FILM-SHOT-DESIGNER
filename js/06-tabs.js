@@ -18,14 +18,15 @@ function switchTab(t){
     buildLibrary();
     refreshSelBar();
     ensureShotImages(activeScene(), false).then(()=>{ zoomFitIfEmptyView(); render(); });
+  } else if(t === 'write'){
+    ensureScriptBoard();
+    buildLibrary();
+    refreshSelBar();
+    ensureShotImages(activeScene(), false).then(()=>{ zoomFitIfEmptyView(); render(); });
   } else if(t === 'design'){
     buildLibrary(); buildShotList(); buildInfo(); buildStills();
     refreshSelBar();
     ensureShotImages(activeScene(), false).then(render);
-  } else if(t === 'script'){
-    buildScriptTab();
-  } else if(t === 'story'){
-    buildStoryTab();
   } else if(t === 'org'){
     ensureProdBoard();
     buildLibrary();
@@ -53,6 +54,72 @@ function ensureMoodboard(){
     markDirty();
   }
   migrateShot(project.moodboard);
+}
+function ensureScriptBoard(){
+  if(!project.scriptboard){
+    const b = newShot(0);
+    b.name = 'Script & storyboard';
+    project.scriptboard = b;
+    // starter layout: one film script block, ready to type into
+    b.objects.push({id:uid(), cat:'script', kind:'script', x:-260, y:0, rot:0,
+      w:430, h:300, mode:'film', text:'', textR:'', fontSize:12.5,
+      color:'#5B6472', label:'', path:[]});
+    project.scriptboard = b;
+    markDirty();
+  }
+  migrateShot(project.scriptboard);
+}
+// library section for the Script & Storyboard board
+function buildWriteLibSection(lib){
+  const h = document.createElement('div');
+  h.className = 'side-head';
+  h.style.marginTop = '10px';
+  h.textContent = 'Script & storyboard';
+  lib.appendChild(h);
+  const grid = document.createElement('div');
+  grid.className = 'lib-grid';
+  const tile = (name, drawFn, spec)=>{
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas(drawFn, 100, 100, '#5B6472'));
+    el.insertAdjacentHTML('beforeend', '<span>' + esc(name) + '</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e, spec));
+    grid.appendChild(el);
+  };
+  tile('Film script', (tc,w2,h2,c2)=>{
+    tc.strokeStyle=c2; tc.lineWidth=2.5;
+    tc.strokeRect(-w2*.34,-h2*.4,w2*.68,h2*.8);
+    tc.globalAlpha=.6;
+    for(let i=0;i<5;i++){ tc.beginPath(); tc.moveTo(-w2*.24,-h2*.26+i*h2*.13); tc.lineTo(w2*.24,-h2*.26+i*h2*.13); tc.stroke(); }
+    tc.globalAlpha=1;
+  }, {cat:'script', kind:'script', mode:'film'});
+  tile('AV script', (tc,w2,h2,c2)=>{
+    tc.strokeStyle=c2; tc.lineWidth=2.5;
+    tc.strokeRect(-w2*.38,-h2*.4,w2*.76,h2*.8);
+    tc.beginPath(); tc.moveTo(0,-h2*.4); tc.lineTo(0,h2*.4); tc.stroke();
+    tc.globalAlpha=.6;
+    for(let i=0;i<4;i++){
+      tc.beginPath(); tc.moveTo(-w2*.3,-h2*.24+i*h2*.14); tc.lineTo(-w2*.08,-h2*.24+i*h2*.14);
+      tc.moveTo(w2*.08,-h2*.24+i*h2*.14); tc.lineTo(w2*.3,-h2*.24+i*h2*.14); tc.stroke();
+    }
+    tc.globalAlpha=1;
+  }, {cat:'script', kind:'script', mode:'av'});
+  tile('Storyboard row', (tc,w2,h2,c2)=>{
+    tc.strokeStyle=c2; tc.lineWidth=2.5;
+    tc.strokeRect(-w2*.42,-h2*.18,w2*.84,h2*.36);
+    tc.beginPath();
+    tc.moveTo(-w2*.16,-h2*.18); tc.lineTo(-w2*.16,h2*.18);
+    tc.moveTo(w2*.1,-h2*.18); tc.lineTo(w2*.1,h2*.18);
+    tc.stroke();
+    tc.globalAlpha=.5; tc.fillStyle=c2;
+    tc.fillRect(-w2*.13,-h2*.12,w2*.2,h2*.24);
+    tc.globalAlpha=1;
+  }, {cat:'sbrow', kind:'sbrow'});
+  lib.appendChild(grid);
+  const tip = document.createElement('div');
+  tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 8px;line-height:1.5;';
+  tip.textContent = 'Write in a script block, then select it and hit "Break down" — FLOOR creates a storyboard row and a scene board per detected scene, with every camera on that board mapping to a shot.';
+  lib.appendChild(tip);
 }
 function ensureProdBoard(){
   if(!project.prodboard){
@@ -110,49 +177,6 @@ function buildProdLibSection(lib){
   lib.appendChild(tip);
 }
 
-// ---------------------------------------------------------------- script tab
-function buildScriptTab(){
-  const ta = document.getElementById('scriptText');
-  const type = document.getElementById('scriptType');
-  project.script = project.script || {text:'', type:'film'};
-  ta.value = project.script.text || '';
-  type.value = project.script.type || 'film';
-}
-document.getElementById('scriptText').addEventListener('input', function(){
-  project.script = project.script || {type:'film'};
-  project.script.text = this.value;
-  markDirty();
-});
-document.getElementById('scriptType').addEventListener('change', function(){
-  project.script = project.script || {text:''};
-  project.script.type = this.value;
-  markDirty();
-});
-document.getElementById('scriptImportBtn').addEventListener('click', ()=>
-  document.getElementById('scriptFileInput').click());
-document.getElementById('scriptFileInput').addEventListener('change', async function(){
-  const f = this.files && this.files[0];
-  if(!f) return;
-  let text = await f.text();
-  if(f.name.toLowerCase().endsWith('.fdx')){
-    // Final Draft XML: pull the paragraph text out
-    try{
-      const doc = new DOMParser().parseFromString(text, 'text/xml');
-      const paras = [...doc.querySelectorAll('Paragraph')];
-      text = paras.map(p=>{
-        const t = [...p.querySelectorAll('Text')].map(x=>x.textContent).join('');
-        const kind = p.getAttribute('Type') || '';
-        return (kind === 'Scene Heading') ? t.toUpperCase() : t;
-      }).join('\n');
-    }catch(e){ /* fall through with raw text */ }
-  }
-  document.getElementById('scriptText').value = text;
-  project.script = {text, type: document.getElementById('scriptType').value};
-  markDirty();
-  toast('Script imported — hit "Break down script" when ready');
-  this.value = '';
-});
-
 // --- rule-based screenplay parsing (the AI pass lands in Phase 1) ---
 const SCENE_HEADING_RE = /^\s*(?:\d+[.\s]+)?(INT\.?\/EXT\.?|EXT\.?\/INT\.?|I\/E\.?|INT\.?|EXT\.?)\s+(.+?)\s*$/i;
 const TRANSITION_RE = /^(CUT TO|FADE (IN|OUT|TO)|DISSOLVE TO|SMASH CUT|MATCH CUT|CONTINUED)\b/i;
@@ -192,44 +216,8 @@ function parseAV(text){
     intExt:'', dayNight:'', body:p, characters:[],
   }));
 }
-document.getElementById('breakdownBtn').addEventListener('click', ()=>{
-  const text = (project.script && project.script.text || '').trim();
-  const out = document.getElementById('breakdownResult');
-  out.innerHTML = '';
-  if(!text){ toast('Write or import a script first'); return; }
-  const type = (project.script.type || 'film');
-  const parsed = type === 'av' ? parseAV(text) : parseScreenplay(text);
-  if(!parsed.length){
-    out.innerHTML = '<div class="bd-scene">No scenes detected. Film scripts need scene headings like <b>INT. KITCHEN — DAY</b>; AV scripts split on blank lines.</div>';
-    return;
-  }
-  parsed.forEach((s,i)=>{
-    const el = document.createElement('div');
-    el.className = 'bd-scene';
-    el.innerHTML = '<b>' + (i+1) + '. ' + esc(s.heading) + '</b>' +
-      '<div class="bd-meta">' +
-      [s.dayNight, s.characters.length ? 'Cast: ' + s.characters.join(', ') : '',
-       Math.max(1, Math.round(s.body.length/60)) + ' lines'].filter(Boolean).join(' · ') +
-      '</div>';
-    out.appendChild(el);
-  });
-  const act = document.createElement('div');
-  act.style.cssText = 'margin-top:10px;display:flex;gap:8px;align-items:center;';
-  const btn = document.createElement('button');
-  btn.className = 'btn primary';
-  btn.textContent = 'Create ' + parsed.length + ' scene' + (parsed.length>1?'s':'') + ' in FLOOR';
-  btn.addEventListener('click', ()=>{
-    createScenesFromBreakdown(parsed);
-    out.innerHTML = '<div class="bd-scene">✓ ' + parsed.length + ' scenes created — check the Storyboard and Shot designer tabs.</div>';
-  });
-  act.appendChild(btn);
-  const note = document.createElement('span');
-  note.className = 'tp-hint';
-  note.textContent = 'Detected cast gets placed as actor icons on each scene board.';
-  act.appendChild(note);
-  out.appendChild(act);
-});
 function createScenesFromBreakdown(parsed){
+  const made = [];
   const startN = project.scenes.length;
   parsed.forEach((s, i)=>{
     const sc = newShot(startN + i + 1);
@@ -244,141 +232,76 @@ function createScenesFromBreakdown(parsed){
         w:34, h:34, color: COLORS[ci % COLORS.length], label: name, path:[]});
     });
     project.scenes.push(sc);
+    made.push(sc);
   });
   if(!project.activeSceneId && project.scenes.length) project.activeSceneId = project.scenes[0].id;
   markDirty();
   buildShotList(); buildInfo();
-  toast(parsed.length + ' scenes created');
+  return made;
 }
 
-// ---------------------------------------------------------------- storyboard tab
-function buildStoryTab(){
-  const host = document.getElementById('storyTable');
-  host.innerHTML = '';
-  const tbl = document.createElement('table');
-  tbl.innerHTML = '<thead><tr><th style="width:34px">#</th><th>Shot</th><th style="width:38%">Description</th><th>Camera</th><th style="width:92px">Reference</th><th style="width:70px"></th></tr></thead>';
-  const tb = document.createElement('tbody');
-  let shotNum = 0;
-  for(const sc of project.scenes){
-    sc.shots = sc.shots || [];
-    const cams = sc.objects.filter(o=>o.cat==='camera');
-    const sr = document.createElement('tr');
-    sr.className = 'sceneRow';
-    const heading = [sc.scene ? 'Scene ' + sc.scene : sc.name, sc.sceneDesc].filter(Boolean).join(' — ');
-    const excerpt = (sc.script || '').trim().replace(/\s+/g, ' ').slice(0, 160);
-    sr.innerHTML = '<td colspan="5">' +
-      '<img class="sb-thumb" data-scene="' + sc.id + '" alt="">' +
-      '<div style="padding-top:14px">' + esc(heading) + '</div>' +
-      (excerpt ? '<div class="sb-excerpt">' + esc(excerpt) + (sc.script.length > 160 ? '\u2026' : '') + '</div>' : '') +
-      '</td>';
-    const openTd = document.createElement('td');
-    const openBtn = document.createElement('button');
-    openBtn.className = 'btn';
-    openBtn.textContent = 'Open';
-    openBtn.addEventListener('click', ()=>{
-      switchScene(sc.id);
-      switchTab('design');
-    });
-    openTd.appendChild(openBtn);
-    sr.appendChild(openTd);
-    tb.appendChild(sr);
-    sc.shots.forEach(sh=>{
-      shotNum++;
-      const tr = document.createElement('tr');
-      const td = s=>{ const d=document.createElement('td'); if(s!==undefined) d.textContent=s; tr.appendChild(d); return d; };
-      td(String(shotNum));
-      // shot name
-      const nameTd = td();
-      const ni = document.createElement('input');
-      ni.value = sh.name || '';
-      ni.addEventListener('input', ()=>{ sh.name = ni.value; markDirty(); });
-      nameTd.appendChild(ni);
-      // description
-      const descTd = td();
-      const di = document.createElement('textarea');
-      di.rows = 1; di.value = sh.desc || '';
-      di.addEventListener('input', ()=>{ sh.desc = di.value; markDirty(); });
-      descTd.appendChild(di);
-      // camera summary (from assigned cameras)
-      const scams = cams.filter(c=>c.shotId===sh.id);
-      td(scams.length
-        ? scams.map(c=>[c.lens?c.lens+'mm':null, c.framing, c.support].filter(Boolean).join(' ') || (CAMS[c.kind]||{}).name).join(' | ')
-        : '—');
-      // reference image
-      const refTd = td();
-      buildRefCell(refTd, sh);
-      // open scene
-      const oTd = td();
-      const ob = document.createElement('button');
-      ob.className = 'btn'; ob.textContent = 'Open';
-      ob.addEventListener('click', ()=>{ switchScene(sc.id); switchTab('design'); });
-      oTd.appendChild(ob);
-      tb.appendChild(tr);
-    });
-    // add-shot row
-    const ar = document.createElement('tr');
-    const atd = document.createElement('td');
-    atd.colSpan = 6;
-    const ab = document.createElement('button');
-    ab.className = 'btn'; ab.style.fontSize = '11px';
-    ab.textContent = '+ Add shot to ' + (sc.scene ? 'scene ' + sc.scene : sc.name);
-    ab.addEventListener('click', ()=>{
-      sc.shots.push({id:uid(), name:'Shot ' + (sc.shots.length+1), desc:''});
-      markDirty(); buildStoryTab();
-    });
-    atd.appendChild(ab);
-    ar.appendChild(atd);
-    tb.appendChild(ar);
-  }
-  tbl.appendChild(tb);
-  host.appendChild(tbl);
-  if(!project.scenes.length){
-    host.innerHTML = '<div class="bd-scene">No scenes yet — create them in the Shot designer, or break down a script in the Script tab.</div>';
+// breakdown from a script block ON the canvas: scenes + a storyboard column
+function breakDownScriptBlock(o){
+  const parsed = o.mode === 'av'
+    ? parseAV(o.text || '')
+    : parseScreenplay(o.text || '');
+  if(!parsed.length){
+    toast(o.mode === 'av'
+      ? 'No scenes found — AV blocks split on blank lines in the VIDEO column'
+      : 'No scenes found — use headings like INT. KITCHEN \u2014 DAY');
     return;
   }
-  // async mini top-view per scene (sequential — renderShotPlan swaps globals)
-  (async ()=>{
-    for(const sc of project.scenes){
-      const img = host.querySelector('img.sb-thumb[data-scene="' + sc.id + '"]');
-      if(!img) continue;
-      try{
-        await ensureShotImages(sc, false);
-        img.src = renderShotPlan(sc, 260, null, false).toDataURL('image/jpeg', .75);
-      }catch(e){ /* leave placeholder */ }
-    }
-  })();
+  const scenes = createScenesFromBreakdown(parsed);
+  const board = activeScene();
+  const x0 = o.x + o.w/2 + 340;
+  let y = o.y - o.h/2 + 60;
+  scenes.forEach((sc, i)=>{
+    board.objects.push({id:uid(), cat:'sbrow', kind:'sbrow',
+      x:x0, y:y + i*140, rot:0, w:560, h:120,
+      title:(sc.scene ? 'Scene ' + sc.scene : sc.name) + (sc.sceneDesc ? ' \u2014 ' + sc.sceneDesc : ''),
+      desc:'', imgId:null, sceneId:sc.id,
+      color:COLORS[i % COLORS.length], label:'', path:[]});
+  });
+  markDirty(); render(); refreshSelBar();
+  toast(scenes.length + ' scenes broken down \u2014 storyboard rows added to the right');
 }
-function buildRefCell(td, sh){
-  td.innerHTML = '';
-  if(sh.imgId){
-    const img = document.createElement('img');
-    img.className = 'sb-ref';
-    img.title = 'Click to replace the reference image';
-    loadStill(sh.imgId).then(im=>{ if(im) img.src = im.src; });
-    img.addEventListener('click', ()=>pickRef(sh, td));
-    td.appendChild(img);
-    const rm = document.createElement('button');
-    rm.className = 'rm'; rm.textContent = '×'; rm.title = 'Remove reference';
-    rm.style.cssText = 'border:none;background:none;color:var(--ink2);cursor:pointer;';
-    rm.addEventListener('click', ()=>{ sh.imgId = null; markDirty(); buildRefCell(td, sh); });
-    td.appendChild(rm);
-  } else {
-    const b = document.createElement('button');
-    b.className = 'sb-refBtn'; b.textContent = '+';
-    b.title = 'Add a reference still / frame / drawing';
-    b.addEventListener('click', ()=>pickRef(sh, td));
-    td.appendChild(b);
-  }
-}
-function pickRef(sh, td){
+function pickSbImage(o){
   const fi = document.createElement('input');
   fi.type = 'file'; fi.accept = 'image/*';
   fi.addEventListener('change', async ()=>{
     if(!fi.files || !fi.files[0]) return;
     try{
-      sh.imgId = await storeImageFile(fi.files[0]);
-      markDirty(); buildRefCell(td, sh);
-    }catch(e){ toast('Could not store that image — try a smaller one'); }
+      o.imgId = await storeImageFile(fi.files[0]);
+      await loadStill(o.imgId);
+      markDirty(); render(); refreshSelBar();
+    }catch(e){ toast('Could not store that image \u2014 try a smaller one'); }
+  });
+  fi.click();
+}
+// file objects (docs / pdfs) on any board
+function pickBoardFile(){
+  const fi = document.createElement('input');
+  fi.type = 'file';
+  fi.addEventListener('change', async ()=>{
+    const file = fi.files && fi.files[0];
+    if(!file) return;
+    if(file.size > 4.5*1024*1024){ toast('Files up to ~4 MB \u2014 this one is too large'); return; }
+    try{
+      const dataURL = await new Promise((ok, bad)=>{
+        const r = new FileReader();
+        r.onload = ()=>ok(r.result); r.onerror = ()=>bad(r.error);
+        r.readAsDataURL(file);
+      });
+      const id = uid();
+      await window.storage.set('sd:file:' + id, dataURL);
+      const c = toWorld(wrap.clientWidth/2, wrap.clientHeight/2);
+      activeScene().objects.push({id:uid(), cat:'file', kind:'file',
+        x:c.x, y:c.y, rot:0, w:230, h:64,
+        fileId:id, name:file.name, size:file.size, mime:file.type,
+        color:'#5B6472', label:'', path:[]});
+      markDirty(); render();
+      toast('File added \u2014 select it to download');
+    }catch(e){ toast('Could not store that file'); }
   });
   fi.click();
 }
@@ -466,40 +389,6 @@ function buildOrgPanel(){
 }
 
 
-// ---------------------------------------------------------------- per-tab exports
-document.getElementById('scriptExportBtn').addEventListener('click', ()=>{
-  const text = (project.script && project.script.text) || '';
-  if(!text.trim()){ toast('Nothing to export yet'); return; }
-  const a = document.createElement('a');
-  a.download = ((project.shootName || 'floor') + '-script.txt').replace(/\s+/g, '_');
-  a.href = URL.createObjectURL(new Blob([text], {type:'text/plain'}));
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
-});
-document.getElementById('storyCsvBtn').addEventListener('click', ()=>{
-  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const rows = [['#','Scene','Shot','Description','Cameras'].map(q).join(',')];
-  let n = 0;
-  for(const sc of project.scenes){
-    const cams = sc.objects.filter(o=>o.cat==='camera');
-    for(const sh of (sc.shots || [])){
-      n++;
-      const scams = cams.filter(c=>c.shotId===sh.id);
-      rows.push([n,
-        [sc.scene ? 'Sc ' + sc.scene : sc.name, sc.sceneDesc].filter(Boolean).join(' — '),
-        sh.name || '', sh.desc || '',
-        scams.map(c=>[c.lens?c.lens+'mm':'', c.framing, c.support].filter(Boolean).join(' ')).join(' | '),
-      ].map(q).join(','));
-    }
-  }
-  if(rows.length === 1){ toast('No shots yet — add some in the Storyboard or Shot designer'); return; }
-  const a = document.createElement('a');
-  a.download = ((project.shootName || 'floor') + '-shotlist.csv').replace(/\s+/g, '_');
-  a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.join('\n')], {type:'text/csv'}));
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
-});
-
 // single-board PDF (moodboard / production board) — A4 landscape, image fitted
 async function exportBoardPDF(){
   const board = activeScene();
@@ -567,3 +456,107 @@ document.addEventListener('paste', async e=>{
   }
   if(off) toast('Pasted onto the board');
 });
+
+
+// ---------------------------------------------------------------- trash can (drop to delete)
+const trashEl = document.createElement('div');
+trashEl.id = 'trashCan';
+trashEl.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg>';
+document.body.appendChild(trashEl);
+function overTrash(x, y){
+  const r = trashEl.getBoundingClientRect();
+  return x >= r.left - 12 && x <= r.right + 12 && y >= r.top - 12 && y <= r.bottom + 12;
+}
+document.addEventListener('pointermove', e=>{
+  const dragging = drag && drag.kind === 'move' && drag.o && !drag.o.locked;
+  trashEl.classList.toggle('show', !!dragging);
+  if(dragging) trashEl.classList.toggle('hot', overTrash(e.clientX, e.clientY));
+});
+document.addEventListener('pointerup', e=>{
+  if(drag && drag.kind === 'move' && drag.o && !drag.o.locked && overTrash(e.clientX, e.clientY)){
+    const o = drag.o;
+    const sc = activeScene();
+    sc.objects = sc.objects.filter(x=>x.id !== o.id);
+    sc.objects.forEach(c=>{
+      if(c.mount && c.mount.id === o.id) c.mount = null;
+      if(c.rail && c.rail.id === o.id){ c.rail = null; c.path = []; }
+    });
+    sel = null; drag = null;
+    trashEl.classList.remove('show', 'hot');
+    markDirty(); if(histPushed) histSettle();
+    refreshSelBar(); render();
+    toast('Deleted \u2014 Cmd/Ctrl+Z to undo');
+    e.stopPropagation();
+  } else {
+    trashEl.classList.remove('show', 'hot');
+  }
+}, {capture:true});
+
+// ---------------------------------------------------------------- productions: save / switch / new
+async function flushSave(){ dirty = true; await saveProject(); }
+async function openProjectPop(){
+  const pop = document.getElementById('projPop');
+  if(pop.classList.contains('show')){ pop.classList.remove('show'); return; }
+  const idx = (await loadProjectIndex()) || [];
+  idx.sort((a,b)=>(b.updated||0)-(a.updated||0));
+  pop.innerHTML = '<div class="xp-title">Productions</div>';
+  idx.forEach(p=>{
+    const row = document.createElement('button');
+    row.className = 'proj-row' + (p.id === currentProjectId ? ' on' : '');
+    row.textContent = p.name || 'Untitled production';
+    row.addEventListener('click', async ()=>{
+      if(p.id === currentProjectId){ pop.classList.remove('show'); return; }
+      await flushSave();
+      await window.storage.set('sd:current', p.id);
+      location.reload();
+    });
+    pop.appendChild(row);
+  });
+  const nw = document.createElement('button');
+  nw.className = 'btn primary';
+  nw.style.cssText = 'width:100%;margin-top:8px;';
+  nw.textContent = '+ New production';
+  nw.addEventListener('click', async ()=>{
+    await flushSave();
+    const id = uid();
+    const fresh = {v:4, scenes:[newShot(1)], activeSceneId:null, customProps:[], shootName:''};
+    fresh.activeSceneId = fresh.scenes[0].id;
+    await window.storage.set('sd:project:' + id, JSON.stringify(fresh));
+    const idx2 = (await loadProjectIndex()) || [];
+    idx2.push({id, name:'Untitled production', updated:Date.now()});
+    await saveProjectIndex(idx2);
+    await window.storage.set('sd:current', id);
+    location.reload();
+  });
+  pop.appendChild(nw);
+  if(idx.length > 1){
+    const del = document.createElement('button');
+    del.className = 'btn';
+    del.style.cssText = 'width:100%;margin-top:6px;color:#C0392B;';
+    del.textContent = 'Delete current production\u2026';
+    del.addEventListener('click', async ()=>{
+      if(!confirm('Delete "' + (project.shootName || 'Untitled production') + '" permanently? This cannot be undone.')) return;
+      const idx2 = ((await loadProjectIndex()) || []).filter(p=>p.id !== currentProjectId);
+      await saveProjectIndex(idx2);
+      await window.storage.delete('sd:project:' + currentProjectId).catch(()=>{});
+      await window.storage.set('sd:current', idx2[0].id);
+      location.reload();
+    });
+    pop.appendChild(del);
+  }
+  pop.classList.add('show');
+}
+document.getElementById('projBtn').addEventListener('click', openProjectPop);
+document.addEventListener('pointerdown', e=>{
+  const pop = document.getElementById('projPop');
+  if(pop.classList.contains('show') && !pop.contains(e.target) &&
+     e.target.id !== 'projBtn' && !document.getElementById('projBtn').contains(e.target)){
+    pop.classList.remove('show');
+  }
+});
+function syncProjBtn(){
+  const b = document.getElementById('projBtn');
+  if(b && project) b.textContent = (project.shootName || 'Untitled production') + ' \u25be';
+}
+setInterval(syncProjBtn, 1500);
+setTimeout(syncProjBtn, 400);
