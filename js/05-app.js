@@ -411,7 +411,10 @@ function showExportPop(kind){
   const mk = html => { p.insertAdjacentHTML('beforeend', html); };
   const chk = (id, label, val) => mk(
     `<label class="xp-row"><input type="checkbox" id="${id}" ${val?'checked':''}> ${label}</label>`);
-  mk(`<div class="xp-title">${kind==='png' ? 'Export scene as PNG' : 'Export shot list PDF'}</div>`);
+  const boardMode = BOARD_TABS.has(activeTab);
+  mk(`<div class="xp-title">${kind==='png'
+    ? (boardMode ? 'Export board as PNG' : 'Export scene as PNG')
+    : (boardMode ? 'Export board as PDF' : 'Export shot list PDF')}</div>`);
   chk('xpGrid', 'Include grid dots', prefs.grid);
   if(kind === 'pdf') chk('xpStills', 'Include recce & mood images', prefs.stills);
   mk('<div class="xp-btns"></div>');
@@ -437,7 +440,11 @@ function showExportPop(kind){
       toast('Drag a rectangle around the area to export');
     });
   } else {
-    btn('Export PDF', true, ()=>{ readPrefs(); hideExportPop(); runPDFExport(); });
+    btn('Export PDF', true, ()=>{
+      readPrefs(); hideExportPop();
+      if(boardMode) exportBoardPDF();
+      else runPDFExport();
+    });
   }
   p.classList.toggle('show');
 }

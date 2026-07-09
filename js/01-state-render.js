@@ -92,8 +92,10 @@ function migrateShot(s){
   });
 }
 let activeTab = 'design'; // design | mood | script | story | org
+const BOARD_TABS = new Set(['mood','org']);
 function activeScene(){
   if(activeTab === 'mood' && project.moodboard) return project.moodboard;
+  if(activeTab === 'org' && project.prodboard) return project.prodboard;
   return project.scenes.find(s => s.id === project.activeSceneId) || project.scenes[0];
 }
 const activeShot = activeScene; // legacy alias — every existing call site keeps working
@@ -121,6 +123,7 @@ async function loadProject(){
   }
   project.v = Math.max(project.v||0, 4);
   if(project.moodboard) migrateShot(project.moodboard);
+  if(project.prodboard) migrateShot(project.prodboard);
   if(!project.script) project.script = {text:'', type:'film'};
   if(!project.production) project.production = {company:'', lead:'', notes:'', contacts:[], locations:[]};
   if(!project.customProps) project.customProps = [];
@@ -274,7 +277,7 @@ function render(){
     ctx.fillStyle = 'rgba(60,58,52,.13)';
     const ox = (-view.x % g + g) % g * view.scale;
     const oy = (-view.y % g + g) % g * view.scale;
-    if(activeTab !== 'mood')
+    if(!BOARD_TABS.has(activeTab))
       for(let x = ox; x < W; x += gs)
         for(let y = oy; y < H; y += gs){ ctx.fillRect(x-1, y-1, 2, 2); }
   }
@@ -294,7 +297,7 @@ function render(){
   drawToolPreview();
 
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  if(activeTab !== 'mood') drawRuler(W, H);
+  if(!BOARD_TABS.has(activeTab)) drawRuler(W, H);
 
   updateSelBarPos();
   positionNoteEditor();

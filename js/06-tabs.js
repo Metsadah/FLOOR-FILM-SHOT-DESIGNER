@@ -27,7 +27,11 @@ function switchTab(t){
   } else if(t === 'story'){
     buildStoryTab();
   } else if(t === 'org'){
-    buildOrgTab();
+    ensureProdBoard();
+    buildLibrary();
+    buildOrgPanel();
+    refreshSelBar();
+    ensureShotImages(activeScene(), false).then(()=>{ zoomFitIfEmptyView(); render(); });
   }
   render();
 }
@@ -49,6 +53,61 @@ function ensureMoodboard(){
     markDirty();
   }
   migrateShot(project.moodboard);
+}
+function ensureProdBoard(){
+  if(!project.prodboard){
+    const b = newShot(0);
+    b.name = 'Production board';
+    project.prodboard = b;
+    markDirty();
+  }
+  migrateShot(project.prodboard);
+}
+
+// ---- production card library (templated notes — drag onto the board) ----
+const PROD_CARDS = [
+  ['Call sheet', '#4B6BFB', 280, 360, 'CALL SHEET',
+   'Production: \nDate: \nCrew call: \nOn set: \nLunch: \nWrap: \n\nLocation: \nAddress: \nParking: \nNearest hospital: \n\nWeather: \nSunrise / sunset: \n\nNotes: '],
+  ['Day schedule', '#E8934C', 250, 300, 'SCHEDULE',
+   '07:00  Crew call\n07:30  Build & light\n09:00  Shot 1\n11:00  Shot 2\n13:00  Lunch\n14:00  Shot 3\n17:30  Last looks\n18:00  Wrap'],
+  ['Contact card', '#5B6472', 230, 170, 'CONTACT',
+   'Role: \nName: \nPhone: \nEmail: \nCall time: '],
+  ['Location card', '#3E9B6E', 250, 250, 'LOCATION',
+   'Name: \nAddress: \nParking: \nPower: \nToilets: \nAccess / keys: \nNotes: '],
+  ['Checklist', '#8B5CF6', 230, 260, 'CHECKLIST',
+   '\u2610 Camera batteries\n\u2610 Media cards\n\u2610 Release forms\n\u2610 Catering confirmed\n\u2610 Parking arranged\n\u2610 Backup drive'],
+  ['Weather card', '#4CA6E8', 230, 200, 'WEATHER',
+   'Date: \nForecast: \nTemp: \nWind: \nRain chance: \nSunrise: \nSunset: '],
+];
+function buildProdLibSection(lib){
+  const h = document.createElement('div');
+  h.className = 'side-head';
+  h.style.marginTop = '10px';
+  h.textContent = 'Production cards';
+  lib.appendChild(h);
+  const grid = document.createElement('div');
+  grid.className = 'lib-grid';
+  for(const [name, color, w, hh, label, text] of PROD_CARDS){
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      drawNoteShape(tc, {w:w2, h:h2, color, text:''}, true);
+      tc.fillStyle = color;
+      tc.fillRect(-w2*.32, -h2*.3, w2*.64, 4);
+      tc.globalAlpha = .5;
+      for(const y2 of [-h2*.08, h2*.1, h2*.28]) tc.fillRect(-w2*.32, y2, w2*.64, 2.5);
+      tc.globalAlpha = 1;
+    }, 100, 100, color));
+    el.insertAdjacentHTML('beforeend', '<span>' + esc(name) + '</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'note', kind:'note', color,
+      props:{label, text, w, h:hh, color}}));
+    grid.appendChild(el);
+  }
+  lib.appendChild(grid);
+  const tip = document.createElement('div');
+  tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 10px;line-height:1.5;';
+  tip.textContent = 'Tip: drop a map screenshot or location photo straight onto the board (or paste with Cmd+V) — the Underlay toggle works here too.';
+  lib.appendChild(tip);
 }
 
 // ---------------------------------------------------------------- script tab
@@ -206,7 +265,12 @@ function buildStoryTab(){
     const sr = document.createElement('tr');
     sr.className = 'sceneRow';
     const heading = [sc.scene ? 'Scene ' + sc.scene : sc.name, sc.sceneDesc].filter(Boolean).join(' — ');
-    sr.innerHTML = '<td colspan="5">' + esc(heading) + '</td>';
+    const excerpt = (sc.script || '').trim().replace(/\s+/g, ' ').slice(0, 160);
+    sr.innerHTML = '<td colspan="5">' +
+      '<img class="sb-thumb" data-scene="' + sc.id + '" alt="">' +
+      '<div style="padding-top:14px">' + esc(heading) + '</div>' +
+      (excerpt ? '<div class="sb-excerpt">' + esc(excerpt) + (sc.script.length > 160 ? '\u2026' : '') + '</div>' : '') +
+      '</td>';
     const openTd = document.createElement('td');
     const openBtn = document.createElement('button');
     openBtn.className = 'btn';
@@ -270,7 +334,19 @@ function buildStoryTab(){
   host.appendChild(tbl);
   if(!project.scenes.length){
     host.innerHTML = '<div class="bd-scene">No scenes yet — create them in the Shot designer, or break down a script in the Script tab.</div>';
+    return;
   }
+  // async mini top-view per scene (sequential — renderShotPlan swaps globals)
+  (async ()=>{
+    for(const sc of project.scenes){
+      const img = host.querySelector('img.sb-thumb[data-scene="' + sc.id + '"]');
+      if(!img) continue;
+      try{
+        await ensureShotImages(sc, false);
+        img.src = renderShotPlan(sc, 260, null, false).toDataURL('image/jpeg', .75);
+      }catch(e){ /* leave placeholder */ }
+    }
+  })();
 }
 function buildRefCell(td, sh){
   td.innerHTML = '';
@@ -307,14 +383,16 @@ function pickRef(sh, td){
   fi.click();
 }
 
-// ---------------------------------------------------------------- production tab
-function buildOrgTab(){
+// ---------------------------------------------------------------- production panel (right side of the board)
+function buildOrgPanel(){
   project.production = project.production || {company:'', lead:'', notes:'', contacts:[], locations:[]};
   const p = project.production;
   const host = document.getElementById('orgContent');
   host.innerHTML = '';
   const grid = document.createElement('div');
   grid.className = 'org-grid';
+  grid.style.gridTemplateColumns = '1fr'; // single column inside the panel
+  grid.style.padding = '12px';
   host.appendChild(grid);
 
   const card = title=>{
@@ -386,3 +464,106 @@ function buildOrgTab(){
   addL.addEventListener('click', ()=>{ p.locations.push({name:'',address:'',parking:'',notes:''}); markDirty(); renderLocs(); });
   c3.appendChild(addL);
 }
+
+
+// ---------------------------------------------------------------- per-tab exports
+document.getElementById('scriptExportBtn').addEventListener('click', ()=>{
+  const text = (project.script && project.script.text) || '';
+  if(!text.trim()){ toast('Nothing to export yet'); return; }
+  const a = document.createElement('a');
+  a.download = ((project.shootName || 'floor') + '-script.txt').replace(/\s+/g, '_');
+  a.href = URL.createObjectURL(new Blob([text], {type:'text/plain'}));
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+});
+document.getElementById('storyCsvBtn').addEventListener('click', ()=>{
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [['#','Scene','Shot','Description','Cameras'].map(q).join(',')];
+  let n = 0;
+  for(const sc of project.scenes){
+    const cams = sc.objects.filter(o=>o.cat==='camera');
+    for(const sh of (sc.shots || [])){
+      n++;
+      const scams = cams.filter(c=>c.shotId===sh.id);
+      rows.push([n,
+        [sc.scene ? 'Sc ' + sc.scene : sc.name, sc.sceneDesc].filter(Boolean).join(' — '),
+        sh.name || '', sh.desc || '',
+        scams.map(c=>[c.lens?c.lens+'mm':'', c.framing, c.support].filter(Boolean).join(' ')).join(' | '),
+      ].map(q).join(','));
+    }
+  }
+  if(rows.length === 1){ toast('No shots yet — add some in the Storyboard or Shot designer'); return; }
+  const a = document.createElement('a');
+  a.download = ((project.shootName || 'floor') + '-shotlist.csv').replace(/\s+/g, '_');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.join('\n')], {type:'text/csv'}));
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+});
+
+// single-board PDF (moodboard / production board) — A4 landscape, image fitted
+async function exportBoardPDF(){
+  const board = activeScene();
+  await ensureShotImages(board, false);
+  const plan = renderShotPlan(board, 1800, null, false);
+  const jpeg = atob(plan.toDataURL('image/jpeg', .82).split(',')[1]);
+  const PW = 842, PH = 595, M = 28;
+  const maxW = PW - M*2, maxH = PH - M*2 - 20;
+  const k = Math.min(maxW/plan.width, maxH/plan.height);
+  const iw = plan.width*k, ih = plan.height*k;
+  const ix = (PW - iw)/2, iy = (PH - 20 - ih)/2;
+  const title = ((project.shootName ? project.shootName + ' \u2014 ' : '') + board.name)
+    .replace(/[()\\]/g, '');
+  const content = 'q ' + iw.toFixed(2) + ' 0 0 ' + ih.toFixed(2) + ' ' + ix.toFixed(2) + ' ' + iy.toFixed(2) +
+    ' cm /Im1 Do Q\nBT /F1 13 Tf ' + M + ' ' + (PH - M + 6) + ' Td (' + title + ') Tj ET';
+  const objs = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] ' +
+      '/Resources << /XObject << /Im1 5 0 R >> /Font << /F1 6 0 R >> >> /Contents 4 0 R >>',
+    '<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream',
+    '<< /Type /XObject /Subtype /Image /Width ' + plan.width + ' /Height ' + plan.height +
+      ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpeg.length +
+      ' >>\nstream\n' + jpeg + '\nendstream',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objs.forEach((o, i)=>{
+    offsets.push(pdf.length);
+    pdf += (i+1) + ' 0 obj\n' + o + '\nendobj\n';
+  });
+  const xref = pdf.length;
+  pdf += 'xref\n0 ' + (objs.length+1) + '\n0000000000 65535 f \n';
+  for(let i=1;i<=objs.length;i++) pdf += String(offsets[i]).padStart(10,'0') + ' 00000 n \n';
+  pdf += 'trailer\n<< /Size ' + (objs.length+1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF';
+  const bytes = new Uint8Array(pdf.length);
+  for(let i=0;i<pdf.length;i++) bytes[i] = pdf.charCodeAt(i) & 0xFF;
+  const a = document.createElement('a');
+  a.download = (board.name.replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') || 'board') + '.pdf';
+  a.href = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+
+// ---------------------------------------------------------------- paste images onto boards
+// Copy a still anywhere (ShotDeck, Frameset, a browser tab) and Cmd/Ctrl+V it in.
+document.addEventListener('paste', async e=>{
+  if(activeTab === 'script' || activeTab === 'story') return;
+  const tag = document.activeElement && document.activeElement.tagName;
+  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+  const items = [...(e.clipboardData && e.clipboardData.items || [])]
+    .filter(i=>i.type.startsWith('image/'));
+  if(!items.length) return;
+  e.preventDefault();
+  const c = toWorld(wrap.clientWidth/2, wrap.clientHeight/2);
+  let off = 0;
+  for(const it of items){
+    const file = it.getAsFile();
+    if(!file) continue;
+    try{
+      await addBoardImage(file, c.x + off, c.y + off);
+      off += 34;
+    }catch(err){ toast('Could not store that image — try a smaller one'); }
+  }
+  if(off) toast('Pasted onto the board');
+});

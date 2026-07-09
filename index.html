@@ -30,8 +30,8 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
 <div id="app">
   <div id="topbar">
     <button class="btn drawer-btn" id="libToggle" title="Shots &amp; library">☰</button>
-  <div class="logo"><div class="dot"></div>FLOOR<span style="font-weight:400;color:var(--ink2);font-size:11.5px;margin-left:2px">Film Shot Designer</span></div>
-    <input id="shotTitle" title="Rename shot" spellcheck="false">
+  <div class="logo"><div class="dot"></div><div class="logo-txt"><span class="logo-name">FLOOR</span><span class="logo-tag">the floor is yours</span></div></div>
+    <span id="sceneLbl">SCENE</span><input id="shotTitle" title="Rename scene" spellcheck="false">
     <div class="topbar-right">
       <button class="btn drawer-btn" id="panelToggle" title="Shot info &amp; stills">☷</button>
       <button class="btn" id="installBtn" title="Install FLOOR as an app" style="display:none">Install app</button>
@@ -46,11 +46,11 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
   </div>
 
   <div id="tabbar">
-    <button data-tab="mood">Moodboard</button>
-    <button data-tab="script">Script</button>
-    <button data-tab="story">Storyboard</button>
-    <button data-tab="design" class="on">Shot designer</button>
-    <button data-tab="org">Production</button>
+    <button data-tab="mood"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="1.5"/><rect x="13" y="3" width="8" height="6" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="15" width="8" height="6" rx="1.5"/></svg>Moodboard</button>
+    <button data-tab="script"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 11h7M9 14.5h7M9 18h4"/></svg>Script</button>
+    <button data-tab="story"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 10v10"/></svg>Storyboard</button>
+    <button data-tab="design" class="on"><svg viewBox="0 0 24 24"><path d="M3 21V8l6-5 6 5M9 21v-8h6v8M3 21h18M15 12h6"/><circle cx="18" cy="7" r="2.2"/></svg>Shot designer</button>
+    <button data-tab="org"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4M9 9.5h6M9 13h6M9 16.5h4"/></svg>Production</button>
   </div>
   <div class="tabPageFull" id="tabScript">
     <div class="tp-inner">
@@ -63,6 +63,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
             <option value="film">Film script</option>
             <option value="av">AV script (two-column)</option>
           </select>
+          <button class="btn" id="scriptExportBtn">Export .txt</button>
           <button class="btn primary" id="breakdownBtn">Break down script</button>
         </div>
       </div>
@@ -74,18 +75,15 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
     <div class="tp-inner">
       <div class="tp-head">
         <h2>Storyboard / shot list</h2>
-        <div class="tp-actions"><span class="tp-hint">Linear order · edit descriptions inline · add a reference image per shot · "Open" jumps to that scene's board</span></div>
+        <div class="tp-actions">
+          <span class="tp-hint">Linear order · edit inline · reference image per shot</span>
+          <button class="btn" id="storyCsvBtn">Export CSV</button>
+        </div>
       </div>
       <div id="storyTable"></div>
     </div>
   </div>
-  <div class="tabPageFull" id="tabOrg">
-    <div class="tp-inner">
-      <div class="tp-head"><h2>Production</h2></div>
-      <div id="orgContent"></div>
-      <div class="tp-note">Call sheets and day planning are next on the roadmap — everything you fill in here feeds straight into them.</div>
-    </div>
-  </div>
+
   <div id="main">
     <!-- left -->
     <div id="sidebar">
@@ -150,6 +148,10 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="tabs">
         <button data-tab="info" class="on">Shot info</button>
         <button data-tab="stills">Recce &amp; mood</button>
+      </div>
+      <div id="orgPanel">
+        <div id="orgContent"></div>
+        <div class="tp-note" style="margin:12px">Call sheets &amp; day planning generate from this data next phase — and from any call-sheet cards you drag onto the board.</div>
       </div>
       <div class="tabPage on" data-page="info">
         <div id="infoForm">

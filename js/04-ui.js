@@ -495,7 +495,7 @@ function libTile(spec){
 function buildLibrary(){
   const lib = document.getElementById('library');
   lib.innerHTML = '';
-  for(const cat of (activeTab === 'mood' ? [] : CATS)){
+  for(const cat of (BOARD_TABS.has(activeTab) ? [] : CATS)){
     const head = document.createElement('div');
     head.className = 'cat-head' + (cat.open ? '' : ' closed');
     head.innerHTML = `<span class="arr">▼</span>${esc(cat.name)}`;
@@ -577,6 +577,7 @@ function buildLibrary(){
     props:{label:'PRODUCTION',
       text:'Company: \nDirector: \nDoP: \nProduction lead: \nCrew call: \n\nLocation: \nAddress: \nParking: \nPower: \n\nContacts: '}});
   lib.appendChild(bh); lib.appendChild(bg);
+  if(activeTab === 'org' && typeof buildProdLibSection === 'function') buildProdLibSection(lib);
 
   // Custom section
   const ch = document.createElement('div');
