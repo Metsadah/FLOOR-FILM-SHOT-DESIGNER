@@ -14,8 +14,8 @@
 
 (function(){
   // ── 1. PASTE YOUR VALUES HERE ─────────────────────────────────────
-  const SUPABASE_URL      = 'PASTE_YOUR_PROJECT_URL_HERE';      // e.g. https://abcdefgh.supabase.co
-  const SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_PUBLIC_KEY_HERE';  // Settings → API → anon public
+  const SUPABASE_URL      = 'https://jcasjylzosgtitaxbrjo.supabase.co'; // FLOOR - FILM SHOT DESIGNER (eu-west-1)
+  const SUPABASE_ANON_KEY = 'sb_publishable_Hon-GqliiypoM52l6uuUaA_w4UFkfdB'; // publishable key 'floor_shot_designer' (safe to be public — data is protected by RLS)
   // ──────────────────────────────────────────────────────────────────
 
   if(!window.supabase){
