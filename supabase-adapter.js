@@ -20,6 +20,15 @@
 
   if(!window.supabase){
     console.warn('[FLOOR] supabase-js not loaded — falling back to local storage.');
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const b = document.createElement('div');
+      b.style.cssText = 'position:fixed;bottom:14px;left:50%;transform:translateX(-50%);' +
+        'background:#33322E;color:#fff;font:12px -apple-system,Segoe UI,sans-serif;' +
+        'padding:9px 14px;border-radius:9px;z-index:300;box-shadow:0 8px 30px rgba(0,0,0,.25)';
+      b.textContent = 'Cloud login could not start (Supabase library failed to load) — working locally instead.';
+      document.body.appendChild(b);
+      setTimeout(()=>b.remove(), 8000);
+    }, {once:true});
     return;
   }
   if(SUPABASE_URL.startsWith('PASTE')){

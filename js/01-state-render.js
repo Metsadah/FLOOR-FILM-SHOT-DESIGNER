@@ -57,7 +57,7 @@ const wrap = document.getElementById('canvasWrap');
 const WEATHERS = ['Any','Sunny','Partly cloudy','Overcast','Golden hour','Blue hour','Rain','Fog','Snow','Night'];
 
 function newShot(n){
-  return {id:uid(), name:'Shot '+n, walls:[], objects:[], stills:[],
+  return {id:uid(), name:'Scene '+n, walls:[], objects:[], stills:[],
     scene:'', sceneDesc:'', script:'', date:'', time:'', duration:60, weather:'Any', sun:null};
 }
 function migrateShot(s){
