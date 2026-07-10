@@ -1,203 +1,220 @@
-# FLOOR — Product Roadmap
-### From shot designer to pre-production suite
+# FLOOR Studio — Product Roadmap
+### the floor is yours
 
-*Working document — revise as reality intervenes.*
+*Working document — v0.11, July 2026. Revise as reality intervenes.*
 
 ---
 
-## The strategic idea
+## The strategic idea (unchanged, still true)
 
 Every serious pre-production tool (StudioBinder, Celtx, Yamdu) starts from
-**documents** — scripts, breakdowns, call sheets — and treats the visual side as
-an afterthought. FLOOR starts from the **space**: the floor plan, the blocking,
-the camera. That's the wedge. Nobody else does top-down blocking well, and it's
-the thing crews actually gather around.
+**documents** and treats the visual side as an afterthought. FLOOR starts from
+the **space**: the canvas, the blocking, the camera. Keep the board as the
+heart; let every module be a different view of the same data.
 
-So the strategy is not "clone StudioBinder." It's: **keep the board as the
-heart, and let every other module be a different view of the same data.**
-
-The insight that makes the whole roadmap tractable: a script breakdown, a shot
-list, a schedule, and a call sheet are not four features. They are **four
-projections of one data model**:
+A breakdown, a shot list, a schedule, and a call sheet are **four projections
+of one data model**:
 
 ```
-Project
- ├─ People        (cast, crew, contacts, roles)
- ├─ Locations     (address, parking, power, hospital, sun orientation)
- ├─ Elements      (props, wardrobe, vehicles, gear — much already exists as board props)
- ├─ Scenes        (from script: INT/EXT, location, day/night, cast, elements)
- │    └─ Shots    (the boards FLOOR already has: blocking, cameras, framing, script)
- └─ Shoot days    (scenes scheduled onto days → call sheet = shoot day + people + location)
+Production
+ ├─ People        (crew, cast, client — one registry, many views)
+ ├─ Locations     (address, parking, power, hospital)
+ ├─ Scenes        (from script: heading, day/night, cast)
+ │    └─ Shots    (cameras on boards — every camera maps to one shot)
+ ├─ Boards        (moodboard, script & storyboard, production, scene boards)
+ └─ Shoot days    (scenes onto days → call sheet = day + people + location + weather)
 ```
 
-Get this model right in Phase 0 and every later feature becomes a view + an
-export. Get it wrong and every feature is a rewrite.
+---
+
+## Where we actually are (v0.11)
+
+**Done, live on Netlify:**
+- Multi-file architecture (no build step — deliberate; Vite waits until npm
+  dependencies force it). Self-hosted vendor libs (supabase-js, pdf.js).
+- Supabase Stage 2: magic-link login, cloud saves, RLS-protected kv storage.
+- Multi-production support (switcher, create/rename/delete).
+- Four-tab studio on one canvas engine: Moodboard · Script & Storyboard ·
+  Shot designer · Production.
+- Script blocks (film + 2-column AV), imports (.txt/.fountain/.fdx/.pdf),
+  rule-based breakdown → scenes + cast + linked storyboard rows.
+- Board objects: notes, text, images (captions), links (auto title+preview),
+  to-dos, self-sizing tables, color cards, files (PDF previews), audio cards,
+  live weather (Open-Meteo/GFS), production card templates.
+- Contextual exports (PNG / board PDF / scene-pages PDF), contextual help,
+  trash can, paste-from-clipboard, PWA.
+
+**Deliberately deferred:** Edge Functions (lands with the first external-API
+feature), images in Supabase Storage buckets (lands with sharing — see below).
 
 ---
 
-## Phase 0 — Foundation (before adding any features)
+## Next up A — Production tab 2.0  ⭐ current priority
 
-**Goal: make the codebase and data model able to carry a suite.**
+**The vision.** The Production tab becomes a full canvas — the right-side
+forms panel goes away entirely. Everything the shoot day needs lives as
+**smart cards** on the board. The reference target is the real Zout Water
+call sheet (MAX Badkamers TVC): production header + general call, per-role
+call times, sunrise/sunset/weather, location block with parking notes, crew
+table with phone + email. What the cards hold today, the call-sheet
+generator (Next up C) prints tomorrow.
 
-1. **Split the single file.** The one-file architecture was right for v1; it
-   won't carry ten modules. Move to a small Vite project (still vanilla JS or
-   light framework), deployed automatically to GitHub Pages / Cloudflare Pages
-   via GitHub Actions. Same hosting cost: €0.
-2. **Introduce the entity model above** with a schema version number and
-   explicit migrations (the `migrateShot` pattern, formalized). Current
-   projects must import losslessly: today's shots become Scenes+Shots with
-   defaults.
-3. **Ship Supabase Stage 2 properly**: magic-link auth, projects table,
-   images in Supabase Storage buckets (drop the aggressive downscaling),
-   row-level security. The adapter already exists — this is wiring + testing.
-4. **Add a server-side layer for secrets**: Supabase Edge Functions. Needed the
-   moment FLOOR calls any external API (Claude for breakdowns, weather,
-   Frame.io) — API keys can never live in a public HTML file.
+**The core rework: from text templates to smart cards.** Today's production
+cards are pre-filled sticky notes — flexible but dumb: no structure, nothing
+downstream can read "who is the gaffer." Smart cards are **structured,
+field-based objects** on canvas, built on machinery that already exists (the
+table renderer, cell editor, Tab/Enter chains, + chips):
 
-*Rough effort: 2–4 focused weekends. Nothing user-visible except login.*
+- **Field cards** — label:value rows (Production info, Location). Click a
+  value to edit; Tab hops fields; empty fields render as light placeholders.
+- **List cards** — repeating rows with typed columns (Crew, Cast, Client
+  contacts, Schedule, Checklist 2.0). Enter adds a row; rows reorder by drag.
+
+**The single source of truth: a People registry.** One list per production:
+`{name, role, phone, email, tag: crew|cast|client, call}`. The **Crew card**,
+**Cast card**, and **Client card** are *filtered views* of this registry —
+add a person on any card and they exist everywhere; edit a phone number once.
+This is the deep design decision: cards are windows, not silos. The registry
+also feeds @-style pickers later (storyboard "who's in this scene", call
+sheet recipients, comment mentions).
+
+**Easy contact entry, three ways:**
+1. Type in the card (Tab/Enter flow, like the tables today).
+2. **Paste a block** — "Arthur Vis, gaffer, +31 6 439..., arthur@..." per
+   line; FLOOR parses name/role/phone/email heuristically, shows a preview,
+   you confirm. Handles the "I have this in WhatsApp/mail already" reality.
+3. Later: import from the breakdown (cast names detected in the script
+   auto-seed the registry, tagged cast).
+
+**Checklist 2.0** = the to-do object (already cell-based) + named templates:
+camera dept, grip/light, location scout, wrap — pick a template, get a
+pre-filled editable checklist.
+
+**Migration:** existing `production.contacts`/`locations` data folds into the
+registry on first load; the org side panel is deleted; existing template
+notes on boards stay as plain notes (nothing breaks).
+
+### Implementation milestones + prompts (paste these when ready)
+
+**Milestone P1 — the registry + Crew/Cast/Client cards**
+> Rework the Production tab: remove the right-side org panel entirely (fold
+> its data into a new per-production People registry:
+> `project.production.people = [{id, name, role, phone, email, tag, call}]`,
+> migrating existing contacts). Build a new "list card" canvas object type on
+> the table machinery: typed columns, click-to-edit cells, Tab/Enter flow,
+> + chip to add rows, drag rows to reorder, self-sizing. Ship three cards in
+> the Production library — Crew, Cast, Client — each a filtered live view of
+> the registry (tag=crew/cast/client): adding a row adds a person to the
+> registry, edits sync across cards. Crew card columns: Role, Name, Call,
+> Phone, Email — matching a Dutch call sheet crew table.
+
+**Milestone P2 — field cards + paste-to-import**
+> Add a "field card" object (label:value rows, placeholders when empty,
+> Tab between values) and ship: Production info card (production name, company,
+> address, email, phone — prefilled from the production) and Location card
+> (name, address, parking, power, hospital, notes). Add paste-to-import on
+> Crew/Cast/Client cards: paste multi-line text, parse name/role/phone/email
+> per line heuristically, show a confirm preview, then insert into the
+> registry. Rework the checklist into Checklist 2.0: template picker
+> (camera / grip & light / location / wrap / blank) on drop.
+
+**Milestone P3 — the call-time block + sunrise/sunset**
+> Add a "Day header" card: date picker, general call time (big), shooting
+> call, est. wrap, and computed sunrise/sunset (client-side solar math from
+> the location card's place, geocoded once via Open-Meteo). Visually echo a
+> Dutch call sheet header. This card + Crew card + Location card + Weather
+> card become the direct inputs to the call-sheet PDF generator.
 
 ---
 
-## Phase 1 — Single-user depth ("indispensable for your own shoots")
+## Next up B — Sharing & comments (was "Phase 2", now scoped)
 
-Build what feeds Zout Water productions directly. Dogfood everything.
+The agreed ladder, cheap → hard. Sequence: **1 → 2 → (validate) → 3**. Live
+co-editing (4) stays parked until real teams demand it.
 
-### 1.1 Script import & automatic breakdown  ⭐ the headline feature
-- **Import formats:** Fountain (plain-text screenplay standard — trivial to
-  parse), Final Draft `.fdx` (XML — well documented), PDF (hardest; OCR-ish
-  heuristics, do last). **AV scripts** (two-column audio/video, common in
-  commercial work — usually .docx/tables): parse rows into scenes/shots. This
-  matters because your commercial work is AV-script-shaped, not
-  screenplay-shaped; most competitors ignore AV entirely. **Second wedge.**
-- **Rule-based pass:** scene headings → INT/EXT, location, day/night;
-  character names from dialogue cues; capitalized recurring nouns → candidate
-  props.
-- **AI pass (Claude via Edge Function):** tag elements per scene (cast, props,
-  wardrobe, vehicles, SFX, animals…), suggest shot ideas per scene, flag
-  continuity items. Human-reviewable — breakdowns are suggestions, the user
-  confirms. Usage-metered (this becomes a paid-tier feature; it has real
-  per-use cost).
-- Each scene auto-creates in the Scenes list; one click spawns a linked FLOOR
-  board per scene/shot.
-
-### 1.2 Shot list view
-A sortable table of every shot across scenes (number, scene, framing, lens,
-support, movement, description, status). The data already exists on the
-boards — this is a view + CSV/PDF export. Cheap to build, high daily value.
-
-### 1.3 Scheduling (stripboard)
-Drag scenes onto shoot days. Show per-day totals (pages/shots), cast
-day-out-of-days grid. Keep v1 simple: manual dragging, no auto-optimizer.
-
-### 1.4 Automatic call sheets  ⭐ the other headline
-Generated from: shoot day (scenes → shots → cast/elements needed) + Location
-(address, parking, hospital) + People (roles, phones, call times) + computed
-**sunrise/sunset** (pure client-side math from date + coordinates) + **weather**
-(Open-Meteo, free, no key). Output: a clean PDF matching NL industry
-conventions, bilingual NL/EN template. Later: send + track (Phase 2).
-
-### 1.5 Moodboards & gear lists
-- Moodboard canvas per scene/shot — the stills system, freed from the shot
-  plan (Milanote-style freeform boards).
-- Gear checklist generated from what's placed on boards (every jib, HMI and
-  truss you drag in is already structured data) + manual additions.
-
-*Sequencing within Phase 1: shot list → call sheets → script import →
-scheduling → moodboards. Ship each alone; each is independently useful.*
+1. **Project export/import** (.floorproj JSON incl. images). Backup +
+   "send a frozen copy." A day of work; ship anytime.
+2. **Read-only share links + comments** ⭐ recommended next after Production
+   2.0. Snapshot the production into a shared table under a random token;
+   `?view=TOKEN` opens a locked viewer mode (no tools, no save). Comments are
+   a separate table (position-pinned, Supabase Realtime), so commenters
+   physically can't touch project data. RLS does the enforcement.
+   *Prereq bundled here: move images/files from kv to Supabase Storage
+   buckets — share links are broken without shared assets, and kv was never
+   the right home for base64 blobs anyway.*
+3. **Memberships & roles**: productions get their own table + members list
+   (owner / editor / commenter / viewer), RLS per role. Invites as
+   role-carrying codes/links redeemed after magic-link login (no server code
+   needed); email invites arrive with Edge Functions. Async editing guard:
+   "X opened this production N minutes ago" + per-board saves. **No
+   simultaneous editing yet** — last-write-wins with a warning.
+4. **Live co-editing** (CRDTs — Yjs + provider): a save-layer re-architecture,
+   not a feature. Only when teams ask.
 
 ---
 
-## Phase 2 — Collaboration
+## Next up C — the rest of Phase 1 (unchanged priorities)
 
-In honesty order — from cheap to genuinely hard:
-
-1. **Share links** (read-only / comment-only): signed URL to a project. RLS
-   policy + a viewer mode. Days of work, huge client value.
-2. **Comments**: pinned to shots/boards Figma-style, with mentions. A comments
-   table + realtime subscription (Supabase Realtime handles this fine).
-3. **Members & roles**: owner / editor / viewer per project.
-4. **Call sheet distribution**: email via an Edge Function (Resend or similar),
-   with per-recipient "confirmed" tracking — the SetHero feature crews love.
-5. **Live co-editing** ⚠️ the hard one. Today FLOOR saves whole-project JSON;
-   simultaneous editing needs per-object sync and conflict resolution (CRDTs —
-   Yjs + a provider like Liveblocks/PartyKit, or y-supabase). This is a
-   re-architecture of the save layer, not a feature. Do it only when real
-   teams ask for it; until then, presence indicators + "last write wins with
-   warning" covers 90% of two-person use.
+- **1.4 Automatic call sheets** ⭐ — generated from Production 2.0 cards +
+  registry + live weather + sunrise/sunset. Output: one-page PDF matching the
+  Zout Water sheet, NL/EN. (Production 2.0 exists to make this a *view*.)
+- **AI breakdown pass** (Claude via Supabase Edge Functions — the agreed
+  first Edge Function): element tagging per scene, AV-script intelligence,
+  shot suggestions. Metered, Pro-tier.
+- **Scheduling (stripboard)**: scenes onto shoot days; day-out-of-days later.
+- **Shot list table view**: sortable cross-scene table + CSV (storyboard rows
+  cover part of this; the flat table still has producer value).
 
 ---
 
 ## Phase 3 — Integrations & ecosystem
 
-- **Frame.io** (Adobe): OAuth via Edge Function; link review clips to shots,
-  pull review comments into FLOOR's comments. Natural fit — pre-production in
-  FLOOR, review in Frame.io. *(Note: if by "frameset" you meant frameset.app —
-  the licensed film-still reference library — that's a moodboard integration
-  instead: search reference frames from real films inside the moodboard. Worth
-  checking whether they expose an API before promising it. Both are worth
-  pursuing; they serve different moments in the workflow.)*
-- **Calendar**: ICS feed per project (shoot days + call times) → subscribable
-  in Google/Apple Calendar. Cheap, loved.
-- **Maps on call sheets**: static map + parking pin. OpenStreetMap tiles are
-  free and license-clean; Google Static Maps needs a billed key.
-- **Deeper exports**: nicer PDF theming (crew-facing vs client-facing),
-  CSV everywhere, and — niche but pro — Movie Magic / Final Draft round-trips
-  if users ask.
+- **Frame.io** (OAuth via Edge Function): review clips linked to shots.
+- **ShotDeck / Frameset**: no public APIs (checked) — paste-from-clipboard is
+  the workflow, already shipped. Revisit if they open APIs.
+- **Calendar**: ICS feed per production (shoot days + calls).
+- **Maps on call sheets**: OSM static tiles (free, license-clean).
 
 ---
 
 ## Phase 4 — The business layer
 
-- **Tiers** (aligned with what things cost you):
-  - **Free** — local-only, full shot designer, watermark-free exports. The
-    funnel and the goodwill.
-  - **Pro** (€/month or €/year) — cloud sync, script breakdown (AI-metered),
-    call sheets, share links.
-  - **Team** — members/roles, distribution tracking, live collab when it lands.
-- **Payments:** Paddle or Lemon Squeezy as merchant of record (they handle EU
-  VAT — you invoice one counterparty). License state lives in Supabase.
-- **Legal:** ToS + privacy policy (GDPR — you're storing crew contact data,
-  that's personal data with real obligations). Get the VAT/entity setup
-  checked by your accountant.
-- **Marketing:** landing page (the Zout Water repositioning muscles apply
-  directly), template gallery, NL film community first — you have the network.
+- **Tiers:** Free (local, full designer) · Pro (cloud, AI breakdown, call
+  sheets, share links) · Team (members/roles, distribution).
+- **Payments:** Paddle / Lemon Squeezy as merchant of record (EU VAT solved).
+- **Legal:** GDPR matters *more* after Production 2.0 — the People registry
+  is precisely "personal data of third parties." Privacy policy before any
+  sharing feature ships crew contacts to other users.
+- **Marketing:** NL film community first; FLOOR as Zout Water's calling card
+  is a success state, not a fallback.
 
 ---
 
-## Hosting & infra evolution
+## Hosting & infra
 
 | Stage | Hosting | Backend | Cost |
 |---|---|---|---|
-| Now | GitHub Pages | IndexedDB (local) | €0 |
-| Phase 0–1 | Cloudflare Pages or Netlify (build step, previews) | Supabase free tier + Edge Functions | €0 |
-| Phase 2+ | same | Supabase Pro (storage, realtime, backups) | ~€25/mo |
-| AI features | — | Claude API, metered per breakdown | usage-based → price into Pro tier |
+| Now (v0.11) | Netlify drag-and-drop | Supabase free (kv + auth) | €0 |
+| Sharing | Netlify | + Storage buckets, shared tables, Realtime | €0 → ~€25/mo at scale |
+| AI features | Netlify | + Edge Functions + Claude API (metered) | usage-based |
 
 ---
 
-## Honest risks
+## Honest risks (updated)
 
-1. **Scope.** This roadmap is, collectively, what StudioBinder employs a
-   company to build. The defense is ruthless sequencing: every item ships
-   alone and is useful alone. Never two half-features.
-2. **Solo founder + freelance filmmaking.** FLOOR competes with billable
-   days. Decide per-phase whether it's still fun/strategic. The exit ramp at
-   every phase: FLOOR as a free portfolio tool that markets Zout Water is a
-   *success state*, not a failure.
-3. **Validate before Phase 2.** Collab and payments are where effort explodes.
-   Before building them, put Phase 1 in the hands of 5–10 working filmmakers
-   (you know them) and watch what they actually use. Their behavior — not
-   their compliments — decides Phase 2.
-4. **The AI breakdown needs a cost story from day one.** Metered, Pro-only,
-   with visible limits. Free unlimited AI is how side projects die.
+1. **Scope** — unchanged, still the big one. Defense: every item ships alone.
+2. **The registry is a data-model commitment.** People-as-registry (P1) is
+   the kind of decision that's cheap now and a rewrite later — which is why
+   Production 2.0 precedes call sheets and sharing.
+3. **Validate before memberships.** Share links + comments will reveal
+   whether anyone actually collaborates. Watch behavior, not compliments.
+4. **GDPR before sharing crew data.** Non-negotiable ordering.
 
 ---
 
 ## Suggested next three moves
 
-1. Ship Stage 2 (Supabase login + cloud saves) — everything else stacks on it.
-2. Build the **shot list table view** — smallest step toward "suite," instant
-   daily value, forces the Scene/Shot data model into existence.
-3. Prototype the **AV script parser** with one real Zout Water script — if the
-   breakdown magic works on your own commercial work, that demo sells the
-   whole vision.
+1. **Production 2.0, milestone P1** (registry + Crew/Cast/Client cards).
+2. **P2 + P3** (field cards, paste-import, day header) → then the
+   **call-sheet PDF generator** while the cards are fresh.
+3. **Share links + comments** (with the Storage-bucket move bundled in).
