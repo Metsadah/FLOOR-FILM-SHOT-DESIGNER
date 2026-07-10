@@ -536,3 +536,6 @@ body.tab-write #sceneLbl{ display:none !important; }
 .proj-name:focus{ outline:none; border-color:var(--accent); }
 
 .note-ta.solid{ background:#fff; }
+
+/* the scene name field belongs to the shot designer only */
+body.tab-mood #shotTitle, body.tab-write #shotTitle, body.tab-org #shotTitle{ display:none !important; }

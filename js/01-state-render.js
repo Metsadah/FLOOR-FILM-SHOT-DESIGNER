@@ -867,7 +867,8 @@ function drawObjectShape(o, ghost){
       ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-      return;
+      ctx.restore(); // balance the outer save — an early return without this
+      return;        // leaked the transform and broke every draw after it
     }
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
     ctx.fillStyle = '#fff'; ctx.fill();
