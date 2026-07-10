@@ -539,3 +539,7 @@ body.tab-write #sceneLbl{ display:none !important; }
 
 /* the scene name field belongs to the shot designer only */
 body.tab-mood #shotTitle, body.tab-write #shotTitle, body.tab-org #shotTitle{ display:none !important; }
+
+.helpSec{ display:none; }
+.helpSec.on{ display:block; }
+#verChip{ font-size:10px; color:var(--ink2); letter-spacing:.6px; align-self:center; margin-right:4px; }

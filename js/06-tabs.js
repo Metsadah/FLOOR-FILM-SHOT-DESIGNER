@@ -344,29 +344,31 @@ async function toggleAudio(o){
     toast('Could not play that file');
   }
 }
+async function addBoardAudioAt(file, x, y){
+  if(file.size > 8*1024*1024){ toast('Audio up to ~8 MB \u2014 this one is too large'); return; }
+  try{
+    const dataURL = await new Promise((ok, bad)=>{
+      const r = new FileReader();
+      r.onload = ()=>ok(r.result); r.onerror = ()=>bad(r.error);
+      r.readAsDataURL(file);
+    });
+    const id = uid();
+    await window.storage.set('sd:file:' + id, dataURL);
+    activeScene().objects.push({id:uid(), cat:'audio', kind:'audio',
+      x, y, rot:0, w:280, h:60,
+      fileId:id, name:file.name, size:file.size,
+      color:'#8B5CF6', label:'', path:[]});
+    markDirty(); render();
+    toast('Audio added \u2014 tap \u25b8 to play');
+  }catch(e){ toast('Could not store that audio file'); }
+}
 function pickBoardAudio(){
   const fi = document.createElement('input');
   fi.type = 'file'; fi.accept = 'audio/*,.mp3,.aac,.m4a,.wav,.ogg,.flac';
-  fi.addEventListener('change', async ()=>{
-    const file = fi.files && fi.files[0];
-    if(!file) return;
-    if(file.size > 8*1024*1024){ toast('Audio up to ~8 MB \u2014 this one is too large'); return; }
-    try{
-      const dataURL = await new Promise((ok, bad)=>{
-        const r = new FileReader();
-        r.onload = ()=>ok(r.result); r.onerror = ()=>bad(r.error);
-        r.readAsDataURL(file);
-      });
-      const id = uid();
-      await window.storage.set('sd:file:' + id, dataURL);
-      const c = toWorld(wrap.clientWidth/2, wrap.clientHeight/2);
-      activeScene().objects.push({id:uid(), cat:'audio', kind:'audio',
-        x:c.x, y:c.y, rot:0, w:280, h:60,
-        fileId:id, name:file.name, size:file.size,
-        color:'#8B5CF6', label:'', path:[]});
-      markDirty(); render();
-      toast('Audio added \u2014 tap \u25b8 to play');
-    }catch(e){ toast('Could not store that audio file'); }
+  fi.addEventListener('change', ()=>{
+    if(!fi.files || !fi.files[0]) return;
+    const c = toWorld(wrap.clientWidth/2, wrap.clientHeight/2);
+    addBoardAudioAt(fi.files[0], c.x, c.y);
   });
   fi.click();
 }
@@ -473,45 +475,47 @@ function pickSbImage(o){
   fi.click();
 }
 // file objects (docs / pdfs) on any board
+async function addBoardFileAt(file, x, y){
+  if(file.size > 4.5*1024*1024){ toast('Files up to ~4 MB \u2014 this one is too large'); return; }
+  try{
+    const dataURL = await new Promise((ok, bad)=>{
+      const r = new FileReader();
+      r.onload = ()=>ok(r.result); r.onerror = ()=>bad(r.error);
+      r.readAsDataURL(file);
+    });
+    const id = uid();
+    await window.storage.set('sd:file:' + id, dataURL);
+    const obj = {id:uid(), cat:'file', kind:'file',
+      x, y, rot:0, w:230, h:64,
+      fileId:id, name:file.name, size:file.size, mime:file.type,
+      color:'#5B6472', label:'', path:[]};
+    activeScene().objects.push(obj);
+    markDirty(); render();
+    toast('File added \u2014 select it to download');
+    // PDFs get a first-page preview
+    if((file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))){
+      try{
+        const thumbURL = await pdfFirstPageThumb(file);
+        const tid = uid();
+        await window.storage.set('sd:img:' + tid, thumbURL);
+        const im = new Image();
+        im.src = thumbURL;
+        imgCache[tid] = im;
+        im.onload = ()=>render();
+        obj.imgId = tid;
+        obj.w = 190; obj.h = 250;
+        markDirty(); render();
+      }catch(e){ console.warn('pdf thumb failed', e); }
+    }
+  }catch(e){ toast('Could not store that file'); }
+}
 function pickBoardFile(){
   const fi = document.createElement('input');
   fi.type = 'file';
-  fi.addEventListener('change', async ()=>{
-    const file = fi.files && fi.files[0];
-    if(!file) return;
-    if(file.size > 4.5*1024*1024){ toast('Files up to ~4 MB \u2014 this one is too large'); return; }
-    try{
-      const dataURL = await new Promise((ok, bad)=>{
-        const r = new FileReader();
-        r.onload = ()=>ok(r.result); r.onerror = ()=>bad(r.error);
-        r.readAsDataURL(file);
-      });
-      const id = uid();
-      await window.storage.set('sd:file:' + id, dataURL);
-      const c = toWorld(wrap.clientWidth/2, wrap.clientHeight/2);
-      const obj = {id:uid(), cat:'file', kind:'file',
-        x:c.x, y:c.y, rot:0, w:230, h:64,
-        fileId:id, name:file.name, size:file.size, mime:file.type,
-        color:'#5B6472', label:'', path:[]};
-      activeScene().objects.push(obj);
-      markDirty(); render();
-      toast('File added \u2014 select it to download');
-      // PDFs get a first-page preview
-      if((file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))){
-        try{
-          const thumbURL = await pdfFirstPageThumb(file);
-          const tid = uid();
-          await window.storage.set('sd:img:' + tid, thumbURL);
-          const im = new Image();
-          im.src = thumbURL;
-          imgCache[tid] = im;
-          im.onload = ()=>render();
-          obj.imgId = tid;
-          obj.w = 190; obj.h = 250;
-          markDirty(); render();
-        }catch(e){ console.warn('pdf thumb failed', e); }
-      }
-    }catch(e){ toast('Could not store that file'); }
+  fi.addEventListener('change', ()=>{
+    if(!fi.files || !fi.files[0]) return;
+    const c = toWorld(wrap.clientWidth/2, wrap.clientHeight/2);
+    addBoardFileAt(fi.files[0], c.x, c.y);
   });
   fi.click();
 }

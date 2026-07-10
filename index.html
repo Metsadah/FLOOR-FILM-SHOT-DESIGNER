@@ -49,7 +49,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <span id="saveState">Saved</span>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="FLOOR Studio version">v0.11</span><button id="helpBtn" title="How to use">?</button>
     </div>
   </div>
 
@@ -163,6 +163,28 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
         <input type="file" id="boardImgInput" accept="image/*" multiple hidden>
       </div>
     </div>
+    <div class="helpSec" data-help="mood">
+      <div class="sub">A free canvas for visual thinking — collect stills, colors, sounds and references.</div>
+      <h3>Getting things on the board</h3>
+      <p>Drag tiles from the <b>Board</b> library, drop image files straight onto the canvas, or copy any picture (ShotDeck, Frameset, a browser tab) and paste with <kbd>Cmd/Ctrl+V</kbd>. Images take a <b>caption</b> via the selection bar. <b>Links</b> title themselves after their URL and fetch video previews automatically. <b>Audio</b> cards play with a tap on ▸. <b>Files</b> (PDFs get a first-page preview) travel with the project.</p>
+      <h3>Working the canvas</h3>
+      <p>Scroll to zoom, drag empty space to pan, <kbd>F</kbd> zooms to fit. Double-click notes, text, to-do items and table cells to edit in place — <kbd>Tab</kbd>/<kbd>Enter</kbd> flow through table cells, <kbd>Enter</kbd> chains new to-do items. Drag anything onto the <b>trash can</b> at the bottom to delete it (undo works). Only photos rotate here; everything else stays straight.</p>
+    </div>
+    <div class="helpSec" data-help="write">
+      <div class="sub">Script and storyboard side by side — write left, break down right.</div>
+      <h3>Script blocks</h3>
+      <p>Drop a <b>Film script</b> or two-column <b>AV script</b> block from the library and double-click to write (left half = VIDEO, right half = AUDIO on AV blocks). <b>Import…</b> in the selection bar accepts .txt, .fountain, Final Draft .fdx and .pdf.</p>
+      <h3>Break down</h3>
+      <p>Select a script block and hit <b>Break down</b>: FLOOR detects scenes (INT./EXT. headings on film scripts, paragraphs on AV), creates a scene board per scene with the cast placed on it, and stacks linked <b>storyboard rows</b> next to your script — title | reference image | shot description. <b>Open scene ↗</b> jumps to that board in the Shot designer, where every camera maps to one shot.</p>
+      <p>All the moodboard tools (notes, images, to-dos, tables, files, audio, paste, trash) work here too.</p>
+    </div>
+    <div class="helpSec" data-help="org">
+      <div class="sub">The production board — everything the shoot day needs, spatially arranged.</div>
+      <h3>Production cards</h3>
+      <p>Drag templated cards from the library: <b>Call sheet</b>, <b>Day schedule</b>, <b>Contact</b>, <b>Location</b>, <b>Checklist</b> — all editable notes. The <b>Weather (live)</b> card fetches a real forecast: give it a place and a date in its selection bar and hit <b>Fetch ↻</b> (forecasts reach ~16 days ahead, free GFS-backed data from Open-Meteo).</p>
+      <h3>Crew &amp; locations</h3>
+      <p>The right panel keeps structured production data — company, contacts, locations — which will feed the call-sheet generator. Drop map screenshots or location photos on the board; <b>Export</b> turns the whole board into a one-page PDF you can send as a call sheet today.</p>
+    </div>
   </div>
 </div>
 
@@ -172,6 +194,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
   <div id="helpCard">
     <button id="helpClose">×</button>
     <h2>How to use FLOOR</h2>
+    <div class="helpSec" data-help="design">
     <div class="sub">Sketch the set, drop in camera and cast, block the movement — all by direct manipulation. 1 unit = 1 cm, grid dots are 50 cm apart.</div>
 
     <h3>Build the set</h3>
@@ -194,7 +217,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
     <p>The <b>Shot info</b> panel holds the shoot name, scene number and description, the script, plus date, start time, duration (10-minute steps) and preferred weather. When you add a new shot, date / duration / weather carry over and the start time continues where the previous shot wraps. <b>Walls</b> are born <b>locked</b> so you can't nudge your set by accident — select one and hit Unlock to edit it. Corners stay glued: dragging an unlocked wall pulls connected endpoints along, and the selection bar can switch to "drag moves all N walls" to slide a whole structure at once. The <b>gap tool</b> cuts an open passage in any wall (select the gap to widen or delete it). Cameras take a one-line <b>description</b> and a <b>Frame…</b> image — a director's-viewfinder still pinned beside the camera that you can drag anywhere; both travel into the PDF. <b>Annotate:</b> the pencil tool draws freehand ink (lovely with an Apple Pencil), the Board section of the library has plain <b>text</b> <kbd>T</kbd>, <b>lines/arrows</b> (weight, dash, label), <b>links</b> (double-click opens them), a live <b>Info card</b> mirroring the Shot info panel, and a <b>Production note</b> template for crew, address and contacts. Notes take a title plus bold / italic / size styling. Anything can be <b>locked</b> (selection bar) so set dressing stays put, sent to <b>front / back</b>, and every label chip can be dragged to a better spot once its object is selected. On touch screens, pinch to zoom; the ☰ and ☷ buttons open the panels. <b>Recce &amp; mood</b> keeps reference images per shot — drop image files on the canvas or hit <b>→ Board</b> to pin one as a resizable still on the plan. Any pinned image can become an <b>underlay</b> (its selection bar): it drops behind the walls at half opacity — perfect for tracing a location from a satellite screenshot. Take a Google Maps capture with north up, drop it in, toggle Underlay, scale it against the ruler, trace the building and roads, and rotate the sun's N handle to match. Sticky notes <kbd>N</kbd> go anywhere; double-click to type.</p>
 
     <h3>Export</h3>
-    <p><b>Export PNG</b> saves the current shot's floor plan. <b>Shot list PDF</b> builds one page per shot: plan, shoot info, script and reference stills.</p>
+    <p>The <b>Export</b> button adapts to where you are: on the designer it offers the scene as PNG (whole or cropped area) or a PDF with one page per scene — plan, shot list, script and stills. On the boards it exports that board as PNG or a one-page PDF.</p>
 
     <h3>Shortcuts</h3>
     <div class="cols">

@@ -304,6 +304,13 @@ function resize(){
   render();
 }
 window.addEventListener('resize', resize);
+// Tab switches change the layout (panels hide/show) WITHOUT a window resize,
+// leaving the canvas bitmap stretched: visuals shift while hit-testing stays
+// true — clicks near handles miss and fall through to panning. Watch the
+// container itself so the canvas recalibrates on any layout change.
+if(window.ResizeObserver){
+  new ResizeObserver(()=>resize()).observe(wrap);
+}
 
 function render(){
   if(!project) return;

@@ -1012,12 +1012,18 @@ cv.addEventListener('dblclick', e => {
 cv.addEventListener('dragover', e => e.preventDefault());
 cv.addEventListener('drop', async e => {
   e.preventDefault();
-  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  const files = [...e.dataTransfer.files];
   if(!files.length) return;
   const {sx, sy} = evtPos(e);
   let {x, y} = toWorld(sx, sy);
   for(const f of files){
-    await addBoardImage(f, x, y);
+    if(f.type.startsWith('image/')){
+      await addBoardImage(f, x, y);
+    } else if(f.type.startsWith('audio/') && typeof addBoardAudioAt === 'function'){
+      await addBoardAudioAt(f, x, y);
+    } else if(typeof addBoardFileAt === 'function'){
+      await addBoardFileAt(f, x, y); // PDFs get a first-page preview card
+    }
     x += 60; y += 60;
   }
 });

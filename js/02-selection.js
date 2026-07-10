@@ -36,7 +36,9 @@ function handleList(){
     }
     const rx = o.x + Math.cos(o.rot - Math.PI/2)*(o.h/2 + 26/s);
     const ry = o.y + Math.sin(o.rot - Math.PI/2)*(o.h/2 + 26/s);
-    hs.push({id:'rotate', x:rx, y:ry});
+    // on the free boards only photos rotate; the shot designer keeps rotation everywhere
+    if(!(BOARD_TABS.has(activeTab) && o.cat !== 'image'))
+      hs.push({id:'rotate', x:rx, y:ry});
     const c = Math.cos(o.rot), sn = Math.sin(o.rot);
     const lx = o.w/2 + 8/s, ly = o.h/2 + 8/s;
     hs.push({id:'resize', x:o.x + lx*c - ly*sn, y:o.y + lx*sn + ly*c});

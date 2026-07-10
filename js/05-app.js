@@ -657,6 +657,11 @@ document.getElementById('panelToggle').addEventListener('click', ()=>{
 
 // ---------------------------------------------------------------- help
 function toggleHelp(show){
+  if(show){
+    const key = ['mood','write','org'].includes(activeTab) ? activeTab : 'design';
+    document.querySelectorAll('#helpCard .helpSec').forEach(el=>
+      el.classList.toggle('on', el.dataset.help === key));
+  }
   document.getElementById('helpOverlay').classList.toggle('show', show);
 }
 document.getElementById('helpBtn').addEventListener('click', ()=>toggleHelp(true));
