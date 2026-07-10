@@ -412,12 +412,13 @@ function showExportPop(kind){
   const chk = (id, label, val) => mk(
     `<label class="xp-row"><input type="checkbox" id="${id}" ${val?'checked':''}> ${label}</label>`);
   const boardMode = BOARD_TABS.has(activeTab);
-  mk(`<div class="xp-title">${kind==='png'
-    ? (boardMode ? 'Export board as PNG' : 'Export scene as PNG')
-    : (boardMode ? 'Export board as PDF' : 'Export shot list PDF')}</div>`);
+  const what = boardMode
+    ? ({mood:'moodboard', write:'script & storyboard', org:'production board'})[activeTab] || 'board'
+    : 'scene';
+  mk(`<div class="xp-title">Export ${what}</div>`);
   chk('xpGrid', 'Include grid dots', prefs.grid);
-  if(kind === 'pdf') chk('xpStills', 'Include recce & mood images', prefs.stills);
-  mk('<div class="xp-btns"></div>');
+  if(!boardMode) chk('xpStills', 'Include recce & mood images (PDF)', prefs.stills);
+  mk('<div class="xp-btns" style="flex-direction:column;align-items:stretch;gap:5px"></div>');
   const btns = p.querySelector('.xp-btns');
   const btn = (label, primary, fn) => {
     const b = document.createElement('button');
@@ -432,19 +433,16 @@ function showExportPop(kind){
     if(st) prefs.stills = st.checked;
     markDirty();
   };
-  if(kind === 'png'){
-    btn('Export full', true, ()=>{ readPrefs(); hideExportPop(); doPNGExport(null); });
-    btn('Crop area…', false, ()=>{
-      readPrefs(); hideExportPop();
-      setTool('crop');
-      toast('Drag a rectangle around the area to export');
-    });
+  btn('PNG \u2014 whole ' + what, true, ()=>{ readPrefs(); hideExportPop(); doPNGExport(null); });
+  btn('PNG \u2014 crop an area\u2026', false, ()=>{
+    readPrefs(); hideExportPop();
+    setTool('crop');
+    toast('Drag a rectangle around the area to export');
+  });
+  if(boardMode){
+    btn('PDF \u2014 one-page board', false, ()=>{ readPrefs(); hideExportPop(); exportBoardPDF(); });
   } else {
-    btn('Export PDF', true, ()=>{
-      readPrefs(); hideExportPop();
-      if(boardMode) exportBoardPDF();
-      else runPDFExport();
-    });
+    btn('PDF \u2014 scene pages (plan \u00b7 shots \u00b7 stills)', false, ()=>{ readPrefs(); hideExportPop(); runPDFExport(); });
   }
   p.classList.toggle('show');
 }
@@ -575,9 +573,8 @@ function makePDF(pages){
   for(let i=0;i<out.length;i++) bytes[i] = out.charCodeAt(i) & 0xFF;
   return bytes;
 }
-document.getElementById('pdfBtn').addEventListener('click', ()=>showExportPop('pdf'));
 async function runPDFExport(){
-  const btnEl = document.getElementById('pdfBtn');
+  const btnEl = document.getElementById('exportBtn');
   btnEl.disabled = true;
   const old = btnEl.textContent;
   btnEl.textContent = 'Building…';

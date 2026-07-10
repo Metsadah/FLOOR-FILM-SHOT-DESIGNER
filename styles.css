@@ -534,3 +534,5 @@ body.tab-write #sceneLbl{ display:none !important; }
 .proj-name{ width:100%; border:1px solid var(--line); border-radius:2px;
   padding:8px 10px; font-size:13px; font-weight:600; background:#fff; }
 .proj-name:focus{ outline:none; border-color:var(--accent); }
+
+.note-ta.solid{ background:#fff; }

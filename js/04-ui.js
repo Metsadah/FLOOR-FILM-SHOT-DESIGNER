@@ -146,8 +146,12 @@ function refreshSelBar(){
       url.className = 'lbl'; url.style.width = '170px';
       url.placeholder = 'https://…';
       url.value = o.url || '';
-      url.addEventListener('input', ()=>{ o.url = url.value.trim(); markDirty(); render(); });
-      url.addEventListener('change', ()=>fetchLinkThumb(o));
+      url.addEventListener('input', ()=>{
+        o.url = url.value.trim();
+        markDirty(); render();
+        clearTimeout(o._thumbT);
+        o._thumbT = setTimeout(()=>fetchLinkThumb(o), 650); // preview fetches itself
+      });
       url.addEventListener('keydown', e=>{ if(e.key==='Enter') url.blur(); e.stopPropagation(); });
       selBar.appendChild(url);
       sbtn('Open \u2197', ()=>{
@@ -181,16 +185,34 @@ function refreshSelBar(){
     if(o.cat === 'todo'){
       sbtn('+ Item', ()=>{
         o.items = o.items || [];
-        o.items.push({t:'New item', done:false});
+        o.items.push({t:'', done:false});
         markDirty(); render();
+        openTodoItem(o, o.items.length-1);
       });
-      sbtn('Edit list', ()=>openNoteEditor(o, 'todo'));
+      sbtn('Edit as text', ()=>openNoteEditor(o, 'todo'));
     }
     if(o.cat === 'table'){
-      sbtn('+ Row', ()=>{ o.cells.push(o.cells[0].map(()=>'')); markDirty(); render(); });
       sbtn('\u2212 Row', ()=>{ if(o.cells.length>2){ o.cells.pop(); markDirty(); render(); } });
-      sbtn('+ Col', ()=>{ o.cells.forEach(r=>r.push('')); markDirty(); render(); });
       sbtn('\u2212 Col', ()=>{ if(o.cells[0].length>1){ o.cells.forEach(r=>r.pop()); markDirty(); render(); } });
+      const hint = document.createElement('span');
+      hint.style.cssText='font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = '+ chips add rows/cols \u00b7 Tab/Enter hop cells';
+      selBar.appendChild(hint);
+    }
+    if(o.cat === 'audio'){
+      sbtn('\u25b8 Play / stop', ()=>{ if(typeof toggleAudio==='function') toggleAudio(o); });
+      sbtn('Download', async ()=>{
+        try{
+          const r = await window.storage.get('sd:file:' + o.fileId);
+          if(!r || !r.value){ toast('Audio data not found'); return; }
+          const blob = await (await fetch(r.value)).blob();
+          const a = document.createElement('a');
+          a.download = o.name || 'audio';
+          a.href = URL.createObjectURL(blob);
+          a.click();
+          setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+        }catch(e){ toast('Could not read the audio file'); }
+      });
     }
     if(o.cat === 'file'){
       sbtn('Download', async ()=>{
@@ -358,7 +380,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','file','colorcard'].includes(o.cat)){
+    if(!['text','ink','infocard','script','sbrow','table','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -510,6 +532,10 @@ function updateSelBarPos(){
 // ---------------------------------------------------------------- note editor
 function editorGetValue(o, field){
   if(field === 'todo') return (o.items||[]).map(i=>i.t).join('\n');
+  if(field && field.startsWith('item:')){
+    const i = +field.split(':')[1];
+    return (o.items && o.items[i]) ? o.items[i].t : '';
+  }
   if(field && field.startsWith('cell:')){
     const [,r,c] = field.split(':');
     return (o.cells && o.cells[+r] && o.cells[+r][+c]) || '';
@@ -517,6 +543,11 @@ function editorGetValue(o, field){
   return o[field || 'text'] || '';
 }
 function editorSetValue(o, field, v){
+  if(field && field.startsWith('item:')){
+    const i = +field.split(':')[1];
+    if(o.items && o.items[i]) o.items[i].t = v.replace(/\n/g,' ');
+    return;
+  }
   if(field === 'todo'){
     const prev = o.items || [];
     o.items = v.split('\n').filter(l=>l.trim() !== '' || true).filter((l,i,a)=>!(l==='' && i===a.length-1))
@@ -530,11 +561,25 @@ function editorSetValue(o, field, v){
   }
   o[field || 'text'] = v;
 }
+function openTodoItem(o, i){
+  const rowH = 32, top = o.label ? 36 : 8;
+  openNoteEditor(o, 'item:'+i,
+    {x:-o.w/2+30, y:-o.h/2+top + i*rowH + 3, w:o.w-40, h:rowH-6}, 12.5);
+}
+function openTableCell(o, r, c){
+  const headH = 30, rowH = 28;
+  const ws = o._colWs || o.cells[0].map(()=>o.w/o.cells[0].length);
+  let x0 = -o.w/2;
+  for(let k=0;k<c;k++) x0 += ws[k];
+  const cy = r===0 ? 0 : headH + (r-1)*rowH;
+  openNoteEditor(o, 'cell:'+r+':'+c,
+    {x:x0+3, y:-o.h/2+cy+3, w:ws[c]-6, h:(r===0?headH:rowH)-6}, 12);
+}
 function openNoteEditor(o, field, rect, fs){
   closeNoteEditor(true);
   const ta = document.createElement('textarea');
   const plain = o.cat==='text' || rect;
-  ta.className = 'note-ta' + (plain ? ' plain' : '');
+  ta.className = 'note-ta' + (plain ? ' plain' : '') + (field === 'todo' ? ' solid' : '');
   ta.value = editorGetValue(o, field);
   wrap.appendChild(ta);
   noteEditor = {id:o.id, ta, field: field||'text', rect: rect||null, fs: fs||null};
@@ -544,7 +589,39 @@ function openNoteEditor(o, field, rect, fs){
   ta.addEventListener('blur', ()=>closeNoteEditor(true));
   ta.addEventListener('keydown', e=>{
     if(e.key === 'Escape'){ closeNoteEditor(true); }
-    if(e.key === 'Enter' && noteEditor.field.startsWith('cell:')){ closeNoteEditor(true); }
+    const fld = noteEditor.field;
+    if(fld.startsWith('cell:') && (e.key === 'Enter' || e.key === 'Tab')){
+      e.preventDefault();
+      const parts = fld.split(':');
+      let r = +parts[1], c = +parts[2];
+      closeNoteEditor(true);
+      const nC = o.cells[0].length;
+      if(e.key === 'Tab'){ c++; if(c >= nC){ c = 0; r++; } }
+      else { r++; }
+      if(r >= o.cells.length){ o.cells.push(o.cells[0].map(()=>'' )); markDirty(); }
+      render();
+      setTimeout(()=>openTableCell(o, r, c), 0);
+      return;
+    }
+    if(fld.startsWith('item:')){
+      const i = +fld.split(':')[1];
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        closeNoteEditor(true);
+        o.items.splice(i+1, 0, {t:'', done:false});
+        markDirty(); render();
+        setTimeout(()=>openTodoItem(o, i+1), 0);
+        return;
+      }
+      if(e.key === 'Backspace' && ta.value === '' && o.items.length > 1){
+        e.preventDefault();
+        closeNoteEditor(false);
+        o.items.splice(i, 1);
+        markDirty(); render();
+        if(i > 0) setTimeout(()=>openTodoItem(o, i-1), 0);
+        return;
+      }
+    }
     e.stopPropagation();
   });
   render();
@@ -736,6 +813,13 @@ function buildLibrary(){
     tc.fillStyle='#8A877F';
     tc.fillRect(-w2*.3, h2*.22, w2*.6, 3);
   }, 90, 90, '#E8604C', {cat:'colorcard', kind:'colorcard', w:160, h:130, color:'#E8604C'});
+  boardTile('Audio\u2026', (tc,w2,h2,c2)=>{
+    tc.strokeStyle=c2; tc.lineWidth=3.4; tc.lineCap='round';
+    tc.beginPath(); tc.arc(-w2*.14,h2*.2,h2*.11,0,7); tc.stroke();
+    tc.beginPath(); tc.arc(w2*.18,h2*.14,h2*.11,0,7); tc.stroke();
+    tc.beginPath(); tc.moveTo(-w2*.14+h2*.11,h2*.2); tc.lineTo(-w2*.14+h2*.11,-h2*.26);
+    tc.lineTo(w2*.18+h2*.11,-h2*.32); tc.lineTo(w2*.18+h2*.11,h2*.14); tc.stroke();
+  }, 90, 90, '#8B5CF6', null, ()=>pickBoardAudio());
   boardTile('File\u2026', (tc,w2,h2,c2)=>{
     tc.strokeStyle=c2; tc.lineWidth=3.4;
     tc.beginPath();
@@ -874,7 +958,7 @@ function dropLib(e){
            weight:2.5, dashed:false, arrow:false, color:libDrag.color||'#E8604C', label:'', path:[]};
     } else if(libDrag.cat === 'link'){
       o = {id:uid(), cat:'link', kind:'link', x, y, rot:0, w:130, h:34,
-           label:'Link', url:'', color:libDrag.color||'#4B6BFB', path:[]};
+           label:'', url:'', color:libDrag.color||'#4B6BFB', path:[]};
     } else if(libDrag.cat === 'infocard'){
       o = {id:uid(), cat:'infocard', kind:'infocard', x, y, rot:0, w:260, h:180,
            color:libDrag.color||'#4B6BFB', label:'', path:[]};

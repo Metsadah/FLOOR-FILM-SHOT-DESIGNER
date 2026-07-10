@@ -231,26 +231,142 @@ async function fetchWeatherFor(o){
   }
 }
 
-// import a script file straight into a script block
+// ---------------------------------------------------------------- pdf.js (lazy, self-hosted)
+let _pdfjsReady = null;
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve();
+  if(_pdfjsReady) return _pdfjsReady;
+  _pdfjsReady = new Promise((ok, bad)=>{
+    const sc = document.createElement('script');
+    sc.src = './js/vendor/pdf.min.js';
+    sc.onload = ()=>{
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = './js/vendor/pdf.worker.min.js';
+      ok();
+    };
+    sc.onerror = ()=>bad(new Error('pdf.js failed to load'));
+    document.head.appendChild(sc);
+  });
+  return _pdfjsReady;
+}
+async function extractPdfText(file){
+  await loadPdfJs();
+  const buf = await file.arrayBuffer();
+  const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
+  const out = [];
+  for(let p=1; p<=doc.numPages; p++){
+    const page = await doc.getPage(p);
+    const tc = await page.getTextContent();
+    let lastY = null, line = [];
+    for(const it of tc.items){
+      const y = Math.round(it.transform[5]);
+      if(lastY !== null && Math.abs(y - lastY) > 3){
+        out.push(line.join(''));
+        line = [];
+      }
+      line.push(it.str);
+      lastY = y;
+    }
+    out.push(line.join(''));
+    out.push('');
+  }
+  return out.join('\n');
+}
+async function pdfFirstPageThumb(file){
+  await loadPdfJs();
+  const buf = await file.arrayBuffer();
+  const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
+  const page = await doc.getPage(1);
+  const vp0 = page.getViewport({scale:1});
+  const scale = 420 / vp0.width;
+  const vp = page.getViewport({scale});
+  const c = document.createElement('canvas');
+  c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+  await page.render({canvasContext:c.getContext('2d'), viewport:vp}).promise;
+  return c.toDataURL('image/jpeg', .8);
+}
+
+// import a script file straight into a script block (.txt / .fountain / .fdx / .pdf)
 function importIntoScriptBlock(o){
   const fi = document.createElement('input');
-  fi.type = 'file'; fi.accept = '.txt,.fountain,.fdx';
+  fi.type = 'file'; fi.accept = '.txt,.fountain,.fdx,.pdf';
   fi.addEventListener('change', async ()=>{
     const file = fi.files && fi.files[0];
     if(!file) return;
-    let text = await file.text();
-    if(file.name.toLowerCase().endsWith('.fdx')){
-      try{
-        const doc = new DOMParser().parseFromString(text, 'text/xml');
-        text = [...doc.querySelectorAll('Paragraph')].map(p=>{
-          const t = [...p.querySelectorAll('Text')].map(x=>x.textContent).join('');
-          return (p.getAttribute('Type') === 'Scene Heading') ? t.toUpperCase() : t;
-        }).join('\n');
-      }catch(e){}
+    let text;
+    try{
+      if(file.name.toLowerCase().endsWith('.pdf')){
+        toast('Reading PDF\u2026');
+        text = await extractPdfText(file);
+      } else {
+        text = await file.text();
+        if(file.name.toLowerCase().endsWith('.fdx')){
+          const doc = new DOMParser().parseFromString(text, 'text/xml');
+          text = [...doc.querySelectorAll('Paragraph')].map(p=>{
+            const t = [...p.querySelectorAll('Text')].map(x=>x.textContent).join('');
+            return (p.getAttribute('Type') === 'Scene Heading') ? t.toUpperCase() : t;
+          }).join('\n');
+        }
+      }
+    }catch(e){
+      console.warn('script import failed', e);
+      toast('Could not read that file');
+      return;
     }
     o.text = text;
     markDirty(); render();
     toast('Script imported \u2014 hit "Break down" when ready');
+  });
+  fi.click();
+}
+
+// ---------------------------------------------------------------- audio on boards
+let audioEl = null, audioPlayingId = null;
+async function toggleAudio(o){
+  if(audioPlayingId === o.id){
+    if(audioEl) audioEl.pause();
+    audioPlayingId = null;
+    render();
+    return;
+  }
+  try{
+    const r = await window.storage.get('sd:file:' + o.fileId);
+    if(!r || !r.value){ toast('Audio data not found'); return; }
+    if(!audioEl){
+      audioEl = new Audio();
+      audioEl.addEventListener('ended', ()=>{ audioPlayingId = null; render(); });
+    }
+    audioEl.src = r.value;
+    await audioEl.play();
+    audioPlayingId = o.id;
+    render();
+  }catch(e){
+    console.warn('audio play failed', e);
+    toast('Could not play that file');
+  }
+}
+function pickBoardAudio(){
+  const fi = document.createElement('input');
+  fi.type = 'file'; fi.accept = 'audio/*,.mp3,.aac,.m4a,.wav,.ogg,.flac';
+  fi.addEventListener('change', async ()=>{
+    const file = fi.files && fi.files[0];
+    if(!file) return;
+    if(file.size > 8*1024*1024){ toast('Audio up to ~8 MB \u2014 this one is too large'); return; }
+    try{
+      const dataURL = await new Promise((ok, bad)=>{
+        const r = new FileReader();
+        r.onload = ()=>ok(r.result); r.onerror = ()=>bad(r.error);
+        r.readAsDataURL(file);
+      });
+      const id = uid();
+      await window.storage.set('sd:file:' + id, dataURL);
+      const c = toWorld(wrap.clientWidth/2, wrap.clientHeight/2);
+      activeScene().objects.push({id:uid(), cat:'audio', kind:'audio',
+        x:c.x, y:c.y, rot:0, w:280, h:60,
+        fileId:id, name:file.name, size:file.size,
+        color:'#8B5CF6', label:'', path:[]});
+      markDirty(); render();
+      toast('Audio added \u2014 tap \u25b8 to play');
+    }catch(e){ toast('Could not store that audio file'); }
   });
   fi.click();
 }
@@ -373,12 +489,28 @@ function pickBoardFile(){
       const id = uid();
       await window.storage.set('sd:file:' + id, dataURL);
       const c = toWorld(wrap.clientWidth/2, wrap.clientHeight/2);
-      activeScene().objects.push({id:uid(), cat:'file', kind:'file',
+      const obj = {id:uid(), cat:'file', kind:'file',
         x:c.x, y:c.y, rot:0, w:230, h:64,
         fileId:id, name:file.name, size:file.size, mime:file.type,
-        color:'#5B6472', label:'', path:[]});
+        color:'#5B6472', label:'', path:[]};
+      activeScene().objects.push(obj);
       markDirty(); render();
       toast('File added \u2014 select it to download');
+      // PDFs get a first-page preview
+      if((file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))){
+        try{
+          const thumbURL = await pdfFirstPageThumb(file);
+          const tid = uid();
+          await window.storage.set('sd:img:' + tid, thumbURL);
+          const im = new Image();
+          im.src = thumbURL;
+          imgCache[tid] = im;
+          im.onload = ()=>render();
+          obj.imgId = tid;
+          obj.w = 190; obj.h = 250;
+          markDirty(); render();
+        }catch(e){ console.warn('pdf thumb failed', e); }
+      }
     }catch(e){ toast('Could not store that file'); }
   });
   fi.click();

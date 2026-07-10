@@ -434,8 +434,8 @@ cv.addEventListener('pointerdown', e => {
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
+    if(['link','todo','audio','table'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
     if(obj.cat === 'link'){ drag.linkX0=obj.x; drag.linkY0=obj.y; }
-    if(obj.cat === 'todo'){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
     refreshSelBar(); render();
     return;
   }
@@ -823,17 +823,33 @@ cv.addEventListener('pointerup', e => {
       window.open(/^https?:\/\//i.test(drag.o.url) ? drag.o.url : 'https://' + drag.o.url, '_blank');
     }
   }
-  // a clean tap on a to-do item toggles its checkbox
-  if(drag.kind === 'move' && drag.o && drag.o.cat === 'todo' && drag.tapX0 !== undefined){
-    if(dist(drag.o.x, drag.o.y, drag.tapX0, drag.tapY0) < 4/Math.max(view.scale,.3)){
-      const o = drag.o;
-      const {sx:usx, sy:usy} = evtPos(e);
-      const up = toWorld(usx, usy);
-      const lh = 24, top = o.label ? 30 : 10;
-      const i = Math.floor((up.y - o.y + o.h/2 - top)/lh);
-      if(o.items && i >= 0 && i < o.items.length){
+  // clean taps: to-do checkbox, audio play, table + chips
+  if(drag.kind === 'move' && drag.o && drag.tapX0 !== undefined &&
+     dist(drag.o.x, drag.o.y, drag.tapX0, drag.tapY0) < 4/Math.max(view.scale,.3)){
+    const o = drag.o;
+    const {sx:usx, sy:usy} = evtPos(e);
+    const up = toWorld(usx, usy);
+    if(o.cat === 'todo'){
+      // only the checkbox zone toggles — the text area is for dblclick editing
+      const rowH = 32, top = o.label ? 36 : 8;
+      const i = Math.floor((up.y - o.y + o.h/2 - top)/rowH);
+      if(o.items && i >= 0 && i < o.items.length && (up.x - o.x + o.w/2) < 34){
         o.items[i].done = !o.items[i].done;
         markDirty(); render();
+      }
+    } else if(o.cat === 'audio'){
+      if(o._playZone && up.x >= o._playZone.x1 && up.x <= o._playZone.x2 &&
+         typeof toggleAudio === 'function') toggleAudio(o);
+    } else if(o.cat === 'table'){
+      const hitPlus = z => z && dist(up.x, up.y, z.x, z.y) <= z.r;
+      if(hitPlus(o._plusRow)){
+        o.cells.push(o.cells[0].map(()=>'' ));
+        markDirty(); render();
+        if(typeof openTableCell === 'function') openTableCell(o, o.cells.length-1, 0);
+      } else if(hitPlus(o._plusCol)){
+        o.cells.forEach(r=>r.push(''));
+        markDirty(); render();
+        if(typeof openTableCell === 'function') openTableCell(o, 0, o.cells[0].length-1);
       }
     }
   }
@@ -934,7 +950,19 @@ cv.addEventListener('dblclick', e => {
     sel = {type:'object', id:o.id};
     refreshSelBar(); render();
     if(o.cat === 'note' || o.cat === 'text'){ openNoteEditor(o); return; }
-    if(o.cat === 'todo'){ openNoteEditor(o, 'todo'); return; }
+    if(o.cat === 'todo'){
+      const rowH = 32, top = o.label ? 36 : 8;
+      const i = Math.floor((wy - o.y + o.h/2 - top)/rowH);
+      if(o.items && i >= 0 && i < o.items.length){
+        openTodoItem(o, i);
+      } else {
+        o.items = o.items || [];
+        o.items.push({t:'', done:false});
+        markDirty(); render();
+        openTodoItem(o, o.items.length-1);
+      }
+      return;
+    }
     if(o.cat === 'script'){
       const pad = 18, headH = o.mode==='av' ? 30 : 12;
       const lx = wx - o.x; // local (rot=0 for these blocks)
@@ -961,13 +989,13 @@ cv.addEventListener('dblclick', e => {
     }
     if(o.cat === 'table'){
       const nR = o.cells.length, nC = o.cells[0].length;
-      const headH = 30, rowH = 28, colW = o.w/nC;
+      const headH = 30, rowH = 28;
+      const ws = o._colWs || o.cells[0].map(()=>o.w/nC);
       const lx = wx - o.x + o.w/2, ly = wy - o.y + o.h/2;
-      const c = clamp(Math.floor(lx/colW), 0, nC-1);
+      let c = 0, acc = 0;
+      for(; c < nC-1; c++){ acc += ws[c]; if(lx < acc) break; }
       const r = ly < headH ? 0 : clamp(1 + Math.floor((ly-headH)/rowH), 0, nR-1);
-      const cy = r===0 ? 0 : headH + (r-1)*rowH;
-      openNoteEditor(o, 'cell:'+r+':'+c,
-        {x:-o.w/2 + c*colW + 3, y:-o.h/2 + cy + 3, w:colW-6, h:(r===0?headH:rowH)-6}, 12);
+      openTableCell(o, r, c);
       return;
     }
     if(o.cat === 'link'){

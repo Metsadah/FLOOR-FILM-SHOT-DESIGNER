@@ -29,7 +29,7 @@ function handleList(){
       hs.push({id:'lm', x:m.x, y:m.y});
       return hs;
     }
-    if(o.cat === 'ink') return hs;
+    if(o.cat === 'ink' || o.cat === 'table') return hs;
     if(o.kind === 'track'){
       (o.pts||[]).forEach((p,i)=> hs.push({id:'tp'+i, x:p.x, y:p.y}));
       return hs;
