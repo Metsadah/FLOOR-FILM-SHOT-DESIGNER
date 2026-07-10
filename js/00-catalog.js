@@ -805,3 +805,31 @@ const CATS = [
   {name:'Set dressing', open:false, items:['plant','tree','crate'].map(k=>({cat:'prop', kind:k}))},
   {name:'Tech', open:false, items:['laptop','computer','tablet'].map(k=>({cat:'prop', kind:k}))},
 ];
+
+// ---------------------------------------------------------------- list cards
+// Live filtered views of the production People registry — one registry,
+// many windows. Column keys map straight onto person fields.
+const LIST_CARDS = {
+  crew:  {title:'CREW', tag:'crew', color:'#4B6BFB', cols:[
+    {key:'role',  label:'Role',  min:74},
+    {key:'name',  label:'Name',  min:96},
+    {key:'call',  label:'Call',  min:48},
+    {key:'phone', label:'Phone', min:104},
+    {key:'email', label:'Email', min:130},
+  ]},
+  cast:  {title:'CAST', tag:'cast', color:'#E8934C', cols:[
+    {key:'name',  label:'Name',  min:96},
+    {key:'role',  label:'Part',  min:80},
+    {key:'call',  label:'Call',  min:48},
+    {key:'phone', label:'Phone', min:104},
+    {key:'email', label:'Email', min:130},
+  ]},
+  client:{title:'CLIENT', tag:'client', color:'#3E9B6E', cols:[
+    {key:'name',  label:'Name',  min:96},
+    {key:'role',  label:'Role',  min:80},
+    {key:'phone', label:'Phone', min:104},
+    {key:'email', label:'Email', min:130},
+  ]},
+};
+// shared card geometry (renderer, hit-testing and the cell editor all agree)
+const LIST_GEO = {titleH:26, headH:22, rowH:26, grip:14};

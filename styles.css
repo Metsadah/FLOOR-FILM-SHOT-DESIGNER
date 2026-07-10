@@ -445,17 +445,6 @@ body.tab-mood #sunBtn, body.tab-mood #playBtn{ display:none !important; }
   border:1px solid var(--line); background:var(--panel); }
 .sb-refBtn{ width:76px; height:46px; border:1.5px dashed var(--line); border-radius:2px;
   background:none; color:var(--ink2); cursor:pointer; font-size:16px; }
-.org-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
-.org-card{ background:#fff; border:1px solid var(--line); border-radius:3px; padding:15px 17px; }
-.org-card h3{ margin:0 0 10px; font-size:13px; font-weight:650; color:var(--ink); }
-.org-card label{ display:block; font-size:10.5px; color:var(--ink2); margin:8px 0 3px; }
-.org-card input, .org-card textarea{ width:100%; border:1px solid var(--line); border-radius:2px;
-  padding:7px 9px; font-size:12.5px; background:#fff; font-family:inherit; }
-.org-row{ display:flex; gap:6px; align-items:center; margin-bottom:6px; }
-.org-row input{ flex:1; min-width:0; }
-.org-row .rm{ border:none; background:none; color:var(--ink2); cursor:pointer; font-size:15px; padding:2px 6px; }
-.org-add{ margin-top:6px; font-size:11.5px; }
-@media (max-width:800px){ .org-grid{ grid-template-columns:1fr; } }
 
 /* ---------------- topbar v2 ---------------- */
 .logo-txt{ display:flex; flex-direction:column; line-height:1.05; }
@@ -474,16 +463,15 @@ body.tab-mood #sceneLbl, body.tab-org #sceneLbl{ display:none !important; }
 #tabbar button svg{ width:16px; height:16px; stroke:currentColor; fill:none;
   stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 /* ---------------- production board mode ---------------- */
-body.tab-org #main{ display:grid !important; grid-template-columns:238px 1fr 266px; }
+/* full-width canvas — production data lives on the board (People registry cards) */
+body.tab-org #main{ display:grid !important; grid-template-columns:238px 1fr; }
 body.tab-org #toolbar, body.tab-org #hint{ display:flex !important; }
 body.tab-org #shotList, body.tab-org #sidebar > .side-head:first-child{ display:none !important; }
+body.tab-org #rightPanel, body.tab-org #panelToggle{ display:none !important; }
 body.tab-org #toolbar button[data-tool="wall"], body.tab-org #toolbar button[data-tool="room"],
 body.tab-org #toolbar button[data-tool="door"], body.tab-org #toolbar button[data-tool="window"],
 body.tab-org #toolbar button[data-tool="gap"],
 body.tab-org #sunBtn, body.tab-org #playBtn{ display:none !important; }
-#orgPanel{ display:none; overflow:auto; }
-body.tab-org #rightPanel #tabs, body.tab-org #rightPanel .tabPage{ display:none !important; }
-body.tab-org #orgPanel{ display:block; }
 /* storyboard scene thumbnails */
 .sb-thumb{ width:120px; height:72px; object-fit:cover; border-radius:2px;
   border:1px solid var(--line); background:#fff; float:left; margin-right:12px; }

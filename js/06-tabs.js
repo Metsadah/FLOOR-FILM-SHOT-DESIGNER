@@ -30,7 +30,6 @@ function switchTab(t){
   } else if(t === 'org'){
     ensureProdBoard();
     buildLibrary();
-    buildOrgPanel();
     refreshSelBar();
     ensureShotImages(activeScene(), false).then(()=>{ zoomFitIfEmptyView(); render(); });
   }
@@ -137,8 +136,6 @@ const PROD_CARDS = [
    'Production: \nDate: \nCrew call: \nOn set: \nLunch: \nWrap: \n\nLocation: \nAddress: \nParking: \nNearest hospital: \n\nWeather: \nSunrise / sunset: \n\nNotes: '],
   ['Day schedule', '#E8934C', 250, 300, 'SCHEDULE',
    '07:00  Crew call\n07:30  Build & light\n09:00  Shot 1\n11:00  Shot 2\n13:00  Lunch\n14:00  Shot 3\n17:30  Last looks\n18:00  Wrap'],
-  ['Contact card', '#5B6472', 230, 170, 'CONTACT',
-   'Role: \nName: \nPhone: \nEmail: \nCall time: '],
   ['Location card', '#3E9B6E', 250, 250, 'LOCATION',
    'Name: \nAddress: \nParking: \nPower: \nToilets: \nAccess / keys: \nNotes: '],
   ['Checklist', '#8B5CF6', 230, 260, 'CHECKLIST',
@@ -152,6 +149,25 @@ function buildProdLibSection(lib){
   lib.appendChild(h);
   const grid = document.createElement('div');
   grid.className = 'lib-grid';
+  // registry cards first — Crew / Cast / Client, live views of one People list
+  for(const kind of ['crew','cast','client']){
+    const spec = LIST_CARDS[kind];
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      tc.beginPath(); tc.roundRect(-w2/2,-h2*.36,w2,h2*.72,4);
+      tc.fillStyle='#fff'; tc.fill();
+      tc.strokeStyle=spec.color; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle=spec.color; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2, -h2*.36, w2, h2*.2); tc.globalAlpha=1;
+      tc.globalAlpha=.55;
+      for(const y2 of [-h2*.04, h2*.14]) tc.fillRect(-w2*.36, y2, w2*.72, 2.5);
+      tc.globalAlpha=1;
+    }, 100, 100, spec.color));
+    el.insertAdjacentHTML('beforeend', '<span>' + esc(kind.charAt(0).toUpperCase()+kind.slice(1)) + '</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'listcard', kind, w:360, h:74, color:spec.color}));
+    grid.appendChild(el);
+  }
   for(const [name, color, w, hh, label, text] of PROD_CARDS){
     const el = document.createElement('div');
     el.className = 'lib-item';
@@ -186,7 +202,7 @@ function buildProdLibSection(lib){
   lib.appendChild(grid);
   const tip = document.createElement('div');
   tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 10px;line-height:1.5;';
-  tip.textContent = 'Tip: drop a map screenshot, location photo or Cmd+V paste straight onto the board. The weather card fetches a real forecast for its place + date.';
+  tip.textContent = 'Crew, Cast and Client cards are live views of one People registry — add a person on any card and they exist everywhere; edit a phone number once. Drop map screenshots or Cmd+V paste straight onto the board.';
   lib.appendChild(tip);
 }
 
@@ -519,89 +535,6 @@ function pickBoardFile(){
   });
   fi.click();
 }
-
-// ---------------------------------------------------------------- production panel (right side of the board)
-function buildOrgPanel(){
-  project.production = project.production || {company:'', lead:'', notes:'', contacts:[], locations:[]};
-  const p = project.production;
-  const host = document.getElementById('orgContent');
-  host.innerHTML = '';
-  const grid = document.createElement('div');
-  grid.className = 'org-grid';
-  grid.style.gridTemplateColumns = '1fr'; // single column inside the panel
-  grid.style.padding = '12px';
-  host.appendChild(grid);
-
-  const card = title=>{
-    const c = document.createElement('div');
-    c.className = 'org-card';
-    c.innerHTML = '<h3>' + title + '</h3>';
-    grid.appendChild(c);
-    return c;
-  };
-  const field = (parent, label, get, set, textarea)=>{
-    const l = document.createElement('label'); l.textContent = label; parent.appendChild(l);
-    const i = document.createElement(textarea ? 'textarea' : 'input');
-    if(textarea) i.rows = 3;
-    i.value = get() || '';
-    i.addEventListener('input', ()=>{ set(i.value); markDirty(); });
-    parent.appendChild(i);
-  };
-
-  const c1 = card('Production info');
-  field(c1, 'Company', ()=>p.company, v=>p.company=v);
-  field(c1, 'Production lead', ()=>p.lead, v=>p.lead=v);
-  field(c1, 'Notes (parking, power, catering…)', ()=>p.notes, v=>p.notes=v, true);
-
-  const c2 = card('Crew & cast contacts');
-  const contactsHost = document.createElement('div'); c2.appendChild(contactsHost);
-  const renderContacts = ()=>{
-    contactsHost.innerHTML = '';
-    p.contacts.forEach((ct, i)=>{
-      const row = document.createElement('div'); row.className = 'org-row';
-      for(const [k, ph] of [['role','Role'],['name','Name'],['phone','Phone'],['email','Email']]){
-        const inp = document.createElement('input');
-        inp.placeholder = ph; inp.value = ct[k] || '';
-        inp.addEventListener('input', ()=>{ ct[k] = inp.value; markDirty(); });
-        row.appendChild(inp);
-      }
-      const rm = document.createElement('button'); rm.className = 'rm'; rm.textContent = '×';
-      rm.addEventListener('click', ()=>{ p.contacts.splice(i,1); markDirty(); renderContacts(); });
-      row.appendChild(rm);
-      contactsHost.appendChild(row);
-    });
-  };
-  renderContacts();
-  const addC = document.createElement('button');
-  addC.className = 'btn org-add'; addC.textContent = '+ Add contact';
-  addC.addEventListener('click', ()=>{ p.contacts.push({role:'',name:'',phone:'',email:''}); markDirty(); renderContacts(); });
-  c2.appendChild(addC);
-
-  const c3 = card('Locations');
-  const locHost = document.createElement('div'); c3.appendChild(locHost);
-  const renderLocs = ()=>{
-    locHost.innerHTML = '';
-    p.locations.forEach((lc, i)=>{
-      const row = document.createElement('div'); row.className = 'org-row';
-      for(const [k, ph] of [['name','Name'],['address','Address'],['parking','Parking'],['notes','Notes']]){
-        const inp = document.createElement('input');
-        inp.placeholder = ph; inp.value = lc[k] || '';
-        inp.addEventListener('input', ()=>{ lc[k] = inp.value; markDirty(); });
-        row.appendChild(inp);
-      }
-      const rm = document.createElement('button'); rm.className = 'rm'; rm.textContent = '×';
-      rm.addEventListener('click', ()=>{ p.locations.splice(i,1); markDirty(); renderLocs(); });
-      row.appendChild(rm);
-      locHost.appendChild(row);
-    });
-  };
-  renderLocs();
-  const addL = document.createElement('button');
-  addL.className = 'btn org-add'; addL.textContent = '+ Add location';
-  addL.addEventListener('click', ()=>{ p.locations.push({name:'',address:'',parking:'',notes:''}); markDirty(); renderLocs(); });
-  c3.appendChild(addL);
-}
-
 
 // single-board PDF (moodboard / production board) — A4 landscape, image fitted
 async function exportBoardPDF(){

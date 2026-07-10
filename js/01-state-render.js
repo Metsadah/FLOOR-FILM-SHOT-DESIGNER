@@ -91,6 +91,45 @@ function migrateShot(s){
     }
   });
 }
+// ---------------------------------------------------------------- People registry
+// One list per production; the Crew / Cast / Client cards on the production
+// board are filtered live views of it — windows, not silos.
+function normalizeProduction(){
+  if(!project.production) project.production = {company:'', lead:'', notes:'', contacts:[], locations:[]};
+  const p = project.production;
+  if(!Array.isArray(p.people)) p.people = [];
+  // org-panel era: fold its contacts into the registry once, tagged crew
+  if(Array.isArray(p.contacts) && p.contacts.length){
+    for(const c of p.contacts){
+      p.people.push({id:uid(), name:c.name||'', role:c.role||'', phone:c.phone||'',
+        email:c.email||'', tag:'crew', call:''});
+    }
+    p.contacts = [];
+  }
+}
+function peopleReg(){ normalizeProduction(); return project.production.people; }
+function cardPeople(o){
+  const tag = (LIST_CARDS[o.kind] || LIST_CARDS.crew).tag;
+  return peopleReg().filter(p=>p.tag===tag);
+}
+// reorder within one card's view: move a person to filtered position targetIdx,
+// keeping people of other tags where they are
+function moveListRow(o, personId, targetIdx){
+  const people = peopleReg();
+  const rows = cardPeople(o);
+  const from = rows.findIndex(p=>p.id===personId);
+  const to = clamp(targetIdx, 0, rows.length-1);
+  if(from < 0 || from === to) return false;
+  const person = rows[from];
+  people.splice(people.indexOf(person), 1);
+  const rest = cardPeople(o);
+  const at = to >= rest.length
+    ? (rest.length ? people.indexOf(rest[rest.length-1]) + 1 : people.length)
+    : people.indexOf(rest[to]);
+  people.splice(at, 0, person);
+  return true;
+}
+
 let activeTab = 'design'; // design | mood | script | story | org
 const BOARD_TABS = new Set(['mood','org','write']);
 function activeScene(){
@@ -157,7 +196,7 @@ async function loadProject(){
   if(project.prodboard) migrateShot(project.prodboard);
   if(project.scriptboard) migrateShot(project.scriptboard);
   if(!project.script) project.script = {text:'', type:'film'};
-  if(!project.production) project.production = {company:'', lead:'', notes:'', contacts:[], locations:[]};
+  normalizeProduction();
   if(!project.customProps) project.customProps = [];
   if(!project.exportPrefs) project.exportPrefs = {grid:true, stills:true};
   if(project.shootName===undefined) project.shootName='';
@@ -848,6 +887,118 @@ function drawObjectShape(o, ghost){
       }
       ctx.textAlign = 'left';
     } else { o._plusRow = null; o._plusCol = null; }
+    ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'listcard'){
+    const spec = LIST_CARDS[o.kind] || LIST_CARDS.crew;
+    const G = LIST_GEO;
+    const rows = cardPeople(o);
+    const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
+    // typed columns size themselves to content
+    const ws = spec.cols.map(col=>{
+      ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+      let mw = Math.max(col.min, ctx.measureText(col.label.toUpperCase()).width + 18);
+      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      for(const p of rows) mw = Math.max(mw, ctx.measureText(p[col.key]||'').width + 18);
+      return Math.min(240, mw);
+    });
+    o._colWs = ws;
+    o.w = G.grip + ws.reduce((a,b)=>a+b, 0);
+    o.h = G.titleH + G.headH + Math.max(1, rows.length)*G.rowH;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.clip();
+    ctx.fillStyle = o.color || spec.color; ctx.globalAlpha = .14;
+    ctx.fillRect(-o.w/2, -o.h/2, o.w, G.titleH);
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#33322E';
+    ctx.fillText(spec.title, -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    if(rows.length){
+      ctx.textAlign = 'right';
+      ctx.font = '10.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#8A877F';
+      ctx.fillText(String(rows.length), o.w/2 - 8, -o.h/2 + G.titleH/2 + .5);
+      ctx.textAlign = 'left';
+    }
+    // column header row
+    ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#8A877F';
+    let hx0 = -o.w/2 + G.grip;
+    for(let c=0;c<spec.cols.length;c++){
+      ctx.fillText(spec.cols[c].label.toUpperCase(), hx0 + 8, -o.h/2 + G.titleH + G.headH/2 + .5);
+      hx0 += ws[c];
+    }
+    // grid
+    ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
+    for(const y of [G.titleH, G.titleH + G.headH]){
+      ctx.beginPath(); ctx.moveTo(-o.w/2, -o.h/2 + y); ctx.lineTo(o.w/2, -o.h/2 + y); ctx.stroke();
+    }
+    let cx1 = -o.w/2 + G.grip;
+    for(let c=0;c<spec.cols.length-1;c++){
+      cx1 += ws[c];
+      ctx.beginPath(); ctx.moveTo(cx1, -o.h/2 + G.titleH); ctx.lineTo(cx1, o.h/2); ctx.stroke();
+    }
+    // rows
+    o._rowRects = [];
+    rows.forEach((p, r)=>{
+      const yTop = -o.h/2 + G.titleH + G.headH + r*G.rowH;
+      if(drag && drag.kind==='listrow' && drag.personId===p.id){
+        ctx.fillStyle = 'rgba(75,107,251,.08)';
+        ctx.fillRect(-o.w/2, yTop, o.w, G.rowH);
+      }
+      if(r){
+        ctx.beginPath(); ctx.moveTo(-o.w/2, yTop); ctx.lineTo(o.w/2, yTop); ctx.stroke();
+      }
+      // drag grip (rows reorder by dragging it when the card is selected)
+      ctx.fillStyle = selMe ? '#B9B6AE' : '#E5E3DE';
+      for(const dy of [-4, 0, 4]) for(const dx of [-2, 2]){
+        ctx.beginPath(); ctx.arc(-o.w/2 + G.grip/2 + dx, yTop + G.rowH/2 + dy, 1.1, 0, 7); ctx.fill();
+      }
+      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      let x0 = -o.w/2 + G.grip;
+      for(let c=0;c<spec.cols.length;c++){
+        if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='person:'+p.id+':'+spec.cols[c].key)){
+          ctx.fillStyle = '#4A4636';
+          ctx.fillText(trimText(ctx, p[spec.cols[c].key]||'', ws[c]-16), x0 + 8, yTop + G.rowH/2 + .5);
+        }
+        x0 += ws[c];
+      }
+      o._rowRects.push({personId:p.id, x:o.x - o.w/2, y:o.y + yTop, w:G.grip, h:G.rowH});
+    });
+    if(!rows.length){
+      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = 'rgba(74,70,54,.4)';
+      ctx.fillText('No ' + spec.tag + ' yet — tap + to add', -o.w/2 + G.grip + 8,
+        -o.h/2 + G.titleH + G.headH + G.rowH/2);
+    }
+    ctx.restore();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
+    // chips when selected: + adds a person, × per row removes one from the registry
+    if(selMe){
+      ctx.textAlign = 'center';
+      ctx.font = '700 13px -apple-system,Segoe UI,sans-serif';
+      ctx.beginPath(); ctx.arc(0, o.h/2+15, 10, 0, 7);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.fillStyle = '#8A877F';
+      ctx.fillText('+', 0, o.h/2+16);
+      o._plusRow = {x:o.x, y:o.y + o.h/2 + 15, r:14};
+      o._rowDels = [];
+      ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+      rows.forEach((p, r)=>{
+        const cy = -o.h/2 + G.titleH + G.headH + r*G.rowH + G.rowH/2;
+        ctx.beginPath(); ctx.arc(o.w/2 + 14, cy, 8, 0, 7);
+        ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.fillStyle = '#8A877F';
+        ctx.fillText('×', o.w/2 + 14, cy + 1);
+        o._rowDels.push({personId:p.id, x:o.x + o.w/2 + 14, y:o.y + cy, r:11});
+      });
+      ctx.textAlign = 'left';
+    } else { o._plusRow = null; o._rowDels = null; }
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'file'){
     const thumb = o.imgId ? imgCache[o.imgId] : null;

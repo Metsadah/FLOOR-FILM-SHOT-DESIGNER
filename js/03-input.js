@@ -418,6 +418,19 @@ cv.addEventListener('pointerdown', e => {
       drag = {kind:'frame', o:so, sx:wx, sy:wy, dx0:so.frameDX ?? 70, dy0:so.frameDY ?? -85};
       return;
     }
+    if(so && so.cat === 'listcard' && !so.locked){
+      // list-card chips live outside the frame, so catch them here (before hitObject)
+      if(so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
+        addListPerson(so);
+        return;
+      }
+      const del = (so._rowDels||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
+      if(del){ removeListPerson(del.personId); return; }
+      // drag a row's grip to reorder it inside the registry
+      const rr = (so._rowRects||[]).find(r=> wx >= r.x && wx <= r.x + r.w &&
+                                             wy >= r.y && wy <= r.y + r.h);
+      if(rr){ drag = {kind:'listrow', o:so, personId:rr.personId}; return; }
+    }
   }
   const su = hitSun(shot, wx, wy);
   if(su){
@@ -434,7 +447,7 @@ cv.addEventListener('pointerdown', e => {
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
-    if(['link','todo','audio','table'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
+    if(['link','todo','audio','table','listcard'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
     if(obj.cat === 'link'){ drag.linkX0=obj.x; drag.linkY0=obj.y; }
     refreshSelBar(); render();
     return;
@@ -557,6 +570,13 @@ cv.addEventListener('pointermove', e => {
       drag.o.frameDY = drag.dy0 + (wy - drag.sy);
       markDirty();
       break;
+    case 'listrow': {
+      // rows reorder live in the registry as the grip drags
+      const o = drag.o;
+      const idx = Math.floor((wy - (o.y - o.h/2) - LIST_GEO.titleH - LIST_GEO.headH) / LIST_GEO.rowH);
+      if(moveListRow(o, drag.personId, idx)) markDirty();
+      break;
+    }
     case 'drawWall': {
       const p = snapWallPoint(shot, wx, wy);
       const q = snapWallAngle(drag.x1, drag.y1, p.x, p.y, e.shiftKey);
@@ -851,6 +871,17 @@ cv.addEventListener('pointerup', e => {
         markDirty(); render();
         if(typeof openTableCell === 'function') openTableCell(o, 0, o.cells[0].length-1);
       }
+    } else if(o.cat === 'listcard'){
+      const hitPlus = z => z && dist(up.x, up.y, z.x, z.y) <= z.r;
+      const del = (o._rowDels||[]).find(z=>dist(up.x, up.y, z.x, z.y) <= z.r);
+      if(hitPlus(o._plusRow)){
+        addListPerson(o);
+      } else if(del){
+        removeListPerson(del.personId);
+      } else if(typeof listCellAt === 'function'){
+        const cell = listCellAt(o, up.x, up.y); // cells are click-to-edit
+        if(cell) openListCell(o, cell.r, cell.c);
+      }
     }
   }
   if(drag.kind === 'drawWall'){
@@ -996,6 +1027,12 @@ cv.addEventListener('dblclick', e => {
       for(; c < nC-1; c++){ acc += ws[c]; if(lx < acc) break; }
       const r = ly < headH ? 0 : clamp(1 + Math.floor((ly-headH)/rowH), 0, nR-1);
       openTableCell(o, r, c);
+      return;
+    }
+    if(o.cat === 'listcard'){
+      const cell = listCellAt(o, wx, wy);
+      if(cell) openListCell(o, cell.r, cell.c);
+      else if(!cardPeople(o).length) addListPerson(o); // dblclick an empty card starts the first row
       return;
     }
     if(o.cat === 'link'){

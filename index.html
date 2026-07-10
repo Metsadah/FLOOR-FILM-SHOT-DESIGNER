@@ -49,7 +49,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <span id="saveState">Saved</span>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <span id="verChip" title="FLOOR Studio version">v0.11</span><button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="FLOOR Studio version">v0.12</span><button id="helpBtn" title="How to use">?</button>
     </div>
   </div>
 
@@ -124,10 +124,6 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
         <button data-tab="info" class="on">Shot info</button>
         <button data-tab="stills">Recce &amp; mood</button>
       </div>
-      <div id="orgPanel">
-        <div id="orgContent"></div>
-        <div class="tp-note" style="margin:12px">Call sheets &amp; day planning generate from this data next phase — and from any call-sheet cards you drag onto the board.</div>
-      </div>
       <div class="tabPage on" data-page="info">
         <div id="infoForm">
           <label>Shoot name</label>
@@ -182,8 +178,8 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div class="sub">The production board — everything the shoot day needs, spatially arranged.</div>
       <h3>Production cards</h3>
       <p>Drag templated cards from the library: <b>Call sheet</b>, <b>Day schedule</b>, <b>Contact</b>, <b>Location</b>, <b>Checklist</b> — all editable notes. The <b>Weather (live)</b> card fetches a real forecast: give it a place and a date in its selection bar and hit <b>Fetch ↻</b> (forecasts reach ~16 days ahead, free GFS-backed data from Open-Meteo).</p>
-      <h3>Crew &amp; locations</h3>
-      <p>The right panel keeps structured production data — company, contacts, locations — which will feed the call-sheet generator. Drop map screenshots or location photos on the board; <b>Export</b> turns the whole board into a one-page PDF you can send as a call sheet today.</p>
+      <h3>Crew, cast &amp; client — the People registry</h3>
+      <p>The <b>Crew</b>, <b>Cast</b> and <b>Client</b> cards are live views of one per-production <b>People registry</b>: add a person on any card and they exist everywhere; edit a phone number once and every card updates. Click a cell to edit, <kbd>Tab</kbd>/<kbd>Enter</kbd> flow through the fields (<kbd>Enter</kbd> on the last row chains a new person), the <b>+</b> chip adds a row, the <b>×</b> chips remove one, and dragging a row's dotted grip reorders it. The registry will feed the call-sheet generator next phase. Drop map screenshots or location photos on the board; <b>Export</b> turns the whole board into a one-page PDF you can send as a call sheet today.</p>
     </div>
   </div>
 </div>

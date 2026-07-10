@@ -199,6 +199,13 @@ function refreshSelBar(){
       hint.textContent = '+ chips add rows/cols \u00b7 Tab/Enter hop cells';
       selBar.appendChild(hint);
     }
+    if(o.cat === 'listcard'){
+      sbtn('+ Person', ()=>addListPerson(o));
+      const hint = document.createElement('span');
+      hint.style.cssText='font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = 'Live view of the People registry \u2014 edits sync across cards';
+      selBar.appendChild(hint);
+    }
     if(o.cat === 'audio'){
       sbtn('\u25b8 Play / stop', ()=>{ if(typeof toggleAudio==='function') toggleAudio(o); });
       sbtn('Download', async ()=>{
@@ -380,7 +387,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','file','colorcard','audio'].includes(o.cat)){
+    if(!['text','ink','infocard','script','sbrow','table','listcard','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -540,6 +547,11 @@ function editorGetValue(o, field){
     const [,r,c] = field.split(':');
     return (o.cells && o.cells[+r] && o.cells[+r][+c]) || '';
   }
+  if(field && field.startsWith('person:')){
+    const [,pid,key] = field.split(':');
+    const p = peopleReg().find(x=>x.id===pid);
+    return (p && p[key]) || '';
+  }
   return o[field || 'text'] || '';
 }
 function editorSetValue(o, field, v){
@@ -559,6 +571,13 @@ function editorSetValue(o, field, v){
     if(o.cells && o.cells[+r]) o.cells[+r][+c] = v.replace(/\n/g,' ');
     return;
   }
+  if(field && field.startsWith('person:')){
+    // writes go straight into the registry — every card viewing this person syncs
+    const [,pid,key] = field.split(':');
+    const p = peopleReg().find(x=>x.id===pid);
+    if(p) p[key] = v.replace(/\n/g,' ');
+    return;
+  }
   o[field || 'text'] = v;
 }
 function openTodoItem(o, i){
@@ -575,6 +594,45 @@ function openTableCell(o, r, c){
   openNoteEditor(o, 'cell:'+r+':'+c,
     {x:x0+3, y:-o.h/2+cy+3, w:ws[c]-6, h:(r===0?headH:rowH)-6}, 12);
 }
+// ---- list cards (Crew / Cast / Client — live views of the People registry) ----
+function listCellAt(o, wx, wy){
+  const spec = LIST_CARDS[o.kind] || LIST_CARDS.crew;
+  const G = LIST_GEO;
+  const rows = cardPeople(o);
+  const lx = wx - o.x + o.w/2, ly = wy - o.y + o.h/2;
+  if(ly < G.titleH + G.headH || lx < G.grip) return null;
+  const r = Math.floor((ly - G.titleH - G.headH)/G.rowH);
+  if(r < 0 || r >= rows.length) return null;
+  const ws = o._colWs || spec.cols.map(cc=>cc.min);
+  let acc = G.grip, c = 0;
+  for(; c < spec.cols.length-1; c++){ acc += ws[c]; if(lx < acc) break; }
+  return {r, c};
+}
+function openListCell(o, r, c){
+  const spec = LIST_CARDS[o.kind] || LIST_CARDS.crew;
+  const rows = cardPeople(o);
+  const p = rows[r]; if(!p) return;
+  const G = LIST_GEO;
+  const ws = o._colWs || spec.cols.map(cc=>cc.min);
+  let x0 = -o.w/2 + G.grip;
+  for(let k=0;k<c;k++) x0 += ws[k];
+  openNoteEditor(o, 'person:' + p.id + ':' + spec.cols[c].key,
+    {x:x0+3, y:-o.h/2 + G.titleH + G.headH + r*G.rowH + 2, w:ws[c]-6, h:G.rowH-4}, 12);
+}
+function addListPerson(o, open){
+  const spec = LIST_CARDS[o.kind] || LIST_CARDS.crew;
+  peopleReg().push({id:uid(), name:'', role:'', phone:'', email:'', tag:spec.tag, call:''});
+  markDirty(); render();
+  if(open !== false) setTimeout(()=>openListCell(o, cardPeople(o).length-1, 0), 0);
+}
+function removeListPerson(personId){
+  const people = peopleReg();
+  const i = people.findIndex(p=>p.id===personId);
+  if(i < 0) return;
+  people.splice(i, 1);
+  markDirty(); render(); refreshSelBar();
+}
+
 function openNoteEditor(o, field, rect, fs){
   closeNoteEditor(true);
   const ta = document.createElement('textarea');
@@ -601,6 +659,29 @@ function openNoteEditor(o, field, rect, fs){
       if(r >= o.cells.length){ o.cells.push(o.cells[0].map(()=>'' )); markDirty(); }
       render();
       setTimeout(()=>openTableCell(o, r, c), 0);
+      return;
+    }
+    if(fld.startsWith('person:') && (e.key === 'Enter' || e.key === 'Tab')){
+      e.preventDefault();
+      const [,pid,key] = fld.split(':');
+      const spec = LIST_CARDS[o.kind] || LIST_CARDS.crew;
+      const rows = cardPeople(o);
+      let r = rows.findIndex(p=>p.id===pid);
+      let c = spec.cols.findIndex(cc=>cc.key===key);
+      closeNoteEditor(true);
+      if(e.key === 'Tab' && e.shiftKey){ c--; if(c < 0){ c = spec.cols.length-1; r--; } }
+      else if(e.key === 'Tab'){ c++; if(c >= spec.cols.length){ c = 0; r++; } }
+      else r++;
+      if(r < 0){ render(); return; }
+      if(r >= rows.length){
+        // walked off the last row — chain a fresh person, unless this one is still blank
+        const last = rows[rows.length-1];
+        const blank = last && !((last.name||'')+(last.role||'')+(last.phone||'')+(last.email||'')+(last.call||'')).trim();
+        if(blank){ render(); return; }
+        addListPerson(o, false);
+      }
+      render();
+      setTimeout(()=>openListCell(o, r, c), 0);
       return;
     }
     if(fld.startsWith('item:')){
@@ -662,10 +743,11 @@ function positionNoteEditor(){
 }
 function closeNoteEditor(save){
   if(!noteEditor) return;
-  const o = findObj(noteEditor.id);
-  if(o && save){ o.text = noteEditor.ta.value; markDirty(); }
-  noteEditor.ta.remove();
-  noteEditor = null;
+  const ne = noteEditor;
+  noteEditor = null; // clear first — removing the focused textarea re-fires blur → closeNoteEditor
+  const o = findObj(ne.id);
+  if(o && save){ o.text = ne.ta.value; markDirty(); }
+  try{ ne.ta.remove(); }catch(_){}
   render();
 }
 
@@ -904,6 +986,14 @@ function startLibDrag(e, spec){
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
   };
+  else if(spec.cat==='listcard') drawFn = (tc,w2,h2,col)=>{
+    tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
+    tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
+    tc.fillStyle=col; tc.globalAlpha=.3; tc.fillRect(-w2/2,-h2/2,w2,h2*.24); tc.globalAlpha=1;
+    tc.globalAlpha=.55;
+    for(const y2 of [h2*.02, h2*.22]) tc.fillRect(-w2*.36, y2, w2*.72, 2.5);
+    tc.globalAlpha=1;
+  };
   else if(def) drawFn = (tc,w,h,col)=>PROPS.custom.draw(tc,w,h,col,def);
   else if(PROPS[spec.kind]) drawFn = PROPS[spec.kind].draw;
   else drawFn = (tc,w2,h2,col)=>{ tc.strokeStyle=col; tc.strokeRect(-w2/2,-h2/2,w2,h2); };
@@ -935,6 +1025,9 @@ function dropLib(e){
     } else if(libDrag.cat === 'table'){
       o = {id:uid(), cat:'table', kind:'table', x, y, rot:0, w:340, h:90,
            cells:[['Column A','Column B'],['','']], color:libDrag.color||'#4B6BFB', label:'', path:[]};
+    } else if(libDrag.cat === 'listcard'){
+      o = {id:uid(), cat:'listcard', kind:libDrag.kind, x, y, rot:0, w:360, h:74,
+           color:(LIST_CARDS[libDrag.kind] || LIST_CARDS.crew).color, label:'', path:[]};
     } else if(libDrag.cat === 'weather'){
       o = {id:uid(), cat:'weather', kind:'weather', x, y, rot:0, w:240, h:225,
            place:'', date:'', data:[], color:'#4CA6E8', label:'', path:[]};
