@@ -827,9 +827,10 @@ cv.addEventListener('pointerup', e => {
   if(drag.kind === 'move' && drag.o && drag.o.cat === 'todo' && drag.tapX0 !== undefined){
     if(dist(drag.o.x, drag.o.y, drag.tapX0, drag.tapY0) < 4/Math.max(view.scale,.3)){
       const o = drag.o;
+      const {sx:usx, sy:usy} = evtPos(e);
+      const up = toWorld(usx, usy);
       const lh = 24, top = o.label ? 30 : 10;
-      const ly = wy - o.y + o.h/2;
-      const i = Math.floor((ly - top)/lh);
+      const i = Math.floor((up.y - o.y + o.h/2 - top)/lh);
       if(o.items && i >= 0 && i < o.items.length){
         o.items[i].done = !o.items[i].done;
         markDirty(); render();
@@ -1284,7 +1285,7 @@ function zoomFit(){
   if(!b){ view.x=-wrap.clientWidth/2; view.y=-wrap.clientHeight/2; view.scale=1; updateZoomPct(); render(); return; }
   const pad = 90;
   const w = b.maxX-b.minX+pad*2, h = b.maxY-b.minY+pad*2;
-  view.scale = clamp(Math.min(wrap.clientWidth/w, wrap.clientHeight/h), .04, 3);
+  view.scale = clamp(Math.min(wrap.clientWidth/w, wrap.clientHeight/h), .04, .9); // never zoom IN past 90% when fitting
   view.x = b.minX-pad - (wrap.clientWidth/view.scale - w)/2;
   view.y = b.minY-pad - (wrap.clientHeight/view.scale - h)/2;
   updateZoomPct(); render();

@@ -225,7 +225,7 @@ const PROPS = {
     ctx.globalAlpha=1;
   }},
   bounce:{w:120,h:15,name:'Bounce board',draw(ctx,w,h,c){
-    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,4);
+    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,2);
     ctx.fillStyle='#FFFFFF'; ctx.fill(); ctx.strokeStyle='#B9B6AF'; ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-w*.35,0); ctx.lineTo(w*.35,0);
     ctx.strokeStyle=c; ctx.globalAlpha=.5; ctx.stroke(); ctx.globalAlpha=1;

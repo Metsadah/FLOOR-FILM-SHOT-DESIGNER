@@ -206,7 +206,23 @@ function refreshSelBar(){
         }catch(e){ toast('Could not read the file'); }
       });
     }
+    if(o.cat === 'weather'){
+      const pl = document.createElement('input');
+      pl.className='lbl'; pl.style.width='120px';
+      pl.placeholder='Place (e.g. Elburg)';
+      pl.value = o.place || '';
+      pl.addEventListener('input', ()=>{ o.place = pl.value; markDirty(); render(); });
+      pl.addEventListener('keydown', e=>{ if(e.key==='Enter') pl.blur(); e.stopPropagation(); });
+      selBar.appendChild(pl);
+      const dt = document.createElement('input');
+      dt.type='date'; dt.className='lbl'; dt.style.width='130px';
+      dt.value = o.date || '';
+      dt.addEventListener('change', ()=>{ o.date = dt.value; markDirty(); render(); });
+      selBar.appendChild(dt);
+      sbtn('Fetch \u21bb', ()=>fetchWeatherFor(o));
+    }
     if(o.cat === 'script'){
+      sbtn('Import\u2026', ()=>importIntoScriptBlock(o));
       sbtn('Break down', ()=>breakDownScriptBlock(o));
       sbtn('Export .txt', ()=>{
         const text = o.mode==='av'
@@ -540,12 +556,14 @@ function positionNoteEditor(){
   const p = toScreen(o.x - o.w/2, o.y - o.h/2);
   const s = view.scale;
   const ta = noteEditor.ta;
+  ta.style.position = 'fixed';
+  const cvR = cv.getBoundingClientRect();
   const fs = noteEditor.fs || (o.fontSize || (o.cat==='text' ? 18 : 13));
   if(noteEditor.rect){
     const r = noteEditor.rect;
     const pr = toScreen(o.x + r.x, o.y + r.y);
-    ta.style.left = pr.x + 'px';
-    ta.style.top = pr.y + 'px';
+    ta.style.left = (cvR.left + pr.x) + 'px';
+    ta.style.top = (cvR.top + pr.y) + 'px';
     ta.style.width = r.w*s + 'px';
     ta.style.height = Math.max(r.h, fs*2.2)*s + 'px';
     ta.style.fontSize = fs*s + 'px';
@@ -555,8 +573,8 @@ function positionNoteEditor(){
     ta.style.padding = 3*s + 'px';
     return;
   }
-  ta.style.left = p.x + 'px';
-  ta.style.top = p.y + 'px';
+  ta.style.left = (cvR.left + p.x) + 'px';
+  ta.style.top = (cvR.top + p.y) + 'px';
   ta.style.width = o.w*s + 'px';
   ta.style.height = Math.max(o.h, fs*2.8)*s + 'px';
   ta.style.fontSize = fs*s + 'px';
@@ -729,7 +747,8 @@ function buildLibrary(){
   if(activeTab === 'org' && typeof buildProdLibSection === 'function') buildProdLibSection(lib);
   if(activeTab === 'write' && typeof buildWriteLibSection === 'function') buildWriteLibSection(lib);
 
-  // Custom section
+  // Custom section (shot designer only)
+  if(activeTab !== 'design') return;
   const ch = document.createElement('div');
   ch.className='cat-head'; ch.innerHTML='<span class="arr">▼</span>Custom props';
   const cg = document.createElement('div');
@@ -826,10 +845,15 @@ function dropLib(e){
     let o;
     if(libDrag.cat === 'todo'){
       o = {id:uid(), cat:'todo', kind:'todo', x, y, rot:0, w:230, h:120,
-           label:'To-do', items:[{t:'First item', done:false}], color:libDrag.color||'#3E9B6E', path:[]};
+           label:'To-do',
+           items:[{t:'To do 1', done:false},{t:'To do 2', done:false},{t:'To do 3', done:false}],
+           color:libDrag.color||'#3E9B6E', path:[]};
     } else if(libDrag.cat === 'table'){
       o = {id:uid(), cat:'table', kind:'table', x, y, rot:0, w:340, h:90,
            cells:[['Column A','Column B'],['','']], color:libDrag.color||'#4B6BFB', label:'', path:[]};
+    } else if(libDrag.cat === 'weather'){
+      o = {id:uid(), cat:'weather', kind:'weather', x, y, rot:0, w:240, h:225,
+           place:'', date:'', data:[], color:'#4CA6E8', label:'', path:[]};
     } else if(libDrag.cat === 'colorcard'){
       o = {id:uid(), cat:'colorcard', kind:'colorcard', x, y, rot:0, w:160, h:130,
            hex:'#E8604C', label:'', color:'#E8604C', path:[]};

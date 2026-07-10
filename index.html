@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-<title>FLOOR — Film Shot Designer</title>
+<title>FLOOR Studio — the floor is yours</title>
 
 <!-- PWA: install to home screen on iPad / Mac, works offline. See manifest.json + service-worker.js -->
 <link rel="manifest" href="./manifest.json">
@@ -30,7 +30,14 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
 <div id="app">
   <div id="topbar">
     <button class="btn drawer-btn" id="libToggle" title="Shots &amp; library">☰</button>
-  <div class="logo"><div class="dot"></div><div class="logo-txt"><span class="logo-name">FLOOR</span><span class="logo-tag">the floor is yours</span></div></div>
+  <div class="logo">
+    <svg class="logo-mark" viewBox="0 0 24 24">
+      <path d="M3.5 20.5V3.5h17" fill="none"/>
+      <circle cx="14.5" cy="14.5" r="3.2" fill="none"/>
+      <path d="M17 12.4l4-3M17 16.6l4 3" fill="none"/>
+    </svg>
+    <div class="logo-txt"><span class="logo-name">FLOOR<span class="logo-sub">STUDIO</span></span><span class="logo-tag">the floor is yours</span></div>
+  </div>
   <button class="btn" id="projBtn" title="Switch or create productions">Production ▾</button>
   <div id="projPop"></div>
     <span id="sceneLbl">SCENE</span><input id="shotTitle" title="Rename scene" spellcheck="false">
@@ -49,8 +56,8 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
 
   <div id="tabbar">
     <button data-tab="mood"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="1.5"/><rect x="13" y="3" width="8" height="6" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="15" width="8" height="6" rx="1.5"/></svg>Moodboard</button>
-    <button data-tab="write"><svg viewBox="0 0 24 24"><path d="M5 3h8l3 3v7"/><path d="M13 3v3h3M8 8h4M8 11h4"/><rect x="12" y="13" width="9" height="8" rx="1.5"/><path d="M15 13v8M18 13v8"/></svg>Script &amp; Storyboard</button>
-    <button data-tab="design" class="on"><svg viewBox="0 0 24 24"><path d="M3 21V8l6-5 6 5M9 21v-8h6v8M3 21h18M15 12h6"/><circle cx="18" cy="7" r="2.2"/></svg>Shot designer</button>
+    <button data-tab="write"><svg viewBox="0 0 24 24"><path d="M3 9l17-4 1 4-17 4z"/><path d="M7 8.2l2.5 3M12 7l2.5 3M17 5.8l2.5 3M4 13h16v7H4z"/><path d="M8 13v7M14 13v7"/></svg>Script &amp; Storyboard</button>
+    <button data-tab="design" class="on"><svg viewBox="0 0 24 24"><rect x="2.5" y="8" width="13" height="10" rx="1.5"/><circle cx="9" cy="13" r="3"/><path d="M15.5 11l6-3v8l-6-3M6 8V6h6v2"/></svg>Shot designer</button>
     <button data-tab="org"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4M9 9.5h6M9 13h6M9 16.5h4"/></svg>Production</button>
   </div>
   <div id="main">

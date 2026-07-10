@@ -143,8 +143,6 @@ const PROD_CARDS = [
    'Name: \nAddress: \nParking: \nPower: \nToilets: \nAccess / keys: \nNotes: '],
   ['Checklist', '#8B5CF6', 230, 260, 'CHECKLIST',
    '\u2610 Camera batteries\n\u2610 Media cards\n\u2610 Release forms\n\u2610 Catering confirmed\n\u2610 Parking arranged\n\u2610 Backup drive'],
-  ['Weather card', '#4CA6E8', 230, 200, 'WEATHER',
-   'Date: \nForecast: \nTemp: \nWind: \nRain chance: \nSunrise: \nSunset: '],
 ];
 function buildProdLibSection(lib){
   const h = document.createElement('div');
@@ -170,11 +168,91 @@ function buildProdLibSection(lib){
       props:{label, text, w, h:hh, color}}));
     grid.appendChild(el);
   }
+  // live weather card (Open-Meteo: free GFS/ICON model data, no key)
+  const wEl = document.createElement('div');
+  wEl.className = 'lib-item';
+  wEl.appendChild(tileCanvas((tc,w2,h2)=>{
+    tc.strokeStyle='#4CA6E8'; tc.lineWidth=3; tc.fillStyle='#4CA6E8';
+    tc.beginPath(); tc.arc(-w2*.1,-h2*.14,h2*.16,0,7); tc.stroke();
+    tc.beginPath();
+    tc.moveTo(-w2*.3,h2*.12); tc.quadraticCurveTo(-w2*.34,-h2*.06,-w2*.12,0);
+    tc.quadraticCurveTo(0,-h2*.2,w2*.14,0);
+    tc.quadraticCurveTo(w2*.36,-h2*.02,w2*.28,h2*.12);
+    tc.closePath(); tc.globalAlpha=.35; tc.fill(); tc.globalAlpha=1; tc.stroke();
+  }, 100, 100, '#4CA6E8'));
+  wEl.insertAdjacentHTML('beforeend', '<span>Weather (live)</span>');
+  wEl.addEventListener('pointerdown', e => startLibDrag(e, {cat:'weather', kind:'weather', color:'#4CA6E8'}));
+  grid.appendChild(wEl);
   lib.appendChild(grid);
   const tip = document.createElement('div');
   tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 10px;line-height:1.5;';
-  tip.textContent = 'Tip: drop a map screenshot or location photo straight onto the board (or paste with Cmd+V) — the Underlay toggle works here too.';
+  tip.textContent = 'Tip: drop a map screenshot, location photo or Cmd+V paste straight onto the board. The weather card fetches a real forecast for its place + date.';
   lib.appendChild(tip);
+}
+
+// ---------------------------------------------------------------- live weather (Open-Meteo, GFS-backed, free)
+const WMO = {0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',
+  51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',
+  66:'Freezing rain',71:'Light snow',73:'Snow',75:'Heavy snow',77:'Snow grains',
+  80:'Light showers',81:'Showers',82:'Heavy showers',85:'Snow showers',86:'Snow showers',
+  95:'Thunderstorm',96:'Thunderstorm + hail',99:'Severe thunderstorm'};
+async function fetchWeatherFor(o){
+  if(!o.place || !o.date){ toast('Set a place and a date first'); return; }
+  const days = Math.round((new Date(o.date) - new Date().setHours(0,0,0,0)) / 86400000);
+  if(days < 0){ toast('That date is in the past'); return; }
+  if(days > 15){ toast('Forecasts reach ~16 days ahead \u2014 fetch again closer to the date'); return; }
+  toast('Fetching forecast\u2026');
+  try{
+    const g = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=nl&name=' +
+      encodeURIComponent(o.place))).json();
+    const hit = g.results && g.results[0];
+    if(!hit){ toast('Place not found \u2014 try a bigger town nearby'); return; }
+    const q = 'https://api.open-meteo.com/v1/forecast?latitude=' + hit.latitude +
+      '&longitude=' + hit.longitude +
+      '&daily=weather_code,temperature_2m_min,temperature_2m_max,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset' +
+      '&timezone=auto&start_date=' + o.date + '&end_date=' + o.date;
+    const w = await (await fetch(q)).json();
+    const d = w.daily;
+    if(!d || !d.time || !d.time.length){ toast('No forecast returned for that date'); return; }
+    const hhmm = t => (t||'').split('T')[1] || '';
+    o.place = hit.name + (hit.admin1 ? ', ' + hit.admin1 : '');
+    o.data = [
+      ['Forecast', WMO[d.weather_code[0]] || ('code ' + d.weather_code[0])],
+      ['Temp', Math.round(d.temperature_2m_min[0]) + '\u2013' + Math.round(d.temperature_2m_max[0]) + ' \u00b0C'],
+      ['Rain chance', (d.precipitation_probability_max[0] ?? '\u2014') + ' %'],
+      ['Wind', Math.round(d.wind_speed_10m_max[0]) + ' km/h'],
+      ['Sun', hhmm(d.sunrise[0]) + ' \u2192 ' + hhmm(d.sunset[0])],
+    ];
+    markDirty(); render(); refreshSelBar();
+    toast('Forecast loaded');
+  }catch(e){
+    console.warn('weather fetch failed', e);
+    toast('Could not reach the weather service');
+  }
+}
+
+// import a script file straight into a script block
+function importIntoScriptBlock(o){
+  const fi = document.createElement('input');
+  fi.type = 'file'; fi.accept = '.txt,.fountain,.fdx';
+  fi.addEventListener('change', async ()=>{
+    const file = fi.files && fi.files[0];
+    if(!file) return;
+    let text = await file.text();
+    if(file.name.toLowerCase().endsWith('.fdx')){
+      try{
+        const doc = new DOMParser().parseFromString(text, 'text/xml');
+        text = [...doc.querySelectorAll('Paragraph')].map(p=>{
+          const t = [...p.querySelectorAll('Text')].map(x=>x.textContent).join('');
+          return (p.getAttribute('Type') === 'Scene Heading') ? t.toUpperCase() : t;
+        }).join('\n');
+      }catch(e){}
+    }
+    o.text = text;
+    markDirty(); render();
+    toast('Script imported \u2014 hit "Break down" when ready');
+  });
+  fi.click();
 }
 
 // --- rule-based screenplay parsing (the AI pass lands in Phase 1) ---
@@ -499,7 +577,24 @@ async function openProjectPop(){
   if(pop.classList.contains('show')){ pop.classList.remove('show'); return; }
   const idx = (await loadProjectIndex()) || [];
   idx.sort((a,b)=>(b.updated||0)-(a.updated||0));
-  pop.innerHTML = '<div class="xp-title">Productions</div>';
+  pop.innerHTML = '<div class="xp-title">This production</div>';
+  const nameIn = document.createElement('input');
+  nameIn.className = 'proj-name';
+  nameIn.placeholder = 'Name this production\u2026';
+  nameIn.value = project.shootName || '';
+  nameIn.addEventListener('input', ()=>{
+    project.shootName = nameIn.value;
+    markDirty(); syncProjBtn();
+    const el0 = document.getElementById('iShoot');
+    if(el0) el0.value = nameIn.value;
+  });
+  nameIn.addEventListener('keydown', e=>{ if(e.key==='Enter') nameIn.blur(); e.stopPropagation(); });
+  pop.appendChild(nameIn);
+  const st = document.createElement('div');
+  st.style.cssText = 'font-size:10px;color:var(--ink2);margin:4px 2px 10px;';
+  st.textContent = 'Autosaves as you work \u2014 switch below at any time.';
+  pop.appendChild(st);
+  pop.insertAdjacentHTML('beforeend', '<div class="xp-title">All productions</div>');
   idx.forEach(p=>{
     const row = document.createElement('button');
     row.className = 'proj-row' + (p.id === currentProjectId ? ' on' : '');

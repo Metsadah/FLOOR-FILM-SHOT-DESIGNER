@@ -1,7 +1,7 @@
 {
-  "name": "FLOOR — Film Shot Designer",
+  "name": "FLOOR Studio",
   "short_name": "FLOOR",
-  "description": "Top-down shot design and pre-production blocking tool for film crews.",
+  "description": "Pre-production studio for film crews: moodboards, scripts, storyboards, top-down shot design and call sheets. The floor is yours.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
