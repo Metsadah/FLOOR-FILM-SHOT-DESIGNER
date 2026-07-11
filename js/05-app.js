@@ -772,6 +772,17 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
 
 // ---------------------------------------------------------------- boot
 (async function boot(){
+  const viewToken = new URLSearchParams(location.search).get('view');
+  if(viewToken){
+    // shared read-only viewer — 07-share.js owns the whole boot. It loads
+    // AFTER this file, and timers can fire between classic scripts, so poll.
+    const go = ()=>{
+      if(typeof __floorViewerBoot === 'function') __floorViewerBoot(viewToken);
+      else setTimeout(go, 30);
+    };
+    go();
+    return;
+  }
   await loadProject();
   document.getElementById('loading').remove();
   initInfoForm();

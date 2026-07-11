@@ -877,6 +877,38 @@ const FIELD_CARDS = {
 };
 const FIELD_GEO = {titleH:26, rowH:26};
 
+// ---------------------------------------------------------------- day header
+// geometry of the call-time block (renderer + hit zones + editor agree)
+const DAYH = {w:320, titleH:26, bigH:58, rowH:30};
+// NOAA-style sunrise/sunset, ±2 min — local time via the browser's timezone.
+function sunTimes(dateStr, lat, lon){
+  const d = new Date(dateStr + 'T12:00:00');
+  if(isNaN(d) || lat === undefined || lat === null) return null;
+  const R = Math.PI/180;
+  const doy = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5);
+  const calc = rising=>{
+    const lngH = lon/15;
+    const t = doy + ((rising ? 6 : 18) - lngH)/24;
+    const M = 0.9856*t - 3.289;
+    let L = M + 1.916*Math.sin(M*R) + 0.020*Math.sin(2*M*R) + 282.634;
+    L = ((L % 360) + 360) % 360;
+    let RA = Math.atan(0.91764*Math.tan(L*R))/R;
+    RA = ((RA % 360) + 360) % 360;
+    RA += Math.floor(L/90)*90 - Math.floor(RA/90)*90;
+    RA /= 15;
+    const sinDec = 0.39782*Math.sin(L*R);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosH = (Math.cos(90.833*R) - sinDec*Math.sin(lat*R)) / (cosDec*Math.cos(lat*R));
+    if(cosH > 1 || cosH < -1) return null; // polar day / night
+    let H = rising ? 360 - Math.acos(cosH)/R : Math.acos(cosH)/R;
+    const T = H/15 + RA - 0.06571*t - 6.622;
+    const UT = ((T - lngH) % 24 + 24) % 24;
+    const loc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, Math.round(UT*3600)));
+    return String(loc.getHours()).padStart(2,'0') + ':' + String(loc.getMinutes()).padStart(2,'0');
+  };
+  return {rise: calc(true), set: calc(false)};
+}
+
 // Checklist 2.0 — named templates, picked when the tile drops
 const CHECKLIST_TEMPLATES = {
   'Camera dept':  ['Batteries charged','Media cards formatted','Lenses & filters packed',

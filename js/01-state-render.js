@@ -1114,6 +1114,96 @@ function drawObjectShape(o, ghost){
     ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
     ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'dayheader'){
+    // the call-time block — echoes a Dutch call sheet header
+    const G = DAYH;
+    o.w = G.w;
+    o.h = G.titleH + G.bigH + G.rowH*2;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.clip();
+    ctx.fillStyle = o.color || '#E8604C'; ctx.globalAlpha = .14;
+    ctx.fillRect(-o.w/2, -o.h/2, o.w, G.titleH);
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#33322E';
+    ctx.fillText('SHOOT DAY', -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    // date, right-aligned in the strip (Dutch long form)
+    ctx.textAlign = 'right';
+    ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
+    if(o.date){
+      const d = new Date(o.date + 'T12:00:00');
+      ctx.fillStyle = '#33322E';
+      ctx.fillText(isNaN(d) ? o.date :
+        d.toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'long', year:'numeric'}),
+        o.w/2 - 8, -o.h/2 + G.titleH/2 + .5);
+    } else {
+      ctx.fillStyle = 'rgba(74,70,54,.35)';
+      ctx.fillText('pick a date (selection bar)', o.w/2 - 8, -o.h/2 + G.titleH/2 + .5);
+    }
+    ctx.textAlign = 'left';
+    // big general call
+    const bigY = -o.h/2 + G.titleH + G.bigH/2;
+    if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='dh:call')){
+      ctx.textAlign = 'center';
+      ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#8A877F';
+      ctx.fillText('GENERAL CALL', 0, bigY - 16);
+      ctx.font = '800 26px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = o.call ? '#33322E' : 'rgba(74,70,54,.3)';
+      ctx.fillText(o.call || '07:00', 0, bigY + 8);
+      ctx.textAlign = 'left';
+    }
+    // shooting call | est. wrap
+    const r1 = -o.h/2 + G.titleH + G.bigH;
+    ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-o.w/2, r1); ctx.lineTo(o.w/2, r1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, r1); ctx.lineTo(0, r1 + G.rowH); ctx.stroke();
+    ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#8A877F';
+    ctx.fillText('SHOOTING CALL', -o.w/2 + 10, r1 + G.rowH/2 + .5);
+    ctx.fillText('EST. WRAP', 10, r1 + G.rowH/2 + .5);
+    ctx.font = '600 13px -apple-system,Segoe UI,sans-serif';
+    if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='dh:shootCall')){
+      ctx.fillStyle = o.shootCall ? '#33322E' : 'rgba(74,70,54,.3)';
+      ctx.textAlign = 'right';
+      ctx.fillText(o.shootCall || '–:–', -14, r1 + G.rowH/2 + .5);
+      ctx.textAlign = 'left';
+    }
+    if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='dh:wrap')){
+      ctx.fillStyle = o.wrap ? '#33322E' : 'rgba(74,70,54,.3)';
+      ctx.textAlign = 'right';
+      ctx.fillText(o.wrap || '–:–', o.w/2 - 14, r1 + G.rowH/2 + .5);
+      ctx.textAlign = 'left';
+    }
+    // sunrise / sunset from the location card's place
+    const r2 = r1 + G.rowH;
+    ctx.beginPath(); ctx.moveTo(-o.w/2, r2); ctx.lineTo(o.w/2, r2); ctx.stroke();
+    const sun = (o.date && o.lat !== undefined && o.lat !== null)
+      ? sunTimes(o.date, o.lat, o.lon) : null;
+    ctx.font = '600 12px -apple-system,Segoe UI,sans-serif';
+    if(sun && sun.rise){
+      ctx.fillStyle = '#C98A17';
+      ctx.fillText('☀↑ ' + sun.rise + '   ☀↓ ' + sun.set, -o.w/2 + 10, r2 + G.rowH/2 + .5);
+      if(o.place){
+        ctx.textAlign = 'right';
+        ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+        ctx.fillStyle = '#8A877F';
+        ctx.fillText(trimText(ctx, o.place, o.w/2 - 90), o.w/2 - 8, r2 + G.rowH/2 + .5);
+        ctx.textAlign = 'left';
+      }
+    } else {
+      ctx.fillStyle = 'rgba(74,70,54,.35)';
+      ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+      ctx.fillText('☀ sunrise/sunset — "Sun from location ↻" in the selection bar',
+        -o.w/2 + 10, r2 + G.rowH/2 + .5);
+    }
+    ctx.restore();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'file'){
     const thumb = o.imgId ? imgCache[o.imgId] : null;
     if(thumb && thumb.complete && thumb.naturalWidth){
@@ -1258,6 +1348,18 @@ function drawObjectShape(o, ghost){
         .forEach((l,i)=> ctx.fillText(l, dx, -o.h/2+12 + i*16));
     }
     ctx.restore();
+    // + chip below when selected: chain the next shot row of this scene
+    if(sel && sel.type==='object' && sel.id===o.id && !ghost){
+      ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      ctx.font = '700 13px -apple-system,Segoe UI,sans-serif';
+      ctx.beginPath(); ctx.arc(0, o.h/2+15, 10, 0, 7);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.fillStyle = '#8A877F';
+      ctx.fillText('+', 0, o.h/2+16);
+      ctx.textAlign = 'left';
+      o._plusRow = {x:o.x, y:o.y + o.h/2 + 15, r:14};
+    } else o._plusRow = null;
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'image'){
     const im = imgCache[o.imgId];
@@ -1281,7 +1383,12 @@ function drawObjectShape(o, ghost){
       ctx.font = '13px -apple-system,Segoe UI,sans-serif'; ctx.textAlign='center';
       ctx.fillText('loading…', 0, 4);
       ctx.textAlign='left';
-      if(!o._loading){ o._loading = true; loadStill(o.imgId).then(()=>{ o._loading=false; render(); }); }
+      // only kick off a load when nothing is cached yet — a cached-but-broken
+      // image must NOT reschedule render() forever (busy-loops the main thread)
+      if(!imgCache[o.imgId] && !o._loading){
+        o._loading = true;
+        loadStill(o.imgId).then(()=>{ o._loading=false; render(); });
+      }
     }
   } else {
     const def = o.kind.startsWith('custom:')

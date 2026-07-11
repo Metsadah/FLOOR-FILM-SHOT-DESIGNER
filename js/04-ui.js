@@ -80,6 +80,18 @@ function refreshSelBar(){
     return;
   }
 
+  if(sel.type === 'multi'){
+    const lab = document.createElement('span');
+    lab.style.cssText = 'font-size:11.5px;color:var(--ink2);padding:0 6px;font-weight:600;';
+    lab.textContent = sel.ids.length + ' objects — drag any one to move the group';
+    selBar.appendChild(lab);
+    sbtn('Duplicate', duplicateSelection);
+    sbtn('Delete all', deleteSelection, true);
+    selBar.classList.add('show');
+    updateSelBarPos();
+    return;
+  }
+
   if(sel.type === 'object'){
     const o = shot.objects.find(x=>x.id===sel.id);
     if(!o){ sel=null; selBar.classList.remove('show'); return; }
@@ -201,7 +213,7 @@ function refreshSelBar(){
       sbtn('\u2212 Col', ()=>{ if(o.cells[0].length>1){ o.cells.forEach(r=>r.pop()); markDirty(); render(); } });
       const hint = document.createElement('span');
       hint.style.cssText='font-size:10.5px;color:var(--ink2);padding:0 4px;';
-      hint.textContent = '+ chips add rows/cols \u00b7 Tab/Enter hop cells';
+      hint.textContent = 'Drag the corner handle to add/remove rows & cols \u00b7 Tab/Enter hop cells';
       selBar.appendChild(hint);
     }
     if(o.cat === 'prop' && LIGHT_BEAMS[o.kind]){
@@ -232,6 +244,19 @@ function refreshSelBar(){
       hint.textContent = o.kind === 'prodinfo'
         ? 'Live view of the production info \u2014 Tab hops fields'
         : 'One location from the production \u2014 Tab hops fields';
+      selBar.appendChild(hint);
+    }
+    if(o.cat === 'dayheader'){
+      const dt = document.createElement('input');
+      dt.type = 'date'; dt.className = 'lbl'; dt.style.width = '130px';
+      dt.value = o.date || '';
+      dt.addEventListener('change', ()=>{ o.date = dt.value; markDirty(); render(); });
+      dt.addEventListener('keydown', e=>e.stopPropagation());
+      selBar.appendChild(dt);
+      sbtn('Sun from location \u21bb', ()=>dayheaderSunFetch(o));
+      const hint = document.createElement('span');
+      hint.style.cssText='font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = 'Click the times to edit \u2014 Tab hops call \u2192 wrap';
       selBar.appendChild(hint);
     }
     if(o.cat === 'audio'){
@@ -294,6 +319,7 @@ function refreshSelBar(){
       });
     }
     if(o.cat === 'sbrow'){
+      sbtn('+ Row below', ()=>addSbRowBelow(o));
       const sc0 = o.sceneId && project.scenes.find(x=>x.id===o.sceneId);
       if(sc0){
         sbtn('Open scene \u2197', ()=>{ switchScene(sc0.id); switchTab('design'); });
@@ -415,7 +441,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','file','colorcard','audio'].includes(o.cat)){
+    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -544,6 +570,15 @@ function updateSelBarPos(){
   if(sel.type === 'sun'){
     const su = shot.sun; if(!su||!su.on) return;
     wx = su.x; wy = su.y; r = 60;
+  } else if(sel.type === 'multi'){
+    let mnx=Infinity, mny=Infinity, mxx=-Infinity, mxy=-Infinity;
+    for(const id of sel.ids){
+      const o = shot.objects.find(x=>x.id===id); if(!o) continue;
+      mnx = Math.min(mnx, o.x-(o.w||20)/2); mxx = Math.max(mxx, o.x+(o.w||20)/2);
+      mny = Math.min(mny, o.y-(o.h||20)/2); mxy = Math.max(mxy, o.y+(o.h||20)/2);
+    }
+    if(mnx === Infinity) return;
+    wx = (mnx+mxx)/2; wy = (mny+mxy)/2; r = (mxy-mny)/2;
   } else if(sel.type === 'object'){
     const o = shot.objects.find(x=>x.id===sel.id); if(!o) return;
     wx=o.x; wy=o.y;
@@ -590,6 +625,7 @@ function editorGetValue(o, field){
     const row = spec.rows[+field.split(':')[1]];
     return row ? fieldGet(o, row.key) : '';
   }
+  if(field && field.startsWith('dh:')) return o[field.slice(3)] || '';
   return o[field || 'text'] || '';
 }
 function editorSetValue(o, field, v){
@@ -621,6 +657,10 @@ function editorSetValue(o, field, v){
     const spec = FIELD_CARDS[o.kind] || FIELD_CARDS.prodinfo;
     const row = spec.rows[+field.split(':')[1]];
     if(row) fieldSet(o, row.key, v.replace(/\n/g,' '));
+    return;
+  }
+  if(field && field.startsWith('dh:')){
+    o[field.slice(3)] = v.replace(/\n/g,' ').trim();
     return;
   }
   o[field || 'text'] = v;
@@ -676,6 +716,69 @@ function removeListPerson(personId){
   if(i < 0) return;
   people.splice(i, 1);
   markDirty(); render(); refreshSelBar();
+}
+
+// ---- storyboard rows: chain shot ideas per scene ----
+// New row lands right under this one, same scene; EVERYTHING below shifts
+// down by the same amount so later scenes never get overlapped.
+function addSbRowBelow(o){
+  const shot = activeShot();
+  const dy = o.h + 14;
+  for(const ob of shot.objects){
+    if(ob === o || ob.y <= o.y + 1) continue;
+    ob.y += dy;
+    if(ob.p1){ ob.p1.y += dy; } if(ob.p2){ ob.p2.y += dy; }
+    if(ob.mid){ ob.mid.y += dy; }
+    if(ob.pts) ob.pts.forEach(p=>p.y += dy);
+    if(ob.path) ob.path.forEach(p=>p.y += dy);
+  }
+  const n = {id:uid(), cat:'sbrow', kind:'sbrow', x:o.x, y:o.y + dy, rot:0,
+    w:o.w, h:o.h, title:'', desc:'', imgId:null, sceneId:o.sceneId || null,
+    color:o.color, label:'', path:[]};
+  shot.objects.push(n);
+  sel = {type:'object', id:n.id};
+  markDirty(); render(); refreshSelBar();
+  return n;
+}
+
+// ---- day header (the call-time block) ----
+function dayCellAt(o, wx, wy){
+  const G = DAYH;
+  const lx = wx - o.x + o.w/2, ly = wy - o.y + o.h/2;
+  if(ly < G.titleH) return null;
+  if(ly < G.titleH + G.bigH) return 'call';
+  if(ly < G.titleH + G.bigH + G.rowH) return lx < o.w/2 ? 'shootCall' : 'wrap';
+  return null; // sun row is computed, not edited
+}
+function openDayCell(o, key){
+  const G = DAYH;
+  if(key === 'call'){
+    openNoteEditor(o, 'dh:call',
+      {x:-60, y:-o.h/2 + G.titleH + G.bigH/2 - 16, w:120, h:34}, 24);
+  } else {
+    const r1 = -o.h/2 + G.titleH + G.bigH;
+    openNoteEditor(o, 'dh:' + key,
+      {x:(key==='shootCall' ? -o.w/2 + 96 : 76), y:r1 + 3, w:o.w/2 - 100, h:G.rowH - 6}, 13);
+  }
+}
+// geocode the Location card's place once (Open-Meteo, like the weather card),
+// cache lat/lon on the day header; sunrise/sunset then computes client-side
+async function dayheaderSunFetch(o){
+  normalizeProduction();
+  const loc = project.production.locations.find(l=>l.name || l.address);
+  const q = loc ? (loc.address || loc.name) : '';
+  if(!q){ toast('Fill a Location card first — the sun needs a place'); return; }
+  toast('Looking up ' + q + '…');
+  try{
+    const g = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=nl&name=' +
+      encodeURIComponent(q.split(',')[0]))).json();
+    const hit = g.results && g.results[0];
+    if(!hit){ toast('Place not found — try just the town name in the Location card'); return; }
+    o.lat = hit.latitude; o.lon = hit.longitude;
+    o.place = hit.name + (hit.admin1 ? ', ' + hit.admin1 : '');
+    markDirty(); render(); refreshSelBar();
+    toast('Sunrise/sunset from ' + o.place);
+  }catch(e){ toast('Could not reach the geocoding service'); }
 }
 
 // ---- field cards (Production info / Location — windows onto production data) ----
@@ -754,6 +857,16 @@ function openNoteEditor(o, field, rect, fs){
       i += (e.key === 'Tab' && e.shiftKey) ? -1 : 1;
       render();
       if(i >= 0 && i < spec.rows.length) setTimeout(()=>openFieldCell(o, i), 0);
+      return;
+    }
+    if(fld.startsWith('dh:') && (e.key === 'Enter' || e.key === 'Tab')){
+      e.preventDefault();
+      const order = ['call','shootCall','wrap'];
+      let i = order.indexOf(fld.slice(3));
+      closeNoteEditor(true);
+      i += (e.key === 'Tab' && e.shiftKey) ? -1 : 1;
+      render();
+      if(i >= 0 && i < order.length) setTimeout(()=>openDayCell(o, order[i]), 0);
       return;
     }
     if(fld.startsWith('item:')){
@@ -1058,7 +1171,7 @@ function startLibDrag(e, spec){
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
   };
-  else if(spec.cat==='listcard' || spec.cat==='fieldcard') drawFn = (tc,w2,h2,col)=>{
+  else if(spec.cat==='listcard' || spec.cat==='fieldcard' || spec.cat==='dayheader') drawFn = (tc,w2,h2,col)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.globalAlpha=.3; tc.fillRect(-w2/2,-h2/2,w2,h2*.24); tc.globalAlpha=1;
@@ -1105,6 +1218,11 @@ function dropLib(e){
     } else if(libDrag.cat === 'listcard'){
       o = {id:uid(), cat:'listcard', kind:libDrag.kind, x, y, rot:0, w:360, h:74,
            color:(LIST_CARDS[libDrag.kind] || LIST_CARDS.crew).color, label:'', path:[]};
+    } else if(libDrag.cat === 'dayheader'){
+      o = {id:uid(), cat:'dayheader', kind:'dayheader', x, y, rot:0, w:DAYH.w, h:140,
+           date:new Date().toISOString().slice(0,10), call:'', shootCall:'', wrap:'',
+           place:'', lat:null, lon:null, color:'#E8604C', label:'', path:[]};
+      setTimeout(()=>dayheaderSunFetch(o), 100); // auto-pull sun from the location card if one exists
     } else if(libDrag.cat === 'fieldcard'){
       o = {id:uid(), cat:'fieldcard', kind:libDrag.kind, x, y, rot:0, w:280, h:130,
            color:(FIELD_CARDS[libDrag.kind] || FIELD_CARDS.prodinfo).color, label:'', path:[]};

@@ -13,6 +13,9 @@
    ===================================================================== */
 
 (function(){
+  // Shared read-only viewer (?view=TOKEN): no login, no cloud kv — the
+  // snapshot travels with the link; js/07-share.js takes over at boot.
+  if(new URLSearchParams(location.search).get('view')) return;
   // ── 1. PASTE YOUR VALUES HERE ─────────────────────────────────────
   const SUPABASE_URL      = 'https://jcasjylzosgtitaxbrjo.supabase.co'; // FLOOR - FILM SHOT DESIGNER (eu-west-1)
   const SUPABASE_ANON_KEY = 'sb_publishable_Hon-GqliiypoM52l6uuUaA_w4UFkfdB'; // publishable key 'floor_shot_designer' (safe to be public — data is protected by RLS)
@@ -37,6 +40,7 @@
   }
 
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  window.FLOOR_SB = sb; // sharing (07-share.js) reuses the logged-in client
 
   // ---- tiny magic-link login overlay -------------------------------
   function loginOverlay(){
@@ -90,6 +94,7 @@
     if(data.session) return data.session.user;
     return loginOverlay();
   })();
+  ready.then(u=>{ window.FLOOR_USER = u; });
 
   // ---- storage API (same shape the app expects) ---------------------
   window.FLOOR_STORAGE = {

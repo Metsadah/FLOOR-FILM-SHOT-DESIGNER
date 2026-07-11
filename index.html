@@ -48,9 +48,11 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <button class="hbtn" id="undoBtn" title="Undo (Ctrl/⌘ Z)" disabled>↩</button>
       <button class="hbtn" id="redoBtn" title="Redo (Ctrl/⌘ ⇧ Z)" disabled>↪</button>
       <span id="saveState">Saved</span>
+      <button class="btn" id="shareBtn" title="Read-only share links">Share</button>
+      <div id="sharePop"></div>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <span id="verChip" title="FLOOR Studio version">v0.14</span><button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="FLOOR Studio version">v0.15</span><button id="helpBtn" title="How to use">?</button>
     </div>
   </div>
 
@@ -74,6 +76,9 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="toolbar">
         <button data-tool="select" data-tip="Select / move (V)">
           <svg viewBox="0 0 24 24"><path d="M5 3l14 8-6.5 1.5L10 19z"/></svg>
+        </button>
+        <button data-tool="marquee" data-tip="Select multiple — drag a box (M)">
+          <svg viewBox="0 0 24 24"><path d="M4 4h4M10 4h4M16 4h4M4 4v4M4 10v4M4 16v4M20 4v4M20 10v4M20 16v4M4 20h4M10 20h4M16 20h4" stroke-dasharray="0"/></svg>
         </button>
         <div class="sep"></div>
         <button data-tool="wall" data-tip="Draw wall (W) — snaps to 90°">
@@ -168,7 +173,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <h3>Getting things on the board</h3>
       <p>Drag tiles from the <b>Board</b> library, drop image files straight onto the canvas, or copy any picture (ShotDeck, Frameset, a browser tab) and paste with <kbd>Cmd/Ctrl+V</kbd>. Images take a <b>caption</b> via the selection bar. <b>Links</b> title themselves after their URL and fetch video previews automatically. <b>Audio</b> cards play with a tap on ▸. <b>Files</b> (PDFs get a first-page preview) travel with the project.</p>
       <h3>Working the canvas</h3>
-      <p>Scroll to zoom, drag empty space to pan, <kbd>F</kbd> zooms to fit. Double-click notes, text, to-do items and table cells to edit in place — <kbd>Tab</kbd>/<kbd>Enter</kbd> flow through table cells, <kbd>Enter</kbd> chains new to-do items. Drag anything onto the <b>trash can</b> at the bottom to delete it (undo works). Only photos rotate here; everything else stays straight.</p>
+      <p>Scroll to zoom, drag empty space to pan, <kbd>F</kbd> zooms to fit. The <b>marquee tool</b> <kbd>M</kbd> drags a box around several objects — then drag any one of them to move the whole group (duplicate/delete work on the group too). Double-click notes, text, to-do items and table cells to edit in place — <kbd>Tab</kbd>/<kbd>Enter</kbd> flow through table cells, <kbd>Enter</kbd> chains new to-do items. Tables grow like a spreadsheet: drag the corner handle to add or remove rows and columns. Drag anything onto the <b>trash can</b> at the bottom to delete it (undo works). Only photos rotate here; everything else stays straight.</p>
     </div>
     <div class="helpSec" data-help="write">
       <div class="sub">Script and storyboard side by side — write left, break down right.</div>
@@ -176,12 +181,13 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <p>Drop a <b>Film script</b> or two-column <b>AV script</b> block from the library and double-click to write (left half = VIDEO, right half = AUDIO on AV blocks). <b>Import…</b> in the selection bar accepts .txt, .fountain, Final Draft .fdx and .pdf.</p>
       <h3>Break down</h3>
       <p>Select a script block and hit <b>Break down</b>: FLOOR detects scenes (INT./EXT. headings on film scripts, paragraphs on AV), creates a scene board per scene with the cast placed on it, and stacks linked <b>storyboard rows</b> next to your script — title | reference image | shot description. <b>Open scene ↗</b> jumps to that board in the Shot designer, where every camera maps to one shot.</p>
+      <p>Select a storyboard row and hit the <b>+ chip</b> below it (or "+ Row below" in the selection bar) to chain the next shot idea of that scene — everything underneath moves down automatically, so later scenes never get overlapped.</p>
       <p>All the moodboard tools (notes, images, to-dos, tables, files, audio, paste, trash) work here too.</p>
     </div>
     <div class="helpSec" data-help="org">
       <div class="sub">The production board — everything the shoot day needs, spatially arranged.</div>
       <h3>Production cards</h3>
-      <p>Drag smart cards from the library. <b>Production info</b> and <b>Location</b> are field cards — label:value rows, click a value to edit, <kbd>Tab</kbd> hops fields, empty fields show light placeholders. Production info is a live window onto the production itself; each Location card holds one location (address, parking, power, nearest hospital, notes). <b>Checklist</b> drops a real to-do list born from a template — camera dept, grip &amp; light, location, wrap, or blank. <b>Call sheet</b> and <b>Day schedule</b> are editable note templates. The <b>Weather (live)</b> card fetches a real forecast: give it a place and a date in its selection bar and hit <b>Fetch ↻</b> (forecasts reach ~16 days ahead, free GFS-backed data from Open-Meteo).</p>
+      <p>The <b>Day header</b> card is the call-time block of a call sheet: pick the date in its selection bar, click the big <b>general call</b> (plus shooting call and est. wrap) to type times, and hit <b>Sun from location ↻</b> — sunrise and sunset compute from the Location card's place. <b>Production info</b> and <b>Location</b> are field cards — label:value rows, click a value to edit, <kbd>Tab</kbd> hops fields, empty fields show light placeholders. Production info is a live window onto the production itself; each Location card holds one location (address, parking, power, nearest hospital, notes). <b>Checklist</b> drops a real to-do list born from a template — camera dept, grip &amp; light, location, wrap, or blank. <b>Call sheet</b> and <b>Day schedule</b> are editable note templates. The <b>Weather (live)</b> card fetches a real forecast: give it a place and a date in its selection bar and hit <b>Fetch ↻</b> (forecasts reach ~16 days ahead, free GFS-backed data from Open-Meteo).</p>
       <h3>Crew, cast &amp; client — the People registry</h3>
       <p>The <b>Crew</b>, <b>Cast</b> and <b>Client</b> cards are live views of one per-production <b>People registry</b>: add a person on any card and they exist everywhere; edit a phone number once and every card updates. Click a cell to edit, <kbd>Tab</kbd>/<kbd>Enter</kbd> flow through the fields (<kbd>Enter</kbd> on the last row chains a new person), the <b>+</b> chip adds a row, the <b>×</b> chips remove one, and dragging a row's dotted grip reorders it. <b>Paste list…</b> (selection bar) imports a whole contact list: one person per line, FLOOR picks out name / role / phone / email / call time and shows a preview before adding. The registry will feed the call-sheet generator next phase. Drop map screenshots or location photos on the board; <b>Export</b> turns the whole board into a one-page PDF you can send as a call sheet today.</p>
     </div>
@@ -222,6 +228,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
     <h3>Shortcuts</h3>
     <div class="cols">
       <div class="krow"><span>Select tool</span><kbd>V</kbd></div>
+      <div class="krow"><span>Multi-select (drag a box)</span><kbd>M</kbd></div>
       <div class="krow"><span>Wall / Room</span><span><kbd>W</kbd> <kbd>R</kbd></span></div>
       <div class="krow"><span>Door tool</span><kbd>D</kbd></div>
       <div class="krow"><span>Sticky note</span><kbd>N</kbd></div>
@@ -244,5 +251,6 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
 <script src="./js/04-ui.js"></script>
 <script src="./js/05-app.js"></script>
 <script src="./js/06-tabs.js"></script>
+<script src="./js/07-share.js"></script>
 </body>
 </html>

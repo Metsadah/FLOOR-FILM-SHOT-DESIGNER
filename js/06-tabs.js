@@ -145,6 +145,27 @@ function buildProdLibSection(lib){
   lib.appendChild(h);
   const grid = document.createElement('div');
   grid.className = 'lib-grid';
+  // day header — the call-time block (P3): date, general call, sunrise/sunset
+  {
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
+      tc.fillStyle='#fff'; tc.fill();
+      tc.strokeStyle='#E8604C'; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle='#E8604C'; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2, -h2*.4, w2, h2*.16); tc.globalAlpha=1;
+      tc.font='800 '+(h2*.3)+'px -apple-system,Segoe UI,sans-serif';
+      tc.textAlign='center'; tc.textBaseline='middle';
+      tc.fillStyle='#33322E'; tc.fillText('07:00', 0, h2*.02);
+      tc.textAlign='left'; tc.textBaseline='alphabetic';
+      tc.fillStyle='#E8934C'; tc.globalAlpha=.7;
+      tc.fillRect(-w2*.36, h2*.24, w2*.3, 2.5); tc.globalAlpha=1;
+    }, 100, 100, '#E8604C'));
+    el.insertAdjacentHTML('beforeend', '<span>Day header</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'dayheader', kind:'dayheader', w:320, h:140, color:'#E8604C'}));
+    grid.appendChild(el);
+  }
   // registry cards first — Crew / Cast / Client, live views of one People list
   for(const kind of ['crew','cast','client']){
     const spec = LIST_CARDS[kind];
@@ -639,6 +660,77 @@ document.addEventListener('paste', async e=>{
 });
 
 
+// ---------------------------------------------------------------- .floorproj export / import
+// One JSON file = the whole production, images and files included. Backup +
+// "send a frozen copy" — the cheap rung of the sharing ladder.
+function collectAssetIds(){
+  const img = new Set(), file = new Set();
+  const scan = s=>{
+    if(!s) return;
+    (s.objects||[]).forEach(ob=>{
+      if(ob.imgId) img.add(ob.imgId);
+      if(ob.fileId) file.add(ob.fileId);
+    });
+    (s.stills||[]).forEach(id=>img.add(id));
+  };
+  project.scenes.forEach(scan);
+  scan(project.moodboard); scan(project.prodboard); scan(project.scriptboard);
+  return {img:[...img], file:[...file]};
+}
+async function collectAssets(){
+  const ids = collectAssetIds();
+  const assets = {img:{}, file:{}};
+  for(const id of ids.img){
+    const r = await window.storage.get('sd:img:' + id).catch(()=>null);
+    if(r && r.value) assets.img[id] = r.value;
+  }
+  for(const id of ids.file){
+    const r = await window.storage.get('sd:file:' + id).catch(()=>null);
+    if(r && r.value) assets.file[id] = r.value;
+  }
+  return assets;
+}
+async function exportFloorproj(){
+  toast('Packing production…');
+  try{
+    await saveProject();
+    const assets = await collectAssets();
+    const pack = {floorproj:1, exported:new Date().toISOString(),
+      name:project.shootName || 'production', project, assets};
+    const blob = new Blob([JSON.stringify(pack)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.download = (project.shootName || 'production').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') + '.floorproj';
+    a.href = URL.createObjectURL(blob);
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    toast('Exported — images and files travel inside the file');
+  }catch(e){
+    console.error('floorproj export failed', e);
+    toast('Export failed — see the console');
+  }
+}
+async function importFloorproj(f){
+  toast('Reading ' + f.name + '…');
+  try{
+    const pack = JSON.parse(await f.text());
+    if(!pack.floorproj || !pack.project || !pack.project.scenes) throw new Error('not a floorproj');
+    for(const [k,v] of Object.entries((pack.assets && pack.assets.img) || {}))
+      await window.storage.set('sd:img:' + k, v);
+    for(const [k,v] of Object.entries((pack.assets && pack.assets.file) || {}))
+      await window.storage.set('sd:file:' + k, v);
+    const id = uid();
+    await window.storage.set('sd:project:' + id, JSON.stringify(pack.project));
+    const idx = (await loadProjectIndex()) || [];
+    idx.push({id, name:(pack.project.shootName || pack.name || 'Imported production'), updated:Date.now()});
+    await saveProjectIndex(idx);
+    await window.storage.set('sd:current', id);
+    location.reload();
+  }catch(e){
+    console.error('floorproj import failed', e);
+    toast('Could not import — is that a .floorproj file?');
+  }
+}
+
 // ---------------------------------------------------------------- trash can (drop to delete)
 const trashEl = document.createElement('div');
 trashEl.id = 'trashCan';
@@ -710,6 +802,25 @@ async function openProjectPop(){
     });
     pop.appendChild(row);
   });
+  // ---- .floorproj: backup / "send a frozen copy" ----
+  const exRow = document.createElement('div');
+  exRow.style.cssText = 'display:flex;gap:6px;margin-top:10px;';
+  const exB = document.createElement('button');
+  exB.className = 'btn'; exB.style.flex = '1';
+  exB.textContent = 'Export .floorproj';
+  exB.addEventListener('click', ()=>exportFloorproj());
+  const imB = document.createElement('button');
+  imB.className = 'btn'; imB.style.flex = '1';
+  imB.textContent = 'Import…';
+  imB.addEventListener('click', ()=>{
+    const fi = document.createElement('input');
+    fi.type = 'file'; fi.accept = '.floorproj,application/json';
+    fi.addEventListener('change', ()=>{ if(fi.files && fi.files[0]) importFloorproj(fi.files[0]); });
+    fi.click();
+  });
+  exRow.appendChild(exB); exRow.appendChild(imB);
+  pop.appendChild(exRow);
+
   const nw = document.createElement('button');
   nw.className = 'btn primary';
   nw.style.cssText = 'width:100%;margin-top:8px;';

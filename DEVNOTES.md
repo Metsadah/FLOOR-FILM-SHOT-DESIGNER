@@ -38,6 +38,14 @@ Storyboard (`write`) · Shot designer (`design`) · Production (`org`).
   lazy loader, audio, file/audio creators, trash can, production switcher.
 - `js/vendor/` — self-hosted supabase.js, pdf.min.js + pdf.worker.min.js
   (NEVER use CDNs — user's ad-blocker eats them; this cost us an afternoon).
+- `js/07-share.js` — sharing rung 2 (v0.15): owner share popover
+  (`createShareLink`/`buildSharePop`), the `?view=TOKEN` read-only viewer
+  (`__floorViewerBoot` — 05's boot polls for it because timers can fire
+  BETWEEN classic scripts), comment pins (`drawCommentPins`, `__viewerTap`,
+  Supabase Realtime). Snapshot = project + assets JSON in the public
+  `shares` Storage bucket; tables `shares` + `share_comments` (RLS: owner
+  manages shares, anyone reads/inserts comments — token is the secret).
+  Adapter exposes `window.FLOOR_SB`/`FLOOR_USER` and self-skips on ?view=.
 - `supabase-adapter.js` — magic-link login + cloud kv storage. Runs in
   <head>; storage chain: window.storage → FLOOR_STORAGE → IndexedDB.
 
@@ -48,6 +56,27 @@ Storyboard (`write`) · Shot designer (`design`) · Production (`org`).
 - Project-level boards: `project.moodboard`, `project.scriptboard`,
   `project.prodboard` — scene-shaped, routed by `activeScene()` via
   `activeTab` + `BOARD_TABS = {'mood','org','write'}`.
+- **Multi-select (v0.15):** `sel = {type:'multi', ids:[…]}` from the marquee
+  tool (`M`, toolbar button; bbox-overlap test, locked objects excluded).
+  Dragging any member = `moveMulti` (translates x/y + p1/p2/mid/pts/path per
+  object); duplicate/delete handle multi; handleList returns no handles for
+  it. `switchTab`/Escape clear it like any selection.
+- **Tables grow by corner drag (v0.15):** the `tgrow` handle (bottom-right)
+  adds/removes rows & cols spreadsheet-style — `drag.left/top` anchor the
+  top-left while the card self-sizes around its center. + chips are ALSO
+  hit-tested in pointerdown now (lesson 9 applied to tables).
+- **Storyboard rows chain (v0.15):** `addSbRowBelow(o)` (04) — new sbrow
+  under the selected one, same `sceneId`, everything with y > o.y shifts
+  down by o.h+14 so scenes never overlap. + chip under a selected sbrow.
+- **Day header (P3, v0.15):** `cat:'dayheader'` — object-owned fields
+  {date, call, shootCall, wrap, place, lat, lon}; geometry in `DAYH` (00);
+  editor fields `dh:<key>`; sunrise/sunset = `sunTimes()` (00, NOAA math,
+  ±2 min, local tz) from lat/lon geocoded ONCE from the first filled
+  location (`dayheaderSunFetch`, Open-Meteo geocoder). This card + Crew +
+  Location + Weather are the call-sheet generator's direct inputs.
+- **.floorproj (v0.15):** `exportFloorproj`/`importFloorproj` (06, buttons
+  in the production switcher) — one JSON with project + all images/files
+  (`collectAssets`). Import = new production id, assets written back to kv.
 - **Field cards (P2, v0.14):** `cat:'fieldcard'`, `kind:'prodinfo'|'location'`
   — label:value rows from `FIELD_CARDS` (00), values live in PRODUCTION DATA,
   not on the object: prodinfo ↔ `project.production.company/address/email/
@@ -161,7 +190,7 @@ the current row is entirely blank (keeps the registry junk-free).
 7. **Version discipline:** bump the `#verChip` in index.html, the SW cache
    name (`floor-shell-vN`), and the zip name (`floor-repo-vN.zip`) together
    every release. Identical zip names caused a lost afternoon once.
-   Current: verChip v0.14 ↔ floor-shell-v13.
+   Current: verChip v0.15 ↔ floor-shell-v14 (07-share.js added to SHELL).
 8. **closeNoteEditor re-entrancy (fixed v0.12, keep it fixed).** Removing
    the focused textarea re-fires its own `blur` → `closeNoteEditor` again
    mid-removal → NotFoundError that aborts whatever handler called it (this
@@ -183,6 +212,11 @@ the current row is entirely blank (keeps the registry junk-free).
    IndexedDB, no login. Serve with `python3 -m http.server` started from a
    shell in the repo dir — sandboxed preview servers 404 on ~/Documents
    paths (macOS TCC). Delete the copy before shipping.
+   Two more testing gotchas: the FIRST synthetic clicks/keys after a
+   navigation get swallowed until the page has real focus — do a throwaway
+   click and CONFIRM state changed before trusting pointer tests. And a
+   cached-but-undecodable image used to busy-loop render() (fixed v0.15 in
+   the image branch — only schedule loadStill when nothing is cached).
    **Also: cache-bust or you verify stale code.** The SW + Chrome's HTTP
    cache happily serve old js after a mid-session edit (this ate an hour —
    a "failing" fix was simply never loaded). In the local copy: append
@@ -207,11 +241,22 @@ noreply@mail.app.supabase.io until custom SMTP is configured (Auth → SMTP)
 — revisit when a floorstudio domain exists. The in-app overlay copy already
 sets expectations (v0.14).
 
+## Sharing status & the validation TODO
+P1 v0.12 · P2 v0.14 · P3 + multi-select + table grow + sbrow chaining +
+.floorproj + share links **v0.15**. Sharing rung 1 (.floorproj) is fully
+verified. Rung 2 (share links + comments): migrations applied
+(shares/share_comments tables + RLS + realtime + public 'shares' bucket),
+viewer error-path verified against production; the HAPPY path needs a
+logged-in owner — **user validation TODO:** sign in on the deployed app,
+Share → Create read-only link, open it in a private window, pin a comment.
+Note: share snapshots carry assets inside the JSON blob, so the kv→Storage
+asset migration is NOT yet done (that still makes sense before heavy use —
+big productions make big snapshots). Comments are readable by anyone who
+guesses a token-less select; tighten with share-scoped tokens/JWT before
+GDPR-sensitive crew data circulates (see ROADMAP risk 4). Rung 3
+(memberships & roles) deliberately parked until rung 2 is validated.
+
 ## What's next (see ROADMAP.md)
-P1 shipped in v0.12; P2 (field cards + paste-to-import + Checklist 2.0)
-**shipped in v0.14**. Next: P3 — the day-header card (date, general call,
-shooting call, est. wrap, computed sunrise/sunset via client-side solar math
-+ one Open-Meteo geocode of the location card's place). Then the call-sheet
-PDF generator (Production info + Location + Crew + Weather + day header are
-its direct inputs), then share links + comments (bundle the Storage-bucket
-migration into that).
+The **call-sheet PDF generator** — Day header + Crew + Location + Weather
+cards are its direct inputs, all live now. Then validate sharing, then
+memberships (rung 3).

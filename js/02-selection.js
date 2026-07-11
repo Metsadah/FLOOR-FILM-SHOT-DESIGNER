@@ -29,7 +29,12 @@ function handleList(){
       hs.push({id:'lm', x:m.x, y:m.y});
       return hs;
     }
-    if(o.cat === 'ink' || o.cat === 'table' || o.cat === 'listcard' || o.cat === 'fieldcard') return hs; // self-sizing — no resize/rotate
+    if(o.cat === 'ink' || o.cat === 'listcard' || o.cat === 'fieldcard' || o.cat === 'dayheader') return hs; // self-sizing — no resize/rotate
+    if(o.cat === 'table'){
+      // spreadsheet-style: drag the corner to add/remove rows and columns
+      hs.push({id:'tgrow', x:o.x + o.w/2 + 10/s, y:o.y + o.h/2 + 10/s});
+      return hs;
+    }
     if(o.kind === 'track'){
       (o.pts||[]).forEach((p,i)=> hs.push({id:'tp'+i, x:p.x, y:p.y}));
       return hs;
@@ -104,6 +109,19 @@ function drawSelection(shot){
   if(!sel) return;
   const s = view.scale;
   ctx.save();
+  if(sel.type === 'multi'){
+    ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.4/s; ctx.setLineDash([5/s,4/s]);
+    for(const id of sel.ids){
+      const o = shot.objects.find(x=>x.id===id);
+      if(!o) continue;
+      ctx.save(); ctx.translate(o.x,o.y); ctx.rotate(o.rot||0);
+      ctx.strokeRect(-(o.w||20)/2-6/s, -(o.h||20)/2-6/s, (o.w||20)+12/s, (o.h||20)+12/s);
+      ctx.restore();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+    return;
+  }
   if(sel.type === 'object'){
     const o = shot.objects.find(x=>x.id===sel.id);
     if(o && o.kind === 'track'){
@@ -195,6 +213,17 @@ function drawToolPreview(){
     ctx.beginPath(); ctx.arc(cx,cy, 10/s, 0, 7);
     ctx.fillStyle = 'rgba(75,107,251,.25)'; ctx.fill();
     ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.6/s; ctx.stroke();
+    ctx.restore();
+  }
+  if(drag && drag.kind === 'marquee'){
+    ctx.save();
+    ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.6/s; ctx.setLineDash([6/s,5/s]);
+    ctx.strokeRect(Math.min(drag.x1,drag.x2), Math.min(drag.y1,drag.y2),
+                   Math.abs(drag.x2-drag.x1), Math.abs(drag.y2-drag.y1));
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(75,107,251,.05)';
+    ctx.fillRect(Math.min(drag.x1,drag.x2), Math.min(drag.y1,drag.y2),
+                 Math.abs(drag.x2-drag.x1), Math.abs(drag.y2-drag.y1));
     ctx.restore();
   }
   if(drag && drag.kind === 'crop'){

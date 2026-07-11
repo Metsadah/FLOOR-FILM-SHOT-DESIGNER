@@ -513,6 +513,39 @@ body.tab-org #sunBtn, body.tab-org #playBtn{ display:none !important; }
 .plan-time{ font-variant-numeric:tabular-nums; font-weight:650; width:42px; flex:none; }
 .plan-ud{ border:1px solid var(--border); border-radius:2px; width:19px; height:19px; font-size:10px; color:var(--ink2); line-height:1; flex:none; }
 .plan-ud:hover{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+/* ---------------- sharing ---------------- */
+#sharePop{
+  position:fixed; top:64px; right:130px; z-index:120; display:none;
+  background:#fff; border:1px solid var(--line); border-radius:3px;
+  box-shadow:0 16px 50px rgba(40,38,32,.18); padding:14px; width:330px;
+  max-height:70vh; overflow:auto;
+}
+#sharePop.show{ display:block; }
+#viewerBar{
+  position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:110;
+  display:flex; align-items:center; gap:12px; padding:8px 14px;
+  background:#fff; border:1px solid var(--line); border-radius:3px;
+  box-shadow:0 10px 34px rgba(40,38,32,.16); font-size:12.5px;
+}
+#cmtPop{
+  position:fixed; z-index:130; width:260px;
+  background:#fff; border:1px solid var(--line); border-radius:3px;
+  box-shadow:0 16px 50px rgba(40,38,32,.2); padding:12px;
+  max-height:300px; overflow:auto;
+}
+#cmtPop input, #cmtPop textarea{
+  border:1px solid var(--line); border-radius:2px; padding:6px 8px;
+  font-size:12px; font-family:inherit; resize:vertical;
+}
+/* locked viewer: canvas + tabs + zoom, nothing that edits */
+body.view-only #toolbar, body.view-only #sidebar, body.view-only #rightPanel,
+body.view-only #panelToggle, body.view-only #libToggle, body.view-only #projBtn,
+body.view-only #undoBtn, body.view-only #redoBtn, body.view-only #exportBtn,
+body.view-only #shareBtn, body.view-only #installBtn, body.view-only #trashCan,
+body.view-only #shotTitle, body.view-only #sceneLbl, body.view-only #hint,
+body.view-only #selBar{ display:none !important; }
+body.view-only #main, body.view-only.tab-org #main, body.view-only.tab-mood #main,
+body.view-only.tab-write #main{ display:grid !important; grid-template-columns:1fr !important; }
 .proj-row{
   display:block; width:100%; text-align:left; padding:8px 10px; border-radius:2px;
   font-size:12.5px; cursor:pointer;

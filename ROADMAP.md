@@ -49,7 +49,7 @@ feature), images in Supabase Storage buckets (lands with sharing — see below).
 
 ---
 
-## Next up A — Production tab 2.0  ⭐ current priority
+## Next up A — Production tab 2.0  ✅ SHIPPED (P1 v0.12 · P2 v0.14 · P3 v0.15)
 
 **The vision.** The Production tab becomes a full canvas — the right-side
 forms panel goes away entirely. Everything the shoot day needs lives as
@@ -132,10 +132,13 @@ notes on boards stay as plain notes (nothing breaks).
 The agreed ladder, cheap → hard. Sequence: **1 → 2 → (validate) → 3**. Live
 co-editing (4) stays parked until real teams demand it.
 
-1. **Project export/import** (.floorproj JSON incl. images). Backup +
-   "send a frozen copy." A day of work; ship anytime.
-2. **Read-only share links + comments** ⭐ recommended next after Production
-   2.0. Snapshot the production into a shared table under a random token;
+1. ✅ **Project export/import** (.floorproj JSON incl. images) — shipped
+   v0.15 (production switcher → Export/Import).
+2. ✅ **Read-only share links + comments** — code + DB shipped v0.15,
+   **awaiting owner validation** (sign in, Share → create link, open in a
+   private window, pin a comment). Snapshots carry their assets inside the
+   JSON, so the kv→Storage asset migration is deferred, not done.
+   Original plan: snapshot the production into a shared table under a random token;
    `?view=TOKEN` opens a locked viewer mode (no tools, no save). Comments are
    a separate table (position-pinned, Supabase Realtime), so commenters
    physically can't touch project data. RLS does the enforcement.
@@ -155,9 +158,10 @@ co-editing (4) stays parked until real teams demand it.
 
 ## Next up C — the rest of Phase 1 (unchanged priorities)
 
-- **1.4 Automatic call sheets** ⭐ — generated from Production 2.0 cards +
-  registry + live weather + sunrise/sunset. Output: one-page PDF matching the
-  Zout Water sheet, NL/EN. (Production 2.0 exists to make this a *view*.)
+- **1.4 Automatic call sheets** ⭐ NOW UNBLOCKED — generated from Production
+  2.0 cards + registry + live weather + sunrise/sunset (Day header, Crew,
+  Location and Weather cards all live as of v0.15). Output: one-page PDF
+  matching the Zout Water sheet, NL/EN.
 - **AI breakdown pass** (Claude via Supabase Edge Functions — the agreed
   first Edge Function): element tagging per scene, AV-script intelligence,
   shot suggestions. Metered, Pro-tier.

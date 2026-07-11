@@ -337,6 +337,14 @@ cv.addEventListener('pointerdown', e => {
   const {x:wx, y:wy} = toWorld(sx, sy);
   const shot = activeShot();
 
+  // shared viewer: look, pan, comment — nothing else
+  if(window.VIEW_ONLY){
+    if(typeof __viewerTap === 'function' && __viewerTap(wx, wy, e.clientX, e.clientY)) return;
+    drag = {kind:'pan', sx, sy, vx:view.x, vy:view.y};
+    cv.classList.add('panning');
+    return;
+  }
+
   if(e.button === 1 || spaceDown){
     drag = {kind:'pan', sx, sy, vx:view.x, vy:view.y};
     cv.classList.add('panning');
@@ -346,6 +354,10 @@ cv.addEventListener('pointerdown', e => {
 
   if(tool === 'crop'){
     drag = {kind:'crop', x1:wx, y1:wy, x2:wx, y2:wy};
+    return;
+  }
+  if(tool === 'marquee'){
+    drag = {kind:'marquee', x1:wx, y1:wy, x2:wx, y2:wy};
     return;
   }
   if(tool === 'draw'){
@@ -385,6 +397,21 @@ cv.addEventListener('pointerdown', e => {
   }
 
   // ---- select tool ----
+  // group move: with a multi selection, grabbing any selected object drags them all
+  if(sel && sel.type === 'multi'){
+    const hitO = hitObject(shot, wx, wy) || hitTrack(shot, wx, wy);
+    if(hitO && sel.ids.includes(hitO.id)){
+      drag = {kind:'moveMulti', wx, wy, items: sel.ids
+        .map(id=>shot.objects.find(x=>x.id===id))
+        .filter(ob=>ob && !ob.locked)
+        .map(ob=>({o:ob, x:ob.x, y:ob.y,
+          p1:ob.p1?{...ob.p1}:null, p2:ob.p2?{...ob.p2}:null, mid:ob.mid?{...ob.mid}:null,
+          pts:ob.pts?ob.pts.map(p=>({...p})):null,
+          path:(ob.path&&ob.path.length)?ob.path.map(p=>({...p})):null}))};
+      return;
+    }
+    sel = null; refreshSelBar(); render(); // clicked outside the group — fall through
+  }
   const h = hitHandle(wx, wy);
   if(h && sel){
     if(sel.type === 'sun'){
@@ -397,6 +424,9 @@ cv.addEventListener('pointerdown', e => {
       if(h.id === 'rotate') drag = {kind:'rotate', o, craneBase: isCrane(o) ? jibBasePos(o) : null};
       else if(h.id === 'resize') drag = {kind:'resize', o, ratio:o.h/o.w};
       else if(h.id === 'jibHead') drag = {kind:'jibHead', o, B:jibBasePos(o)};
+      else if(h.id === 'tgrow') drag = {kind:'tgrow', o,
+        left:o.x - o.w/2, top:o.y - o.h/2,
+        avgW: Math.max(60, o.w / o.cells[0].length)};
       else if(h.id.startsWith('beam')) drag = {kind:'beamfov', o};
       else if(h.id.startsWith('fov')) drag = {kind:'fov', o};
       else if(h.id === 'l1' || h.id === 'l2') drag = {kind:'lineEnd', o, end:h.id};
@@ -428,6 +458,27 @@ cv.addEventListener('pointerdown', e => {
       drag = {kind:'frame', o:so, sx:wx, sy:wy, dx0:so.frameDX ?? 70, dy0:so.frameDY ?? -85};
       return;
     }
+    if(so && so.cat === 'sbrow' && !so.locked &&
+       so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
+      addSbRowBelow(so); // chain the next shot row, scenes below shift down
+      return;
+    }
+    if(so && so.cat === 'table' && !so.locked){
+      // + chips live outside the frame — catch them here so they always respond
+      const hp = z => z && dist(wx, wy, z.x, z.y) <= z.r;
+      if(hp(so._plusRow)){
+        so.cells.push(so.cells[0].map(()=>'' ));
+        markDirty(); render();
+        if(typeof openTableCell === 'function') openTableCell(so, so.cells.length-1, 0);
+        return;
+      }
+      if(hp(so._plusCol)){
+        so.cells.forEach(r=>r.push(''));
+        markDirty(); render();
+        if(typeof openTableCell === 'function') openTableCell(so, 0, so.cells[0].length-1);
+        return;
+      }
+    }
     if(so && so.cat === 'listcard' && !so.locked){
       // list-card chips live outside the frame, so catch them here (before hitObject)
       if(so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
@@ -457,7 +508,7 @@ cv.addEventListener('pointerdown', e => {
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
-    if(['link','todo','audio','table','listcard','fieldcard'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
+    if(['link','todo','audio','table','listcard','fieldcard','dayheader'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
     if(obj.cat === 'link'){ drag.linkX0=obj.x; drag.linkY0=obj.y; }
     refreshSelBar(); render();
     return;
@@ -582,6 +633,23 @@ cv.addEventListener('pointermove', e => {
       drag.o.frameDY = drag.dy0 + (wy - drag.sy);
       markDirty();
       break;
+    case 'marquee':
+      drag.x2 = wx; drag.y2 = wy;
+      break;
+    case 'moveMulti': {
+      const dx = wx - drag.wx, dy = wy - drag.wy;
+      for(const it of drag.items){
+        const ob = it.o;
+        ob.x = it.x + dx; ob.y = it.y + dy;
+        if(it.p1){ ob.p1 = {x:it.p1.x+dx, y:it.p1.y+dy}; }
+        if(it.p2){ ob.p2 = {x:it.p2.x+dx, y:it.p2.y+dy}; }
+        if(it.mid){ ob.mid = {x:it.mid.x+dx, y:it.mid.y+dy}; }
+        if(it.pts){ ob.pts = it.pts.map(p=>({...p, x:p.x+dx, y:p.y+dy})); }
+        if(it.path){ ob.path = it.path.map(p=>({...p, x:p.x+dx, y:p.y+dy})); }
+      }
+      markDirty();
+      break;
+    }
     case 'listrow': {
       // rows reorder live in the registry as the grip drags
       const o = drag.o;
@@ -692,6 +760,21 @@ cv.addEventListener('pointermove', e => {
       o.range = clamp(dist(wx,wy,o.x,o.y), 40, 8000);
       o.lens = null;
       markDirty();
+      break;
+    }
+    case 'tgrow': {
+      // dragging past the edge adds cells; dragging back removes them
+      const o = drag.o;
+      const wantC = clamp(Math.round((wx - drag.left) / drag.avgW), 1, 40);
+      const wantR = clamp(1 + Math.round((wy - drag.top - 30) / 28), 2, 200);
+      let changed = false;
+      while(o.cells[0].length < wantC){ o.cells.forEach(r=>r.push('')); changed = true; }
+      while(o.cells[0].length > wantC){ o.cells.forEach(r=>r.pop()); changed = true; }
+      while(o.cells.length < wantR){ o.cells.push(o.cells[0].map(()=>'')); changed = true; }
+      while(o.cells.length > wantR){ o.cells.pop(); changed = true; }
+      // keep the top-left corner anchored while the card self-sizes around its center
+      o.x = drag.left + o.w/2; o.y = drag.top + o.h/2;
+      if(changed) markDirty();
       break;
     }
     case 'beamfov': {
@@ -858,6 +941,23 @@ cv.addEventListener('pointerup', e => {
     render();
     return;
   }
+  if(drag.kind === 'marquee'){
+    const x1 = Math.min(drag.x1,drag.x2), x2 = Math.max(drag.x1,drag.x2);
+    const y1 = Math.min(drag.y1,drag.y2), y2 = Math.max(drag.y1,drag.y2);
+    const ids = shot.objects.filter(o=>{
+      if(o.locked) return false;
+      const hw = (o.w||20)/2, hh = (o.h||20)/2; // bbox test — rotation ignored, fine for grouping
+      return o.x+hw >= x1 && o.x-hw <= x2 && o.y+hh >= y1 && o.y-hh <= y2;
+    }).map(o=>o.id);
+    sel = ids.length > 1 ? {type:'multi', ids}
+        : ids.length === 1 ? {type:'object', id:ids[0]} : null;
+    setTool('select');
+    drag = null;
+    if(histPushed) histSettle();
+    refreshSelBar(); render();
+    if(ids.length > 1) toast(ids.length + ' objects selected — drag any one to move them all');
+    return;
+  }
   if(drag.kind === 'ink'){
     if(drag.pts.length > 2){
       let mnx=Infinity,mny=Infinity,mxx=-Infinity,mxy=-Infinity;
@@ -923,6 +1023,11 @@ cv.addEventListener('pointerup', e => {
       if(typeof fieldCellAt === 'function'){
         const row = fieldCellAt(o, up.x, up.y); // values are click-to-edit
         if(row !== null) openFieldCell(o, row);
+      }
+    } else if(o.cat === 'dayheader'){
+      if(typeof dayCellAt === 'function'){
+        const key = dayCellAt(o, up.x, up.y);
+        if(key) openDayCell(o, key);
       }
     }
   }
@@ -1015,6 +1120,7 @@ cv.addEventListener('pointerup', e => {
 });
 
 cv.addEventListener('dblclick', e => {
+  if(window.VIEW_ONLY) return;
   if(tool === 'poly'){ finishPoly(); return; }
   const {sx,sy} = evtPos(e);
   const {x:wx,y:wy} = toWorld(sx,sy);
@@ -1082,6 +1188,11 @@ cv.addEventListener('dblclick', e => {
       if(row !== null) openFieldCell(o, row);
       return;
     }
+    if(o.cat === 'dayheader'){
+      const key = dayCellAt(o, wx, wy);
+      if(key) openDayCell(o, key);
+      return;
+    }
     if(o.cat === 'link'){
       if(o.url){ window.open(/^https?:\/\//i.test(o.url) ? o.url : 'https://'+o.url, '_blank'); }
       else toast('Add a URL in the selection bar first');
@@ -1118,6 +1229,10 @@ document.addEventListener('keydown', e => {
     if(e.key === 'Escape') document.activeElement.blur();
     return;
   }
+  if(window.VIEW_ONLY){
+    if(e.key === 'f' || e.key === 'F') zoomFit();
+    return;
+  }
   if((e.key === 'z' || e.key === 'Z') && (e.metaKey||e.ctrlKey)){
     e.preventDefault();
     e.shiftKey ? redo() : undo();
@@ -1133,6 +1248,7 @@ document.addEventListener('keydown', e => {
   }
   if(e.key === 'Delete' || e.key === 'Backspace'){ deleteSelection(); }
   if(e.key === 'v' || e.key === 'V') setTool('select');
+  if(e.key === 'm' || e.key === 'M') setTool('marquee');
   if(e.key === 'w' || e.key === 'W') setTool('wall');
   if(e.key === 'r' || e.key === 'R') setTool('room');
   if(e.key === 'd' || e.key === 'D') setTool('door');
@@ -1147,6 +1263,20 @@ document.addEventListener('keyup', e => { if(e.key === ' ') spaceDown = false; }
 function deleteSelection(){
   if(!sel) return;
   const shot = activeShot();
+  if(sel.type === 'multi'){
+    const gone = new Set(sel.ids.filter(id=>{
+      const o = shot.objects.find(x=>x.id===id);
+      return o && !o.locked;
+    }));
+    shot.objects = shot.objects.filter(o=>!gone.has(o.id));
+    shot.objects.forEach(c=>{
+      if(c.mount && gone.has(c.mount.id)) c.mount = null;
+      if(c.rail && gone.has(c.rail.id)){ c.rail = null; c.path = []; }
+    });
+    if(noteEditor && gone.has(noteEditor.id)) closeNoteEditor(false);
+    sel = null; markDirty(); render(); refreshSelBar();
+    return;
+  }
   if(sel.type === 'sun'){
     if(shot.sun) shot.sun.on = false;
     sel = null; markDirty(); syncSunBtn(); render(); refreshSelBar();
@@ -1175,14 +1305,33 @@ function deleteSelection(){
   sel = null; markDirty(); render(); refreshSelBar();
 }
 function duplicateSelection(){
-  if(!sel || sel.type !== 'object') return;
+  if(!sel) return;
   const shot = activeShot();
+  const copyOf = o=>{
+    const n = JSON.parse(JSON.stringify(o));
+    n.id = uid(); n.x += 40; n.y += 40;
+    if(n.p1){ n.p1.x += 40; n.p1.y += 40; }
+    if(n.p2){ n.p2.x += 40; n.p2.y += 40; }
+    if(n.mid){ n.mid.x += 40; n.mid.y += 40; }
+    if(n.path) n.path = n.path.map(p=>({...p, x:p.x+40, y:p.y+40}));
+    if(n.pts) n.pts = n.pts.map(p=>({...p, x:p.x+40, y:p.y+40}));
+    n.rail = null; n.mount = null;
+    return n;
+  };
+  if(sel.type === 'multi'){
+    const copies = sel.ids
+      .map(id=>shot.objects.find(x=>x.id===id))
+      .filter(o=>o && !o.locked)
+      .map(copyOf);
+    if(!copies.length) return;
+    shot.objects.push(...copies);
+    sel = {type:'multi', ids:copies.map(c=>c.id)};
+    markDirty(); render(); refreshSelBar();
+    return;
+  }
+  if(sel.type !== 'object') return;
   const o = shot.objects.find(x=>x.id===sel.id); if(!o) return;
-  const n = JSON.parse(JSON.stringify(o));
-  n.id = uid(); n.x += 40; n.y += 40;
-  if(n.path) n.path = n.path.map(p=>({...p, x:p.x+40, y:p.y+40}));
-  if(n.pts) n.pts = n.pts.map(p=>({x:p.x+40, y:p.y+40}));
-  n.rail = null; n.mount = null;
+  const n = copyOf(o);
   shot.objects.push(n);
   sel = {type:'object', id:n.id};
   markDirty(); render(); refreshSelBar();
@@ -1238,7 +1387,7 @@ function setTool(t){
   hoverWall = null;
   if(t !== 'poly') polyDraw = null;
   document.querySelectorAll('#toolbar button[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool===t));
-  cv.className = 'tool-' + (t==='poly' || t==='draw' || t==='crop' ? 'wall' : t);
+  cv.className = 'tool-' + (t==='poly' || t==='draw' || t==='crop' || t==='marquee' ? 'wall' : t);
   const inkBar = document.getElementById('inkBar');
   if(t === 'draw'){ buildInkBar(); inkBar.classList.add('show'); }
   else inkBar.classList.remove('show');
