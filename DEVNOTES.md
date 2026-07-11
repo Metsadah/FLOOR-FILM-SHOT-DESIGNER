@@ -30,7 +30,9 @@ Storyboard (`write`) · Shot designer (`design`) · Production (`org`).
   `removeListPerson`), `dropLib` object creation.
 - `js/05-app.js` — scene list, info panel, stills, exports (`showExportPop`,
   `doPNGExport`, `runPDFExport` = hand-rolled multi-page PDF,
-  `renderShotPlan`), boot.
+  `renderShotPlan`), the day planner (`openPlanPop` — chains scene times with
+  per-scene `travelMin`/`setupMin` gaps; PLAN button in the Scenes side-head),
+  boot.
 - `js/06-tabs.js` — tab switching, moodboard/scriptboard/prodboard bootstrap,
   script parsing + breakdown, production cards, weather (Open-Meteo), pdf.js
   lazy loader, audio, file/audio creators, trash can, production switcher.
@@ -63,6 +65,20 @@ Storyboard (`write`) · Shot designer (`design`) · Production (`org`).
   `snapshotState` includes `production`, so registry edits are undoable.
 - Units: 1 world unit = 1 cm; grid dots 50 cm; default zoom .65; `zoomFit`
   clamped to max .9.
+- **Walls can curve (v0.13):** `wall.mid` is the ON-CURVE midpoint of a
+  quadratic bend (null = straight; same convention as line objects). ALL wall
+  geometry goes through `wallSamples`/`wallGeom`/`wallPointAt` (01) —
+  openings' `t` is an arc-length fraction, hit-testing walks the samples,
+  the `wm` handle bends (drop near the chord center to straighten). Walls are
+  born UNLOCKED since v0.13 (locking is opt-in via the selection bar).
+- **Scenes carry `travelMin`/`setupMin` (v0.13)** — the day planner's gap
+  minutes before that scene; the future call-sheet/stripboard work should
+  reuse them.
+- **Lights throw beams (v0.13):** `LIGHT_BEAMS` in 00 maps light kinds to
+  {spread, range, axis, tint} or {omni} — spots emit along local +x like
+  camera FOV, panels along +y (their long face). Drawn as soft gradients
+  under the icon in the prop branch of `drawObjectShape`; `o.beam === false`
+  disables (Beam toggle in selBar).
 
 ## Object types on canvas (drawn in drawObjectShape, 01)
 camera, actor, note, text, line (bendable via `o.mid`), link (auto-title from
@@ -125,13 +141,16 @@ the current row is entirely blank (keeps the registry junk-free).
 7. **Version discipline:** bump the `#verChip` in index.html, the SW cache
    name (`floor-shell-vN`), and the zip name (`floor-repo-vN.zip`) together
    every release. Identical zip names caused a lost afternoon once.
-   Current: verChip v0.12 ↔ floor-shell-v11.
+   Current: verChip v0.13 ↔ floor-shell-v12.
 8. **closeNoteEditor re-entrancy (fixed v0.12, keep it fixed).** Removing
    the focused textarea re-fires its own `blur` → `closeNoteEditor` again
    mid-removal → NotFoundError that aborts whatever handler called it (this
    silently killed the table's Tab-hop too). `closeNoteEditor` must null the
    global `noteEditor` BEFORE touching the DOM, and `ta.remove()` stays in a
-   try/catch. Any future editor-closing code: same rule.
+   try/catch. Any future editor-closing code: same rule. Related (fixed
+   v0.13): the editor's Escape branch must `stopPropagation()` and `return`
+   after closing — reading `noteEditor.field` after close threw, and the
+   leaked Escape hit the global handler which nuked the selection/tool.
 9. **Chips outside the frame need pointerdown hit-tests.** `hitObject` pads
    by only `6/scale`, so chips drawn beyond the object edge (table +, list
    ×/+) are unreachable through the normal tap path at most zooms. List-card
@@ -144,6 +163,12 @@ the current row is entirely blank (keeps the registry junk-free).
    IndexedDB, no login. Serve with `python3 -m http.server` started from a
    shell in the repo dir — sandboxed preview servers 404 on ~/Documents
    paths (macOS TCC). Delete the copy before shipping.
+   **Also: cache-bust or you verify stale code.** The SW + Chrome's HTTP
+   cache happily serve old js after a mid-session edit (this ate an hour —
+   a "failing" fix was simply never loaded). In the local copy: append
+   `?v=<timestamp>` to every `./js/0*.js` src AND neuter
+   `navigator.serviceWorker.register`. Confirm the loaded code with
+   `someFn.toString().includes('<new snippet>')` before debugging it.
 
 ## Supabase (project id jcasjylzosgtitaxbrjo, eu-west-1)
 Table `public.kv` (user_id uuid default auth.uid(), key, value, updated_at;

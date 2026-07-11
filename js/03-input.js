@@ -227,18 +227,27 @@ function hitWall(shot, wx, wy){
   const thr = Math.max(9/view.scale, 8);
   let best = null;
   for(const w of shot.walls){
-    const r = ptSeg(wx,wy,w.x1,w.y1,w.x2,w.y2);
-    if(r.d <= thr && (!best || r.d < best.d)) best = {wall:w, ...r};
+    const {smp, cum, L} = wallGeom(w);
+    for(let i=1;i<smp.length;i++){
+      const r = ptSeg(wx,wy, smp[i-1].x,smp[i-1].y, smp[i].x,smp[i].y);
+      if(r.d <= thr && (!best || r.d < best.d)){
+        // t = arc-length fraction along the (possibly curved) wall
+        const t = L ? (cum[i-1] + r.t*(cum[i]-cum[i-1]))/L : 0;
+        best = {wall:w, d:r.d, t, x:r.x, y:r.y};
+      }
+    }
   }
   return best;
 }
 function hitOpening(shot, wx, wy){
   const thr = Math.max(12/view.scale, 10);
   for(const w of shot.walls){
-    for(let i=0;i<(w.openings||[]).length;i++){
+    if(!(w.openings||[]).length) continue;
+    const geom = wallGeom(w);
+    for(let i=0;i<w.openings.length;i++){
       const op = w.openings[i];
-      const cx = w.x1 + (w.x2-w.x1)*op.t, cy = w.y1 + (w.y2-w.y1)*op.t;
-      if(dist(wx,wy,cx,cy) <= Math.max(op.w/2, thr)) return {wallId:w.id, index:i};
+      const pc = wallPointAt(geom, op.t*geom.L);
+      if(dist(wx,wy,pc.x,pc.y) <= Math.max(op.w/2, thr)) return {wallId:w.id, index:i};
     }
   }
   return null;
@@ -363,7 +372,7 @@ cv.addEventListener('pointerdown', e => {
   if(tool === 'door' || tool === 'window' || tool === 'gap'){
     const h = hitWall(shot, wx, wy);
     if(h){
-      const L = dist(h.wall.x1,h.wall.y1,h.wall.x2,h.wall.y2);
+      const L = wallGeom(h.wall).L;
       const w = tool==='door' ? 72 : tool==='gap' ? 90 : 100;
       const t = clamp(h.t, (w/2+6)/L, 1-(w/2+6)/L);
       h.wall.openings = h.wall.openings || [];
@@ -398,7 +407,7 @@ cv.addEventListener('pointerdown', e => {
       else if(h.id.startsWith('pt')) drag = {kind:'point', o, i:+h.id.slice(2)};
     } else if(sel.type === 'wall'){
       const w = shot.walls.find(x=>x.id===sel.id);
-      drag = {kind:'wallEnd', w, end:h.id};
+      drag = h.id === 'wm' ? {kind:'wallMid', w} : {kind:'wallEnd', w, end:h.id};
     }
     return;
   }
@@ -472,10 +481,12 @@ cv.addEventListener('pointerdown', e => {
   if(wl){
     sel = {type:'wall', id:wl.wall.id};
     if(wl.wall.locked){ refreshSelBar(); render(); return; }
-    drag = {kind:'moveWall', w:wl.wall, wx, wy, x1:wl.wall.x1, y1:wl.wall.y1, x2:wl.wall.x2, y2:wl.wall.y2};
+    drag = {kind:'moveWall', w:wl.wall, wx, wy, x1:wl.wall.x1, y1:wl.wall.y1, x2:wl.wall.x2, y2:wl.wall.y2,
+            mido: wl.wall.mid ? {...wl.wall.mid} : null};
     if(wallGroupDrag){
       // whole connected structure moves rigidly
-      drag.group = wallComponent(shot, wl.wall).map(w=>({w, x1:w.x1, y1:w.y1, x2:w.x2, y2:w.y2}));
+      drag.group = wallComponent(shot, wl.wall).map(w=>({w, x1:w.x1, y1:w.y1, x2:w.x2, y2:w.y2,
+        mid: w.mid ? {...w.mid} : null}));
     } else {
       // corners stay glued: endpoints of other walls that touch this wall's ends follow along
       const EPS = 2;
@@ -756,6 +767,14 @@ cv.addEventListener('pointermove', e => {
       markDirty();
       break;
     }
+    case 'wallMid': {
+      // bow the wall — drop the handle near the chord center to straighten it
+      const w = drag.w;
+      const cm = {x:(w.x1+w.x2)/2, y:(w.y1+w.y2)/2};
+      w.mid = (dist(wx,wy,cm.x,cm.y) < 9/Math.max(view.scale,.3)) ? null : {x:wx, y:wy};
+      markDirty();
+      break;
+    }
     case 'moveWall': {
       const dx0 = wx - drag.wx, dy0 = wy - drag.wy;
       drag.w.x1 = drag.x1+dx0; drag.w.y1 = drag.y1+dy0;
@@ -765,11 +784,13 @@ cv.addEventListener('pointermove', e => {
         drag.w.x1+=gx; drag.w.y1+=gy; drag.w.x2+=gx; drag.w.y2+=gy;
       }
       const dx = drag.w.x1 - drag.x1, dy = drag.w.y1 - drag.y1; // final delta after snap
+      if(drag.mido) drag.w.mid = {x:drag.mido.x+dx, y:drag.mido.y+dy};
       if(drag.group){
         for(const g of drag.group){
           if(g.w.id === drag.w.id) continue;
           g.w.x1 = g.x1+dx; g.w.y1 = g.y1+dy;
           g.w.x2 = g.x2+dx; g.w.y2 = g.y2+dy;
+          if(g.mid) g.w.mid = {x:g.mid.x+dx, y:g.mid.y+dy};
         }
       } else if(drag.attach){
         for(const a of drag.attach){
@@ -782,10 +803,14 @@ cv.addEventListener('pointermove', e => {
     }
     case 'moveOpening': {
       const w = drag.wall;
-      const r = ptSeg(wx,wy,w.x1,w.y1,w.x2,w.y2);
-      const L = dist(w.x1,w.y1,w.x2,w.y2);
+      const {smp, cum, L} = wallGeom(w);
+      let bd = Infinity, bt = 0;
+      for(let i=1;i<smp.length;i++){
+        const r = ptSeg(wx,wy, smp[i-1].x,smp[i-1].y, smp[i].x,smp[i].y);
+        if(r.d < bd){ bd = r.d; bt = L ? (cum[i-1] + r.t*(cum[i]-cum[i-1]))/L : 0; }
+      }
       const op = w.openings[drag.index];
-      op.t = clamp(r.t, (op.w/2)/L, 1-(op.w/2)/L);
+      op.t = clamp(bt, (op.w/2)/L, 1-(op.w/2)/L);
       markDirty();
       break;
     }
@@ -886,7 +911,7 @@ cv.addEventListener('pointerup', e => {
   }
   if(drag.kind === 'drawWall'){
     if(dist(drag.x1,drag.y1,drag.x2,drag.y2) > 12){
-      const w = {id:uid(), x1:drag.x1, y1:drag.y1, x2:drag.x2, y2:drag.y2, openings:[], locked:true};
+      const w = {id:uid(), x1:drag.x1, y1:drag.y1, x2:drag.x2, y2:drag.y2, openings:[], locked:false};
       shot.walls.push(w);
       sel = {type:'wall', id:w.id};
       markDirty();
@@ -897,10 +922,10 @@ cv.addEventListener('pointerup', e => {
     const y1=Math.min(drag.y1,drag.y2), y2=Math.max(drag.y1,drag.y2);
     if(x2-x1 > 20 && y2-y1 > 20){
       shot.walls.push(
-        {id:uid(), x1, y1, x2, y2:y1, openings:[], locked:true},
-        {id:uid(), x1:x2, y1, x2, y2, openings:[], locked:true},
-        {id:uid(), x1:x2, y1:y2, x2:x1, y2, openings:[], locked:true},
-        {id:uid(), x1, y1:y2, x2:x1, y2:y1, openings:[], locked:true},
+        {id:uid(), x1, y1, x2, y2:y1, openings:[], locked:false},
+        {id:uid(), x1:x2, y1, x2, y2, openings:[], locked:false},
+        {id:uid(), x1:x2, y1:y2, x2:x1, y2, openings:[], locked:false},
+        {id:uid(), x1, y1:y2, x2:x1, y2:y1, openings:[], locked:false},
       );
       markDirty();
       setTool('select');
@@ -1213,6 +1238,7 @@ document.querySelectorAll('#toolbar button[data-tool]').forEach(b =>
   b.addEventListener('click', () => setTool(b.dataset.tool)));
 document.getElementById('fitBtn').addEventListener('click', zoomFit);
 document.getElementById('noteBtn').addEventListener('click', addNoteAtCenter);
+document.getElementById('textBtn').addEventListener('click', addTextAtCenter);
 
 function syncSunBtn(){
   const s = activeShot().sun;

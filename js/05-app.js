@@ -84,6 +84,105 @@ document.getElementById('shotTitle').addEventListener('input', e => {
 });
 document.getElementById('shotTitle').addEventListener('keydown', e => { if(e.key==='Enter') e.target.blur(); });
 
+// ---------------------------------------------------------------- day planner
+// Chain scenes into a shoot day: pick a date + day start, reorder, and fill
+// the gaps between scenes with travel + setup minutes (persisted per scene as
+// travelMin/setupMin). Apply writes the chained start times back.
+function openPlanPop(){
+  const pop = document.getElementById('planPop');
+  const scenes = project.scenes;
+  const order = scenes.map((s,i)=>i).sort((a,b)=>{
+    const ta = scenes[a].time || '99:99', tb = scenes[b].time || '99:99';
+    return ta === tb ? a - b : (ta < tb ? -1 : 1);
+  });
+  const st = {
+    date: (scenes.find(s=>s.date) || {}).date || '',
+    start: (scenes[order[0]] && scenes[order[0]].time) || '08:00',
+    rows: order.map(i=>({ s: scenes[i], on: true,
+      travel: scenes[i].travelMin || 0, setup: scenes[i].setupMin || 0 })),
+  };
+  const toMin = t => { const m = /^(\d{1,2}):(\d{2})$/.exec(t||''); return m ? (+m[1])*60 + +m[2] : null; };
+  const hhmm = m => String(Math.floor((((m%1440)+1440)%1440)/60)).padStart(2,'0') + ':' +
+                    String(((m%60)+60)%60).padStart(2,'0');
+  const paint = ()=>{
+    pop.innerHTML = '<div style="font-weight:600;margin-bottom:2px">Day planner</div>' +
+      '<div style="font-size:10.5px;color:var(--ink2);margin-bottom:10px;line-height:1.45">' +
+      'Scenes chain from the day start — travel and setup minutes fill the gaps between them.</div>';
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;gap:7px;margin-bottom:8px;align-items:center;';
+    head.innerHTML = '<label style="font-size:10.5px;color:var(--ink2)">Date</label>' +
+      '<input id="plDate" type="date" style="flex:1;min-width:0;border:1px solid var(--line);border-radius:2px;padding:4px 6px;font-size:12px">' +
+      '<label style="font-size:10.5px;color:var(--ink2)">Start</label>' +
+      '<input id="plStart" type="time" step="600" style="border:1px solid var(--line);border-radius:2px;padding:4px 6px;font-size:12px">';
+    pop.appendChild(head);
+    head.querySelector('#plDate').value = st.date;
+    head.querySelector('#plStart').value = st.start;
+    head.querySelector('#plDate').addEventListener('change', e=>{ st.date = e.target.value; });
+    head.querySelector('#plStart').addEventListener('change', e=>{ st.start = e.target.value || st.start; paint(); });
+    let cur = toMin(st.start) ?? 8*60;
+    let seenOn = false;
+    st.rows.forEach((r, idx)=>{
+      if(r.on && seenOn){
+        const gap = document.createElement('div');
+        gap.className = 'plan-gap';
+        gap.innerHTML = '↳ travel <input type="number" min="0" step="5" value="' + r.travel + '"> ' +
+          '+ setup <input type="number" min="0" step="5" value="' + r.setup + '"> min';
+        const [ti, si] = gap.querySelectorAll('input');
+        ti.addEventListener('change', ()=>{ r.travel = Math.max(0, +ti.value||0); paint(); });
+        si.addEventListener('change', ()=>{ r.setup = Math.max(0, +si.value||0); paint(); });
+        pop.appendChild(gap);
+        cur += r.travel + r.setup;
+      }
+      const row = document.createElement('div');
+      row.className = 'plan-row' + (r.on ? '' : ' off');
+      row.innerHTML = '<input type="checkbox"' + (r.on ? ' checked' : '') + ' title="Include in this day">' +
+        '<span class="plan-time">' + (r.on ? hhmm(cur) : '—') + '</span>' +
+        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.s.name) + '</span>' +
+        '<span style="font-size:10.5px;color:var(--ink2);flex:none">' + fmtDur(r.s.duration||60) + '</span>' +
+        '<button class="plan-ud" title="Earlier">↑</button><button class="plan-ud" title="Later">↓</button>';
+      const cb = row.querySelector('input');
+      cb.addEventListener('change', ()=>{ r.on = cb.checked; paint(); });
+      const [up, down] = row.querySelectorAll('.plan-ud');
+      up.addEventListener('click', ()=>{ if(idx>0){ st.rows.splice(idx,1); st.rows.splice(idx-1,0,r); paint(); } });
+      down.addEventListener('click', ()=>{ if(idx<st.rows.length-1){ st.rows.splice(idx,1); st.rows.splice(idx+1,0,r); paint(); } });
+      pop.appendChild(row);
+      if(r.on){ cur += (r.s.duration||60); seenOn = true; }
+    });
+    const foot = document.createElement('div');
+    foot.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:12px;';
+    foot.innerHTML = '<span style="font-size:11px;color:var(--ink2)">Est. wrap ' + (seenOn ? hhmm(cur) : '—') + '</span>' +
+      '<span style="flex:1"></span>' +
+      '<button class="btn" id="plClose">Close</button>' +
+      '<button class="btn primary" id="plApply">Apply times</button>';
+    pop.appendChild(foot);
+    foot.querySelector('#plClose').addEventListener('click', ()=>pop.classList.remove('show'));
+    foot.querySelector('#plApply').addEventListener('click', ()=>{
+      let cur2 = toMin(st.start) ?? 8*60, seen = false;
+      for(const r of st.rows){
+        r.s.travelMin = r.travel; r.s.setupMin = r.setup;
+        if(!r.on) continue;
+        if(seen) cur2 += r.travel + r.setup;
+        if(st.date) r.s.date = st.date;
+        r.s.time = hhmm(cur2);
+        cur2 += (r.s.duration||60);
+        seen = true;
+      }
+      markDirty(); buildShotList(); buildInfo(); render();
+      toast(seen ? 'Scene times updated — est. wrap ' + hhmm(cur2) : 'No scenes included');
+      pop.classList.remove('show');
+    });
+  };
+  paint();
+  pop.classList.add('show');
+}
+document.getElementById('planBtn').addEventListener('click', openPlanPop);
+document.addEventListener('pointerdown', e=>{
+  const pop = document.getElementById('planPop');
+  if(pop.classList.contains('show') && !pop.contains(e.target) && e.target.id !== 'planBtn'){
+    pop.classList.remove('show');
+  }
+});
+
 // ---------------------------------------------------------------- tabs
 document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', ()=>{
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on', x===b));

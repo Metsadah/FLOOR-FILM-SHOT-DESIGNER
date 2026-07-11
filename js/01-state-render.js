@@ -410,15 +410,44 @@ function drawRuler(W, H){
   ctx.textAlign = 'left';
 }
 
+// Walls may bow: wall.mid is the ON-CURVE midpoint of a quadratic bend
+// (null/undefined = straight). Same convention as line objects' o.mid.
+function wallSamples(w){
+  if(!w.mid) return [{x:w.x1,y:w.y1},{x:w.x2,y:w.y2}];
+  const cx = 2*w.mid.x - (w.x1+w.x2)/2, cy = 2*w.mid.y - (w.y1+w.y2)/2;
+  const pts = [];
+  for(let i=0;i<=18;i++){
+    const t=i/18, u=1-t;
+    pts.push({x:u*u*w.x1 + 2*u*t*cx + t*t*w.x2, y:u*u*w.y1 + 2*u*t*cy + t*t*w.y2});
+  }
+  return pts;
+}
+function wallGeom(w){
+  const smp = wallSamples(w);
+  const cum = [0];
+  for(let i=1;i<smp.length;i++) cum.push(cum[i-1] + dist(smp[i-1].x,smp[i-1].y,smp[i].x,smp[i].y));
+  return {smp, cum, L:cum[cum.length-1]};
+}
+// point + tangent at arc distance d (geom passed in so callers can reuse it)
+function wallPointAt(geom, d){
+  const {smp, cum} = geom;
+  const dd = clamp(d, 0, geom.L);
+  let i = 1; while(i < cum.length-1 && cum[i] < dd) i++;
+  const t = (dd - cum[i-1]) / Math.max(1e-6, cum[i] - cum[i-1]);
+  return {x: smp[i-1].x + (smp[i].x-smp[i-1].x)*t,
+          y: smp[i-1].y + (smp[i].y-smp[i-1].y)*t,
+          ang: Math.atan2(smp[i].y-smp[i-1].y, smp[i].x-smp[i-1].x)};
+}
 function drawWalls(shot){
   const T = 11;
   for(const wall of shot.walls){
-    const {x1,y1,x2,y2} = wall;
-    const L = dist(x1,y1,x2,y2); if(L < 1) continue;
-    const dx=(x2-x1)/L, dy=(y2-y1)/L;
+    const geom = wallGeom(wall);
+    const {smp, cum, L} = geom;
+    if(L < 1) continue;
     const ops = (wall.openings||[]).map(o => ({...o, c:o.t*L})).sort((a,b)=>a.c-b.c);
     let cur = 0;
     ctx.lineCap = 'butt';
+    ctx.lineJoin = 'round';
     ctx.strokeStyle = WALL_COLOR;
     ctx.lineWidth = T;
     const segs = [];
@@ -430,13 +459,17 @@ function drawWalls(shot){
     if(cur < L) segs.push([cur, L]);
     for(const [a,b] of segs){
       ctx.beginPath();
-      ctx.moveTo(x1+dx*a, y1+dy*a);
-      ctx.lineTo(x1+dx*b, y1+dy*b);
+      const pa = wallPointAt(geom, a);
+      ctx.moveTo(pa.x, pa.y);
+      for(let i=0;i<cum.length;i++) if(cum[i] > a && cum[i] < b) ctx.lineTo(smp[i].x, smp[i].y);
+      const pb = wallPointAt(geom, b);
+      ctx.lineTo(pb.x, pb.y);
       ctx.stroke();
     }
     for(const o of ops){
-      const cx = x1+dx*o.c, cy = y1+dy*o.c;
-      const ang = Math.atan2(dy,dx);
+      const pc = wallPointAt(geom, o.c);
+      const cx = pc.x, cy = pc.y;
+      const ang = pc.ang;
       ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
       if(o.type === 'gap'){
         ctx.strokeStyle = WALL_COLOR; ctx.lineWidth = 2;
@@ -1173,6 +1206,29 @@ function drawObjectShape(o, ghost){
     const def = o.kind.startsWith('custom:')
       ? (project.customProps.find(p=>p.id===o.kind.slice(7)) || {shape:'rect'})
       : null;
+    // lights throw a soft beam / glow (subtle, under the icon); Beam toggle in selBar
+    const beam = (!def && o.beam !== false) ? LIGHT_BEAMS[o.kind] : null;
+    if(beam && !ghost){
+      ctx.save();
+      if(beam.omni){
+        const g = ctx.createRadialGradient(0,0,6, 0,0,beam.omni);
+        g.addColorStop(0, 'rgba('+beam.tint+',.16)');
+        g.addColorStop(1, 'rgba('+beam.tint+',0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(0,0,beam.omni,0,7); ctx.fill();
+      } else {
+        ctx.rotate(beam.axis || 0);
+        const a = rad(beam.spread/2);
+        const g = ctx.createRadialGradient(0,0,8, 0,0,beam.range);
+        g.addColorStop(0, 'rgba('+beam.tint+',.15)');
+        g.addColorStop(1, 'rgba('+beam.tint+',0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(0,0);
+        ctx.arc(0,0,beam.range,-a,a);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
     (def ? PROPS.custom.draw : (PROPS[o.kind]||PROPS.custom).draw)(ctx, o.w, o.h, o.color, def);
   }
   ctx.restore();

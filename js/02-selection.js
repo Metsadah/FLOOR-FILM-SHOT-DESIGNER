@@ -78,6 +78,9 @@ function handleList(){
     const w = shot.walls.find(x=>x.id===sel.id); if(!w || w.locked) return hs;
     hs.push({id:'w1', x:w.x1, y:w.y1});
     hs.push({id:'w2', x:w.x2, y:w.y2});
+    // bend handle: drag to bow the wall, drop near the chord center to straighten
+    const m = w.mid || {x:(w.x1+w.x2)/2, y:(w.y1+w.y2)/2};
+    hs.push({id:'wm', x:m.x, y:m.y});
   }
   return hs;
 }
@@ -116,14 +119,19 @@ function drawSelection(shot){
   } else if(sel.type === 'wall'){
     const w = shot.walls.find(x=>x.id===sel.id);
     if(w){
+      const smp = wallSamples(w);
       ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 3/s; ctx.globalAlpha = .8;
-      ctx.beginPath(); ctx.moveTo(w.x1,w.y1); ctx.lineTo(w.x2,w.y2); ctx.stroke(); ctx.globalAlpha=1;
+      ctx.beginPath();
+      smp.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
+      ctx.stroke(); ctx.globalAlpha=1;
     }
   } else if(sel.type === 'opening'){
     const w = shot.walls.find(x=>x.id===sel.wallId);
     const op = w && w.openings[sel.index];
     if(op){
-      const cx = w.x1 + (w.x2-w.x1)*op.t, cy = w.y1 + (w.y2-w.y1)*op.t;
+      const geom = wallGeom(w);
+      const pc = wallPointAt(geom, op.t*geom.L);
+      const cx = pc.x, cy = pc.y;
       ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.6/s;
       ctx.beginPath(); ctx.arc(cx, cy, (op.w/2)+8/s, 0, 7); ctx.setLineDash([5/s,4/s]); ctx.stroke(); ctx.setLineDash([]);
     }
@@ -169,7 +177,9 @@ function drawToolPreview(){
   }
   if((tool==='door'||tool==='window'||tool==='gap') && hoverWall){
     const {wall, t} = hoverWall;
-    const cx = wall.x1 + (wall.x2-wall.x1)*t, cy = wall.y1 + (wall.y2-wall.y1)*t;
+    const geom = wallGeom(wall);
+    const pc = wallPointAt(geom, t*geom.L);
+    const cx = pc.x, cy = pc.y;
     ctx.save();
     ctx.beginPath(); ctx.arc(cx,cy, 10/s, 0, 7);
     ctx.fillStyle = 'rgba(75,107,251,.25)'; ctx.fill();

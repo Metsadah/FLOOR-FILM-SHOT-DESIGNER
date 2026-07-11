@@ -199,6 +199,12 @@ function refreshSelBar(){
       hint.textContent = '+ chips add rows/cols \u00b7 Tab/Enter hop cells';
       selBar.appendChild(hint);
     }
+    if(o.cat === 'prop' && LIGHT_BEAMS[o.kind]){
+      sbtn(o.beam === false ? 'Beam: off' : 'Beam: on', ()=>{
+        o.beam = o.beam === false;
+        markDirty(); render(); refreshSelBar();
+      });
+    }
     if(o.cat === 'listcard'){
       sbtn('+ Person', ()=>addListPerson(o));
       const hint = document.createElement('span');
@@ -473,6 +479,8 @@ function refreshSelBar(){
         selBar.appendChild(info);
       }
       sbtn(w.locked ? 'Unlock' : 'Lock', ()=>{ w.locked=!w.locked; markDirty(); render(); refreshSelBar(); });
+      if(!w.locked && w.mid)
+        sbtn('Straighten', ()=>{ w.mid = null; markDirty(); render(); refreshSelBar(); });
       if(!w.locked){
         const comp = wallComponent(shot, w);
         if(comp.length > 1){
@@ -520,11 +528,14 @@ function updateSelBarPos(){
     r = o.kind==='track' ? 40 : Math.max(o.w,o.h)/2;
   } else if(sel.type === 'wall'){
     const w = shot.walls.find(x=>x.id===sel.id); if(!w) return;
-    wx=(w.x1+w.x2)/2; wy=(w.y1+w.y2)/2;
+    const m = w.mid || {x:(w.x1+w.x2)/2, y:(w.y1+w.y2)/2};
+    wx = m.x; wy = m.y;
   } else if(sel.type === 'opening'){
     const w = shot.walls.find(x=>x.id===sel.wallId); if(!w || !w.openings[sel.index]) return;
     const op = w.openings[sel.index];
-    wx = w.x1+(w.x2-w.x1)*op.t; wy = w.y1+(w.y2-w.y1)*op.t; r = op.w/2;
+    const geom = wallGeom(w);
+    const pc = wallPointAt(geom, op.t*geom.L);
+    wx = pc.x; wy = pc.y; r = op.w/2;
   } else return;
   const p = toScreen(wx, wy);
   const bw = selBar.offsetWidth, bh = selBar.offsetHeight;
@@ -646,7 +657,7 @@ function openNoteEditor(o, field, rect, fs){
   ta.addEventListener('input', ()=>{ editorSetValue(o, noteEditor.field, ta.value); markDirty(); });
   ta.addEventListener('blur', ()=>closeNoteEditor(true));
   ta.addEventListener('keydown', e=>{
-    if(e.key === 'Escape'){ closeNoteEditor(true); }
+    if(e.key === 'Escape'){ closeNoteEditor(true); e.stopPropagation(); return; }
     const fld = noteEditor.field;
     if(fld.startsWith('cell:') && (e.key === 'Enter' || e.key === 'Tab')){
       e.preventDefault();
@@ -1048,7 +1059,7 @@ function dropLib(e){
     } else if(libDrag.cat === 'line'){
       o = {id:uid(), cat:'line', kind:'line', x, y, rot:0, w:220, h:14,
            p1:{x:x-110, y}, p2:{x:x+110, y},
-           weight:2.5, dashed:false, arrow:false, color:libDrag.color||'#E8604C', label:'', path:[]};
+           weight:2.5, dashed:false, arrow:true, color:libDrag.color||'#E8604C', label:'', path:[]};
     } else if(libDrag.cat === 'link'){
       o = {id:uid(), cat:'link', kind:'link', x, y, rot:0, w:130, h:34,
            label:'', url:'', color:libDrag.color||'#4B6BFB', path:[]};

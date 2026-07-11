@@ -40,6 +40,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
   </div>
   <button class="btn" id="projBtn" title="Switch or create productions">Production ▾</button>
   <div id="projPop"></div>
+  <div id="planPop"></div>
     <span id="sceneLbl">SCENE</span><input id="shotTitle" title="Rename scene" spellcheck="false">
     <div class="topbar-right">
       <button class="btn drawer-btn" id="panelToggle" title="Shot info &amp; stills">☷</button>
@@ -49,7 +50,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <span id="saveState">Saved</span>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <span id="verChip" title="FLOOR Studio version">v0.12</span><button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="FLOOR Studio version">v0.13</span><button id="helpBtn" title="How to use">?</button>
     </div>
   </div>
 
@@ -62,7 +63,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
   <div id="main">
     <!-- left -->
     <div id="sidebar">
-      <div class="side-head">Scenes <button id="addShot" title="Add scene">+</button></div>
+      <div class="side-head">Scenes <span style="display:flex;gap:4px"><button id="planBtn" title="Day planner — chain scenes with travel &amp; setup time" style="width:auto;padding:0 7px;font-size:9.5px;letter-spacing:.5px">PLAN</button><button id="addShot" title="Add scene">+</button></span></div>
       <div id="shotList"></div>
       <div id="library"></div>
     </div>
@@ -93,6 +94,9 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
         <div class="sep"></div>
         <button data-tool="draw" data-tip="Freehand draw / pen">
           <svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/></svg>
+        </button>
+        <button id="textBtn" data-tip="Add text (T)">
+          <svg viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg>
         </button>
         <button id="noteBtn" data-tip="Add sticky note (N)">
           <svg viewBox="0 0 24 24"><path d="M5 4h14v10l-4 6H5z"/><path d="M15 20v-6h4"/></svg>
@@ -210,7 +214,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
     <p>The ☀ button drops a sun indicator on the shot. Drag the amber handle around the disc to set where the sun stands — the time of day follows (or type a time in the selection bar). Arrows show the light direction across the set. The <b>N</b> marker has its own handle: drag it to rotate north to match your location's real orientation.</p>
 
     <h3>Shot info &amp; stills</h3>
-    <p>The <b>Shot info</b> panel holds the shoot name, scene number and description, the script, plus date, start time, duration (10-minute steps) and preferred weather. When you add a new shot, date / duration / weather carry over and the start time continues where the previous shot wraps. <b>Walls</b> are born <b>locked</b> so you can't nudge your set by accident — select one and hit Unlock to edit it. Corners stay glued: dragging an unlocked wall pulls connected endpoints along, and the selection bar can switch to "drag moves all N walls" to slide a whole structure at once. The <b>gap tool</b> cuts an open passage in any wall (select the gap to widen or delete it). Cameras take a one-line <b>description</b> and a <b>Frame…</b> image — a director's-viewfinder still pinned beside the camera that you can drag anywhere; both travel into the PDF. <b>Annotate:</b> the pencil tool draws freehand ink (lovely with an Apple Pencil), the Board section of the library has plain <b>text</b> <kbd>T</kbd>, <b>lines/arrows</b> (weight, dash, label), <b>links</b> (double-click opens them), a live <b>Info card</b> mirroring the Shot info panel, and a <b>Production note</b> template for crew, address and contacts. Notes take a title plus bold / italic / size styling. Anything can be <b>locked</b> (selection bar) so set dressing stays put, sent to <b>front / back</b>, and every label chip can be dragged to a better spot once its object is selected. On touch screens, pinch to zoom; the ☰ and ☷ buttons open the panels. <b>Recce &amp; mood</b> keeps reference images per shot — drop image files on the canvas or hit <b>→ Board</b> to pin one as a resizable still on the plan. Any pinned image can become an <b>underlay</b> (its selection bar): it drops behind the walls at half opacity — perfect for tracing a location from a satellite screenshot. Take a Google Maps capture with north up, drop it in, toggle Underlay, scale it against the ruler, trace the building and roads, and rotate the sun's N handle to match. Sticky notes <kbd>N</kbd> go anywhere; double-click to type.</p>
+    <p>The <b>Shot info</b> panel holds the shoot name, scene number and description, the script, plus date, start time, duration (10-minute steps) and preferred weather. When you add a new shot, date / duration / weather carry over and the start time continues where the previous shot wraps. <b>Walls</b> can be <b>locked</b> via the selection bar so you can't nudge your set by accident. Corners stay glued: dragging a wall pulls connected endpoints along, and the selection bar can switch to "drag moves all N walls" to slide a whole structure at once. Drag a wall's <b>middle handle</b> to bow it into a curve (drag back to the center to straighten). The <b>gap tool</b> cuts an open passage in any wall (select the gap to widen or delete it). Cameras take a one-line <b>description</b> and a <b>Frame…</b> image — a director's-viewfinder still pinned beside the camera that you can drag anywhere; both travel into the PDF. <b>Annotate:</b> the pencil tool draws freehand ink (lovely with an Apple Pencil), the Board section of the library has plain <b>text</b> <kbd>T</kbd>, <b>lines/arrows</b> (weight, dash, label), <b>links</b> (double-click opens them), a live <b>Info card</b> mirroring the Shot info panel, and a <b>Production note</b> template for crew, address and contacts. Notes take a title plus bold / italic / size styling. Anything can be <b>locked</b> (selection bar) so set dressing stays put, sent to <b>front / back</b>, and every label chip can be dragged to a better spot once its object is selected. On touch screens, pinch to zoom; the ☰ and ☷ buttons open the panels. <b>Recce &amp; mood</b> keeps reference images per shot — drop image files on the canvas or hit <b>→ Board</b> to pin one as a resizable still on the plan. Any pinned image can become an <b>underlay</b> (its selection bar): it drops behind the walls at half opacity — perfect for tracing a location from a satellite screenshot. Take a Google Maps capture with north up, drop it in, toggle Underlay, scale it against the ruler, trace the building and roads, and rotate the sun's N handle to match. Sticky notes <kbd>N</kbd> go anywhere; double-click to type.</p>
 
     <h3>Export</h3>
     <p>The <b>Export</b> button adapts to where you are: on the designer it offers the scene as PNG (whole or cropped area) or a PDF with one page per scene — plan, shot list, script and stills. On the boards it exports that board as PNG or a one-page PDF.</p>

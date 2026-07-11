@@ -806,6 +806,25 @@ const CATS = [
   {name:'Tech', open:false, items:['laptop','computer','tablet'].map(k=>({cat:'prop', kind:k}))},
 ];
 
+// ---------------------------------------------------------------- light beams
+// Directional throw per light kind — like a camera's FOV, but quieter.
+// axis: beam direction in the prop's local space (spots face +x like camera
+// FOV / fresnel barn doors; panels emit from their long face, so +y).
+// omni: practicals just glow in a circle. tint: warm tungsten vs cool daylight.
+const BEAM_WARM = '255,196,110', BEAM_COOL = '182,208,255';
+const LIGHT_BEAMS = {
+  fresnel:      {spread:34,  range:330, axis:0,           tint:BEAM_WARM},
+  hmi:          {spread:38,  range:400, axis:0,           tint:BEAM_COOL},
+  kino:         {spread:85,  range:210, axis:Math.PI/2,   tint:BEAM_COOL},
+  ledpanel:     {spread:78,  range:240, axis:Math.PI/2,   tint:BEAM_COOL},
+  tube:         {spread:110, range:150, axis:Math.PI/2,   tint:BEAM_COOL},
+  neon:         {spread:115, range:120, axis:Math.PI/2,   tint:'255,122,217'},
+  floorlamp:    {omni:90,  tint:BEAM_WARM},
+  tablelamp:    {omni:70,  tint:BEAM_WARM},
+  pendant:      {omni:95,  tint:BEAM_WARM},
+  ceilinglight: {omni:110, tint:BEAM_WARM},
+};
+
 // ---------------------------------------------------------------- list cards
 // Live filtered views of the production People registry — one registry,
 // many windows. Column keys map straight onto person fields.
