@@ -397,6 +397,7 @@ cv.addEventListener('pointerdown', e => {
       if(h.id === 'rotate') drag = {kind:'rotate', o, craneBase: isCrane(o) ? jibBasePos(o) : null};
       else if(h.id === 'resize') drag = {kind:'resize', o, ratio:o.h/o.w};
       else if(h.id === 'jibHead') drag = {kind:'jibHead', o, B:jibBasePos(o)};
+      else if(h.id.startsWith('beam')) drag = {kind:'beamfov', o};
       else if(h.id.startsWith('fov')) drag = {kind:'fov', o};
       else if(h.id === 'l1' || h.id === 'l2') drag = {kind:'lineEnd', o, end:h.id};
       else if(h.id === 'lm') drag = {kind:'lineMid', o};
@@ -456,7 +457,7 @@ cv.addEventListener('pointerdown', e => {
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
-    if(['link','todo','audio','table','listcard'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
+    if(['link','todo','audio','table','listcard','fieldcard'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
     if(obj.cat === 'link'){ drag.linkX0=obj.x; drag.linkY0=obj.y; }
     refreshSelBar(); render();
     return;
@@ -693,6 +694,17 @@ cv.addEventListener('pointermove', e => {
       markDirty();
       break;
     }
+    case 'beamfov': {
+      // light beam edges work like a camera's FOV handles
+      const o = drag.o;
+      const b = LIGHT_BEAMS[o.kind] || {};
+      const ax = o.rot + (b.axis || 0);
+      const a = Math.atan2(wy-o.y, wx-o.x);
+      o.beamSpread = clamp(Math.abs(deg(norm(a - ax)))*2, 8, 165);
+      o.beamRange = clamp(dist(wx,wy,o.x,o.y), 50, 1200);
+      markDirty();
+      break;
+    }
     case 'point':
       drag.o.path[drag.i].x = wx; drag.o.path[drag.i].y = wy; markDirty();
       break;
@@ -907,6 +919,11 @@ cv.addEventListener('pointerup', e => {
         const cell = listCellAt(o, up.x, up.y); // cells are click-to-edit
         if(cell) openListCell(o, cell.r, cell.c);
       }
+    } else if(o.cat === 'fieldcard'){
+      if(typeof fieldCellAt === 'function'){
+        const row = fieldCellAt(o, up.x, up.y); // values are click-to-edit
+        if(row !== null) openFieldCell(o, row);
+      }
     }
   }
   if(drag.kind === 'drawWall'){
@@ -1058,6 +1075,11 @@ cv.addEventListener('dblclick', e => {
       const cell = listCellAt(o, wx, wy);
       if(cell) openListCell(o, cell.r, cell.c);
       else if(!cardPeople(o).length) addListPerson(o); // dblclick an empty card starts the first row
+      return;
+    }
+    if(o.cat === 'fieldcard'){
+      const row = fieldCellAt(o, wx, wy);
+      if(row !== null) openFieldCell(o, row);
       return;
     }
     if(o.cat === 'link'){

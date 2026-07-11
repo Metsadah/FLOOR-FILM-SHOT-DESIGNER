@@ -29,7 +29,7 @@ function handleList(){
       hs.push({id:'lm', x:m.x, y:m.y});
       return hs;
     }
-    if(o.cat === 'ink' || o.cat === 'table' || o.cat === 'listcard') return hs; // self-sizing — no resize/rotate
+    if(o.cat === 'ink' || o.cat === 'table' || o.cat === 'listcard' || o.cat === 'fieldcard') return hs; // self-sizing — no resize/rotate
     if(o.kind === 'track'){
       (o.pts||[]).forEach((p,i)=> hs.push({id:'tp'+i, x:p.x, y:p.y}));
       return hs;
@@ -46,6 +46,16 @@ function handleList(){
       for(const sgn of [-1,1]){
         const a = o.rot + sgn*rad(o.fov/2);
         hs.push({id:'fov'+(sgn<0?'A':'B'), x:o.x+Math.cos(a)*o.range, y:o.y+Math.sin(a)*o.range});
+      }
+    }
+    // directional lights: amber handles on the beam edges (drag = spread + throw)
+    if(o.cat === 'prop' && LIGHT_BEAMS[o.kind] && !LIGHT_BEAMS[o.kind].omni && o.beam !== false){
+      const b = LIGHT_BEAMS[o.kind];
+      const ax = o.rot + (b.axis || 0);
+      const sp = o.beamSpread || b.spread, rg = o.beamRange || b.range;
+      for(const sgn of [-1,1]){
+        const a = ax + sgn*rad(sp/2);
+        hs.push({id:'beam'+(sgn<0?'A':'B'), x:o.x+Math.cos(a)*rg, y:o.y+Math.sin(a)*rg});
       }
     }
     if(isCrane(o)){
@@ -85,6 +95,7 @@ function handleList(){
   return hs;
 }
 function handleColor(id){
+  if(id.startsWith('beam')) return '#E2A93B';
   if(id === 'rotate' || id.startsWith('pr') || id === 'sunH' || id === 'sunN') return '#E2A93B';
   if(id.startsWith('fov') || id.startsWith('pf') || id === 'jibHead' || id.startsWith('ch')) return '#8B5CF6';
   return '#4B6BFB';

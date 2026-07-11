@@ -48,10 +48,10 @@
         <div style="background:#fff;border:1px solid #E5E3DE;border-radius:16px;padding:30px 34px;
                     width:340px;box-shadow:0 18px 60px rgba(40,38,32,.14)">
           <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px">
-            <div style="width:10px;height:10px;border-radius:3px;background:#4B6BFB"></div>FLOOR
+            <div style="width:10px;height:10px;border-radius:3px;background:#4B6BFB"></div>FLOOR Studio
           </div>
           <div style="color:#8A877F;font-size:12.5px;margin:6px 0 18px">
-            Sign in to load your projects. We'll email you a one-time login link — no password needed.
+            Sign in to load your FLOOR Studio projects. We'll email you a one-time login link — no password needed.
           </div>
           <input id="flEmail" type="email" placeholder="you@example.com"
                  style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:9px 11px;font-size:13px">
@@ -72,7 +72,7 @@
         });
         msg.textContent = error
           ? 'Could not send the link: ' + error.message
-          : 'Check your inbox and open the link on THIS device. This page will unlock automatically.';
+          : 'Check your inbox for your FLOOR Studio login link (sent via Supabase — check spam the first time) and open it on THIS device. This page will unlock automatically.';
       });
       sb.auth.onAuthStateChange((_e, session)=>{
         if(session){ el.remove(); resolve(session.user); }

@@ -136,10 +136,6 @@ const PROD_CARDS = [
    'Production: \nDate: \nCrew call: \nOn set: \nLunch: \nWrap: \n\nLocation: \nAddress: \nParking: \nNearest hospital: \n\nWeather: \nSunrise / sunset: \n\nNotes: '],
   ['Day schedule', '#E8934C', 250, 300, 'SCHEDULE',
    '07:00  Crew call\n07:30  Build & light\n09:00  Shot 1\n11:00  Shot 2\n13:00  Lunch\n14:00  Shot 3\n17:30  Last looks\n18:00  Wrap'],
-  ['Location card', '#3E9B6E', 250, 250, 'LOCATION',
-   'Name: \nAddress: \nParking: \nPower: \nToilets: \nAccess / keys: \nNotes: '],
-  ['Checklist', '#8B5CF6', 230, 260, 'CHECKLIST',
-   '\u2610 Camera batteries\n\u2610 Media cards\n\u2610 Release forms\n\u2610 Catering confirmed\n\u2610 Parking arranged\n\u2610 Backup drive'],
 ];
 function buildProdLibSection(lib){
   const h = document.createElement('div');
@@ -166,6 +162,44 @@ function buildProdLibSection(lib){
     }, 100, 100, spec.color));
     el.insertAdjacentHTML('beforeend', '<span>' + esc(kind.charAt(0).toUpperCase()+kind.slice(1)) + '</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'listcard', kind, w:360, h:74, color:spec.color}));
+    grid.appendChild(el);
+  }
+  // field cards — label:value windows onto the production data
+  for(const [kind, name] of [['prodinfo','Production info'],['location','Location']]){
+    const spec = FIELD_CARDS[kind];
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
+      tc.fillStyle='#fff'; tc.fill();
+      tc.strokeStyle=spec.color; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle=spec.color; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2, -h2*.4, w2, h2*.18); tc.globalAlpha=1;
+      tc.globalAlpha=.5;
+      for(const y2 of [-h2*.1, h2*.06, h2*.22]){
+        tc.fillRect(-w2*.36, y2, w2*.2, 2.5);
+        tc.fillRect(-w2*.08, y2, w2*.44, 2.5);
+      }
+      tc.globalAlpha=1;
+    }, 100, 100, spec.color));
+    el.insertAdjacentHTML('beforeend', '<span>' + esc(name) + '</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'fieldcard', kind, w:280, h:130, color:spec.color}));
+    grid.appendChild(el);
+  }
+  // Checklist 2.0 — a real to-do list born from a template
+  {
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      tc.strokeStyle='#8B5CF6'; tc.lineWidth=3;
+      for(const y2 of [-h2*.26, 0, h2*.26]){
+        tc.strokeRect(-w2*.32, y2-6, 12, 12);
+        tc.beginPath(); tc.moveTo(-w2*.06, y2); tc.lineTo(w2*.34, y2); tc.stroke();
+      }
+    }, 100, 100, '#8B5CF6'));
+    el.insertAdjacentHTML('beforeend', '<span>Checklist</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e,
+      {cat:'todo', kind:'todo', w:230, h:120, color:'#8B5CF6', checklist:true}));
     grid.appendChild(el);
   }
   for(const [name, color, w, hh, label, text] of PROD_CARDS){
@@ -202,7 +236,7 @@ function buildProdLibSection(lib){
   lib.appendChild(grid);
   const tip = document.createElement('div');
   tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 10px;line-height:1.5;';
-  tip.textContent = 'Crew, Cast and Client cards are live views of one People registry — add a person on any card and they exist everywhere; edit a phone number once. Drop map screenshots or Cmd+V paste straight onto the board.';
+  tip.textContent = 'Crew, Cast and Client cards are live views of one People registry — add a person on any card and they exist everywhere ("Paste list…" imports a whole contact list at once). Production info and Location cards are windows onto the production data. Drop map screenshots or Cmd+V paste straight onto the board.';
   lib.appendChild(tip);
 }
 

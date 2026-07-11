@@ -810,19 +810,20 @@ const CATS = [
 // Directional throw per light kind — like a camera's FOV, but quieter.
 // axis: beam direction in the prop's local space (spots face +x like camera
 // FOV / fresnel barn doors; panels emit from their long face, so +y).
-// omni: practicals just glow in a circle. tint: warm tungsten vs cool daylight.
-const BEAM_WARM = '255,196,110', BEAM_COOL = '182,208,255';
+// omni: practicals just glow in a circle. Per-object overrides: o.beamSpread /
+// o.beamRange (set by dragging the amber beam handles), o.beam === false hides.
+const BEAM_TINT = '255,206,64'; // yellowish stage light
 const LIGHT_BEAMS = {
-  fresnel:      {spread:34,  range:330, axis:0,           tint:BEAM_WARM},
-  hmi:          {spread:38,  range:400, axis:0,           tint:BEAM_COOL},
-  kino:         {spread:85,  range:210, axis:Math.PI/2,   tint:BEAM_COOL},
-  ledpanel:     {spread:78,  range:240, axis:Math.PI/2,   tint:BEAM_COOL},
-  tube:         {spread:110, range:150, axis:Math.PI/2,   tint:BEAM_COOL},
+  fresnel:      {spread:34,  range:330, axis:0,           tint:BEAM_TINT},
+  hmi:          {spread:38,  range:400, axis:0,           tint:BEAM_TINT},
+  kino:         {spread:85,  range:210, axis:Math.PI/2,   tint:BEAM_TINT},
+  ledpanel:     {spread:78,  range:240, axis:Math.PI/2,   tint:BEAM_TINT},
+  tube:         {spread:110, range:150, axis:Math.PI/2,   tint:BEAM_TINT},
   neon:         {spread:115, range:120, axis:Math.PI/2,   tint:'255,122,217'},
-  floorlamp:    {omni:90,  tint:BEAM_WARM},
-  tablelamp:    {omni:70,  tint:BEAM_WARM},
-  pendant:      {omni:95,  tint:BEAM_WARM},
-  ceilinglight: {omni:110, tint:BEAM_WARM},
+  floorlamp:    {omni:90,  tint:BEAM_TINT},
+  tablelamp:    {omni:70,  tint:BEAM_TINT},
+  pendant:      {omni:95,  tint:BEAM_TINT},
+  ceilinglight: {omni:110, tint:BEAM_TINT},
 };
 
 // ---------------------------------------------------------------- list cards
@@ -852,3 +853,38 @@ const LIST_CARDS = {
 };
 // shared card geometry (renderer, hit-testing and the cell editor all agree)
 const LIST_GEO = {titleH:26, headH:22, rowH:26, grip:14};
+
+// ---------------------------------------------------------------- field cards
+// label:value cards. prodinfo reads/writes project.production (+ shootName);
+// location binds to one entry in production.locations via o.locId — cards are
+// windows onto production data, not copies of it.
+const FIELD_CARDS = {
+  prodinfo: {title:'PRODUCTION', color:'#4B6BFB', rows:[
+    {key:'name',    label:'Production', ph:'Production name'},
+    {key:'company', label:'Company',    ph:'Company'},
+    {key:'address', label:'Address',    ph:'Street, city'},
+    {key:'email',   label:'Email',      ph:'production@…'},
+    {key:'phone',   label:'Phone',      ph:'+31 6 …'},
+  ]},
+  location: {title:'LOCATION', color:'#3E9B6E', rows:[
+    {key:'name',     label:'Name',     ph:'Location name'},
+    {key:'address',  label:'Address',  ph:'Street, city'},
+    {key:'parking',  label:'Parking',  ph:'Where to park'},
+    {key:'power',    label:'Power',    ph:'Available power'},
+    {key:'hospital', label:'Hospital', ph:'Nearest hospital'},
+    {key:'notes',    label:'Notes',    ph:'Access, keys, quirks…'},
+  ]},
+};
+const FIELD_GEO = {titleH:26, rowH:26};
+
+// Checklist 2.0 — named templates, picked when the tile drops
+const CHECKLIST_TEMPLATES = {
+  'Camera dept':  ['Batteries charged','Media cards formatted','Lenses & filters packed',
+                   'Monitor + cables','Tripod / head','Backup offload drive'],
+  'Grip & light': ['Stands & sandbags','Flags / negative fill','Gels & diffusion',
+                   'Extension cables / distro','Practicals checked','Generator fueled'],
+  'Location':     ['Permit confirmed','Parking arranged','Power available','Toilets',
+                   'Neighbours informed','Hospital route known'],
+  'Wrap':         ['Media backed up twice','Release forms signed','Location swept & restored',
+                   'Rental returns booked','Batteries on chargers','Crew thanked'],
+};

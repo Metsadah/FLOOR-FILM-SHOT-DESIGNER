@@ -48,6 +48,21 @@ Storyboard (`write`) · Shot designer (`design`) · Production (`org`).
 - Project-level boards: `project.moodboard`, `project.scriptboard`,
   `project.prodboard` — scene-shaped, routed by `activeScene()` via
   `activeTab` + `BOARD_TABS = {'mood','org','write'}`.
+- **Field cards (P2, v0.14):** `cat:'fieldcard'`, `kind:'prodinfo'|'location'`
+  — label:value rows from `FIELD_CARDS` (00), values live in PRODUCTION DATA,
+  not on the object: prodinfo ↔ `project.production.company/address/email/
+  phone` + `project.shootName`; location ↔ one `production.locations[]` entry
+  bound by `o.locId` (drop binds the first unbound location, else creates
+  one; deleting the card keeps the entry). Routing via `fieldGet/fieldSet`
+  (01), editor field id `fval:<rowIdx>`. Deleting a location card orphans its
+  entry harmlessly — a future locations manager can garbage-collect.
+- **Paste-to-import (P2):** listcard selBar → `showPasteImport` (04);
+  `parseContactLine` pulls email/phone/call-time by regex, splits the rest on
+  commas/dashes into name + role; "role, name" checkbox flips them. Preview
+  before insert; people land in the registry with the card's tag.
+- **Checklist 2.0 (P2):** the Checklist library tile drops a normal `todo`
+  object and opens `showChecklistPicker` (04) with `CHECKLIST_TEMPLATES`
+  (00): camera / grip & light / location / wrap / blank.
 - **People registry (P1, v0.12):** `project.production.people =
   [{id, name, role, phone, email, tag:'crew'|'cast'|'client', call}]` — ONE
   list per production; the Crew/Cast/Client cards on the prodboard are
@@ -74,11 +89,16 @@ Storyboard (`write`) · Shot designer (`design`) · Production (`org`).
 - **Scenes carry `travelMin`/`setupMin` (v0.13)** — the day planner's gap
   minutes before that scene; the future call-sheet/stripboard work should
   reuse them.
-- **Lights throw beams (v0.13):** `LIGHT_BEAMS` in 00 maps light kinds to
-  {spread, range, axis, tint} or {omni} — spots emit along local +x like
-  camera FOV, panels along +y (their long face). Drawn as soft gradients
-  under the icon in the prop branch of `drawObjectShape`; `o.beam === false`
-  disables (Beam toggle in selBar).
+- **Lights throw beams (v0.13, reworked v0.14):** `LIGHT_BEAMS` in 00 maps
+  light kinds to {spread, range, axis, tint} or {omni} — spots emit along
+  local +x like camera FOV, panels along +y (their long face). Yellowish
+  (`BEAM_TINT`), alpha .26 at the source. Directional lights get amber
+  beam-edge handles (`beam A/B` in handleList, drag = `beamfov` case) that
+  store per-object `o.beamSpread`/`o.beamRange`; "Reset beam" clears them;
+  `o.beam === false` hides the beam (Beam toggle in selBar).
+- **Colorless objects hide the swatch row** (v0.14): image, infocard,
+  colorcard, script, fieldcard + the negfill prop — recoloring them changes
+  nothing on canvas, so refreshSelBar skips the swatches (`colorless` guard).
 
 ## Object types on canvas (drawn in drawObjectShape, 01)
 camera, actor, note, text, line (bendable via `o.mid`), link (auto-title from
@@ -141,7 +161,7 @@ the current row is entirely blank (keeps the registry junk-free).
 7. **Version discipline:** bump the `#verChip` in index.html, the SW cache
    name (`floor-shell-vN`), and the zip name (`floor-repo-vN.zip`) together
    every release. Identical zip names caused a lost afternoon once.
-   Current: verChip v0.13 ↔ floor-shell-v12.
+   Current: verChip v0.14 ↔ floor-shell-v13.
 8. **closeNoteEditor re-entrancy (fixed v0.12, keep it fixed).** Removing
    the focused textarea re-fires its own `blur` → `closeNoteEditor` again
    mid-removal → NotFoundError that aborts whatever handler called it (this
@@ -178,10 +198,20 @@ Configuration must list the Netlify URL (+ `/**` redirect wildcard). Agreed:
 future server code = **Supabase Edge Functions** (not Netlify Functions),
 first use = AI script breakdown.
 
+## Supabase magic-link email branding (dashboard TODO — not in code)
+The login mail's subject/body are Supabase Auth settings, not client code.
+In supabase.com dashboard → project → Authentication → Email Templates →
+Magic Link: subject "Your FLOOR Studio login link", body should say FLOOR
+Studio and keep `{{ .ConfirmationURL }}`. Sender stays
+noreply@mail.app.supabase.io until custom SMTP is configured (Auth → SMTP)
+— revisit when a floorstudio domain exists. The in-app overlay copy already
+sets expectations (v0.14).
+
 ## What's next (see ROADMAP.md)
-P1 (People registry + Crew/Cast/Client list cards, org panel removed)
-**shipped in v0.12**. Next: P2 — field cards (label:value rows; Production
-info + Location, prefilled from `production.company/…/locations`),
-paste-to-import on list cards, Checklist 2.0 templates. Then P3 (day header
-card with sunrise/sunset), then the call-sheet PDF generator, then share
-links + comments (bundle the Storage-bucket migration into that).
+P1 shipped in v0.12; P2 (field cards + paste-to-import + Checklist 2.0)
+**shipped in v0.14**. Next: P3 — the day-header card (date, general call,
+shooting call, est. wrap, computed sunrise/sunset via client-side solar math
++ one Open-Meteo geocode of the location card's place). Then the call-sheet
+PDF generator (Production info + Location + Crew + Weather + day header are
+its direct inputs), then share links + comments (bundle the Storage-bucket
+migration into that).

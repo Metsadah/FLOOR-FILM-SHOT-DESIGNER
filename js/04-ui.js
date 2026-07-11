@@ -92,14 +92,19 @@ function refreshSelBar(){
       selBar.classList.add('show'); updateSelBarPos();
       return;
     }
-    for(const c of COLORS){
-      const sw = document.createElement('button');
-      sw.className = 'sw' + (o.color===c ? ' on' : '');
-      sw.style.background = c;
-      sw.addEventListener('click', ()=>{ o.color=c; markDirty(); render(); refreshSelBar(); });
-      selBar.appendChild(sw);
+    // no swatches where recoloring changes nothing on canvas
+    const colorless = ['image','infocard','colorcard','script','fieldcard'].includes(o.cat) ||
+                      (o.cat === 'prop' && o.kind === 'negfill');
+    if(!colorless){
+      for(const c of COLORS){
+        const sw = document.createElement('button');
+        sw.className = 'sw' + (o.color===c ? ' on' : '');
+        sw.style.background = c;
+        sw.addEventListener('click', ()=>{ o.color=c; markDirty(); render(); refreshSelBar(); });
+        selBar.appendChild(sw);
+      }
+      vsep();
     }
-    vsep();
 
     if(o.cat === 'image'){
       sbtn(o.underlay ? 'Underlay: on' : 'Underlay: off', ()=>{
@@ -204,12 +209,29 @@ function refreshSelBar(){
         o.beam = o.beam === false;
         markDirty(); render(); refreshSelBar();
       });
+      if(o.beam !== false && !LIGHT_BEAMS[o.kind].omni){
+        if(o.beamSpread || o.beamRange)
+          sbtn('Reset beam', ()=>{ o.beamSpread = null; o.beamRange = null; markDirty(); render(); refreshSelBar(); });
+        const bh = document.createElement('span');
+        bh.style.cssText='font-size:10.5px;color:var(--ink2);padding:0 4px;';
+        bh.textContent = 'Drag the amber handles to shape the beam';
+        selBar.appendChild(bh);
+      }
     }
     if(o.cat === 'listcard'){
       sbtn('+ Person', ()=>addListPerson(o));
+      sbtn('Paste list\u2026', ()=>showPasteImport(o));
       const hint = document.createElement('span');
       hint.style.cssText='font-size:10.5px;color:var(--ink2);padding:0 4px;';
       hint.textContent = 'Live view of the People registry \u2014 edits sync across cards';
+      selBar.appendChild(hint);
+    }
+    if(o.cat === 'fieldcard'){
+      const hint = document.createElement('span');
+      hint.style.cssText='font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = o.kind === 'prodinfo'
+        ? 'Live view of the production info \u2014 Tab hops fields'
+        : 'One location from the production \u2014 Tab hops fields';
       selBar.appendChild(hint);
     }
     if(o.cat === 'audio'){
@@ -393,7 +415,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','listcard','file','colorcard','audio'].includes(o.cat)){
+    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -563,6 +585,11 @@ function editorGetValue(o, field){
     const p = peopleReg().find(x=>x.id===pid);
     return (p && p[key]) || '';
   }
+  if(field && field.startsWith('fval:')){
+    const spec = FIELD_CARDS[o.kind] || FIELD_CARDS.prodinfo;
+    const row = spec.rows[+field.split(':')[1]];
+    return row ? fieldGet(o, row.key) : '';
+  }
   return o[field || 'text'] || '';
 }
 function editorSetValue(o, field, v){
@@ -587,6 +614,13 @@ function editorSetValue(o, field, v){
     const [,pid,key] = field.split(':');
     const p = peopleReg().find(x=>x.id===pid);
     if(p) p[key] = v.replace(/\n/g,' ');
+    return;
+  }
+  if(field && field.startsWith('fval:')){
+    // writes go straight into production / its bound location
+    const spec = FIELD_CARDS[o.kind] || FIELD_CARDS.prodinfo;
+    const row = spec.rows[+field.split(':')[1]];
+    if(row) fieldSet(o, row.key, v.replace(/\n/g,' '));
     return;
   }
   o[field || 'text'] = v;
@@ -644,6 +678,23 @@ function removeListPerson(personId){
   markDirty(); render(); refreshSelBar();
 }
 
+// ---- field cards (Production info / Location — windows onto production data) ----
+function fieldCellAt(o, wx, wy){
+  const spec = FIELD_CARDS[o.kind] || FIELD_CARDS.prodinfo;
+  const ly = wy - o.y + o.h/2;
+  if(ly < FIELD_GEO.titleH) return null;
+  const i = Math.floor((ly - FIELD_GEO.titleH)/FIELD_GEO.rowH);
+  return (i >= 0 && i < spec.rows.length) ? i : null;
+}
+function openFieldCell(o, i){
+  const spec = FIELD_CARDS[o.kind] || FIELD_CARDS.prodinfo;
+  if(i < 0 || i >= spec.rows.length) return;
+  const labW = o._labW || 90;
+  openNoteEditor(o, 'fval:' + i,
+    {x:-o.w/2 + labW + 3, y:-o.h/2 + FIELD_GEO.titleH + i*FIELD_GEO.rowH + 2,
+     w:o.w - labW - 6, h:FIELD_GEO.rowH - 4}, 12);
+}
+
 function openNoteEditor(o, field, rect, fs){
   closeNoteEditor(true);
   const ta = document.createElement('textarea');
@@ -693,6 +744,16 @@ function openNoteEditor(o, field, rect, fs){
       }
       render();
       setTimeout(()=>openListCell(o, r, c), 0);
+      return;
+    }
+    if(fld.startsWith('fval:') && (e.key === 'Enter' || e.key === 'Tab')){
+      e.preventDefault();
+      const spec = FIELD_CARDS[o.kind] || FIELD_CARDS.prodinfo;
+      let i = +fld.split(':')[1];
+      closeNoteEditor(true);
+      i += (e.key === 'Tab' && e.shiftKey) ? -1 : 1;
+      render();
+      if(i >= 0 && i < spec.rows.length) setTimeout(()=>openFieldCell(o, i), 0);
       return;
     }
     if(fld.startsWith('item:')){
@@ -997,7 +1058,7 @@ function startLibDrag(e, spec){
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
   };
-  else if(spec.cat==='listcard') drawFn = (tc,w2,h2,col)=>{
+  else if(spec.cat==='listcard' || spec.cat==='fieldcard') drawFn = (tc,w2,h2,col)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.globalAlpha=.3; tc.fillRect(-w2/2,-h2/2,w2,h2*.24); tc.globalAlpha=1;
@@ -1033,12 +1094,35 @@ function dropLib(e){
            label:'To-do',
            items:[{t:'To do 1', done:false},{t:'To do 2', done:false},{t:'To do 3', done:false}],
            color:libDrag.color||'#3E9B6E', path:[]};
+      if(libDrag.checklist){
+        o.label = 'Checklist';
+        o.items = [{t:'', done:false}];
+        showChecklistPicker(o, e.clientX, e.clientY); // Checklist 2.0: pick a template
+      }
     } else if(libDrag.cat === 'table'){
       o = {id:uid(), cat:'table', kind:'table', x, y, rot:0, w:340, h:90,
            cells:[['Column A','Column B'],['','']], color:libDrag.color||'#4B6BFB', label:'', path:[]};
     } else if(libDrag.cat === 'listcard'){
       o = {id:uid(), cat:'listcard', kind:libDrag.kind, x, y, rot:0, w:360, h:74,
            color:(LIST_CARDS[libDrag.kind] || LIST_CARDS.crew).color, label:'', path:[]};
+    } else if(libDrag.cat === 'fieldcard'){
+      o = {id:uid(), cat:'fieldcard', kind:libDrag.kind, x, y, rot:0, w:280, h:130,
+           color:(FIELD_CARDS[libDrag.kind] || FIELD_CARDS.prodinfo).color, label:'', path:[]};
+      if(libDrag.kind === 'location'){
+        // bind to the first location no card shows yet; else start a fresh one
+        normalizeProduction();
+        const bound = new Set();
+        const boards = [...project.scenes, project.moodboard, project.prodboard, project.scriptboard];
+        for(const b of boards) if(b) for(const ob of b.objects)
+          if(ob.cat === 'fieldcard' && ob.kind === 'location' && ob.locId) bound.add(ob.locId);
+        const free = project.production.locations.find(l=>!bound.has(l.id));
+        if(free) o.locId = free.id;
+        else {
+          const loc = {id:uid(), name:'', address:'', parking:'', power:'', hospital:'', notes:''};
+          project.production.locations.push(loc);
+          o.locId = loc.id;
+        }
+      }
     } else if(libDrag.cat === 'weather'){
       o = {id:uid(), cat:'weather', kind:'weather', x, y, rot:0, w:240, h:225,
            place:'', date:'', data:[], color:'#4CA6E8', label:'', path:[]};
@@ -1093,6 +1177,123 @@ function dropLib(e){
     if(libDrag.cat === 'note') openNoteEditor(o);
   }
   libDrag = null;
+}
+
+// ---------------------------------------------------------------- Checklist 2.0 template picker
+function showChecklistPicker(o, cx, cy){
+  const old = document.getElementById('chkPop');
+  if(old) old.remove();
+  const pop = document.createElement('div');
+  pop.id = 'chkPop';
+  pop.style.cssText = 'position:fixed;z-index:130;background:#fff;border:1px solid var(--line);' +
+    'border-radius:3px;box-shadow:0 16px 50px rgba(40,38,32,.18);padding:10px;min-width:170px;';
+  pop.style.left = Math.min(cx, window.innerWidth - 200) + 'px';
+  pop.style.top = Math.min(cy, window.innerHeight - 240) + 'px';
+  pop.insertAdjacentHTML('beforeend',
+    '<div style="font-weight:600;font-size:12px;margin-bottom:6px">Checklist template</div>');
+  const pick = (label, items)=>{
+    const b = document.createElement('button');
+    b.className = 'proj-row';
+    b.textContent = label;
+    b.addEventListener('click', ()=>{
+      o.label = label === 'Blank' ? 'Checklist' : label;
+      o.items = items.length ? items.map(t=>({t, done:false})) : [{t:'', done:false}];
+      markDirty(); render();
+      pop.remove();
+      if(!items.length) openTodoItem(o, 0);
+    });
+    pop.appendChild(b);
+  };
+  for(const [name, items] of Object.entries(CHECKLIST_TEMPLATES)) pick(name, items);
+  pick('Blank', []);
+  document.body.appendChild(pop);
+  setTimeout(()=>{
+    const close = ev=>{ if(!pop.contains(ev.target)){ pop.remove(); document.removeEventListener('pointerdown', close, true); } };
+    document.addEventListener('pointerdown', close, true);
+  }, 0);
+}
+
+// ---------------------------------------------------------------- paste-to-import (list cards)
+// "I have this in WhatsApp/mail already": paste lines, FLOOR splits each into
+// name / role / phone / email / call heuristically, you confirm, registry grows.
+function parseContactLine(line){
+  let s = ' ' + line + ' ';
+  const email = (s.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/) || [''])[0];
+  if(email) s = s.replace(email, ' ');
+  const phone = (s.match(/\+?\d[\d\s\-()\/.]{5,}\d/) || [''])[0];
+  if(phone) s = s.replace(phone, ' ');
+  let call = '';
+  const toks = s.split(/[,;|\t·•–—]+/).map(t=>t.trim().replace(/^[-:\s]+|[-:\s]+$/g,'')).filter(Boolean);
+  const rest = [];
+  for(const t of toks){
+    if(!call && /^\d{1,2}[:.]\d{2}(\s?(h|hr|uur))?$/i.test(t)) call = t.replace('.',':').replace(/\s?(h|hr|uur)$/i,'');
+    else rest.push(t);
+  }
+  return {name: rest[0] || '', role: rest.slice(1).join(', '),
+          phone: phone.trim(), email, call};
+}
+function showPasteImport(card){
+  const spec = LIST_CARDS[card.kind] || LIST_CARDS.crew;
+  const old = document.getElementById('pastePop');
+  if(old) old.remove();
+  const wrap2 = document.createElement('div');
+  wrap2.id = 'pastePop';
+  wrap2.style.cssText = 'position:fixed;inset:0;z-index:140;background:rgba(40,38,32,.25);' +
+    'display:flex;align-items:center;justify-content:center;';
+  wrap2.innerHTML = `
+    <div style="background:#fff;border:1px solid var(--line);border-radius:3px;padding:16px 18px;
+                width:520px;max-width:92vw;max-height:82vh;overflow:auto;box-shadow:0 18px 60px rgba(40,38,32,.2)">
+      <div style="font-weight:600;margin-bottom:2px">Paste ${esc(spec.title.toLowerCase())} list</div>
+      <div style="font-size:10.5px;color:var(--ink2);margin-bottom:10px;line-height:1.5">
+        One person per line — e.g. "Arthur Vis, gaffer, +31 6 439 001, arthur@zout.nl".
+        FLOOR picks out the name, role, phone, email and call time; check the preview, then add.
+      </div>
+      <textarea id="ppText" rows="6" placeholder="Paste here…"
+        style="width:100%;border:1px solid var(--line);border-radius:2px;padding:8px 10px;
+               font-size:12.5px;font-family:inherit;resize:vertical"></textarea>
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink2);margin:8px 0 2px">
+        <input type="checkbox" id="ppSwap"> lines are "role, name" instead of "name, role"
+      </label>
+      <div id="ppPrev" style="font-size:11.5px;margin:8px 0;line-height:1.6"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn" id="ppCancel">Cancel</button>
+        <button class="btn primary" id="ppAdd" disabled>Add 0 people</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap2);
+  const ta = wrap2.querySelector('#ppText');
+  const prev = wrap2.querySelector('#ppPrev');
+  const addB = wrap2.querySelector('#ppAdd');
+  const swap = wrap2.querySelector('#ppSwap');
+  let parsed = [];
+  const paint = ()=>{
+    parsed = ta.value.split('\n').map(l=>l.trim()).filter(Boolean).map(parseContactLine);
+    if(swap.checked) parsed = parsed.map(p=>({...p, name:p.role.split(',')[0]||p.role, role:p.name}));
+    prev.innerHTML = parsed.map(p=>
+      '<div style="display:flex;gap:8px;border-bottom:1px solid var(--line);padding:3px 0">' +
+      '<b style="flex:1">' + esc(p.name || '—') + '</b>' +
+      '<span style="flex:1;color:var(--ink2)">' + esc(p.role || '') + '</span>' +
+      '<span style="width:44px">' + esc(p.call || '') + '</span>' +
+      '<span style="flex:1">' + esc(p.phone || '') + '</span>' +
+      '<span style="flex:1;color:var(--ink2)">' + esc(p.email || '') + '</span></div>').join('');
+    addB.disabled = !parsed.length;
+    addB.textContent = 'Add ' + parsed.length + (parsed.length === 1 ? ' person' : ' people');
+  };
+  ta.addEventListener('input', paint);
+  swap.addEventListener('change', paint);
+  ta.addEventListener('keydown', e=>e.stopPropagation());
+  wrap2.querySelector('#ppCancel').addEventListener('click', ()=>wrap2.remove());
+  wrap2.addEventListener('pointerdown', e=>{ if(e.target === wrap2) wrap2.remove(); });
+  addB.addEventListener('click', ()=>{
+    for(const p of parsed){
+      peopleReg().push({id:uid(), name:p.name, role:p.role, phone:p.phone,
+        email:p.email, tag:spec.tag, call:p.call});
+    }
+    markDirty(); render(); refreshSelBar();
+    toast(parsed.length + ' added to the People registry');
+    wrap2.remove();
+  });
+  ta.focus();
 }
 
 // ---------------------------------------------------------------- custom prop popover + drawn outlines

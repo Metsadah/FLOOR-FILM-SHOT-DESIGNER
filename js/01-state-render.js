@@ -106,6 +106,40 @@ function normalizeProduction(){
     }
     p.contacts = [];
   }
+  // P2 field-card backing: production contact fields + richer locations
+  if(p.address === undefined) p.address = '';
+  if(p.email === undefined) p.email = '';
+  if(p.phone === undefined) p.phone = '';
+  if(!Array.isArray(p.locations)) p.locations = [];
+  p.locations.forEach(l=>{
+    if(!l.id) l.id = uid();
+    for(const k of ['name','address','parking','power','hospital','notes'])
+      if(l[k] === undefined) l[k] = '';
+  });
+}
+// field-card value routing: prodinfo ↔ production/shootName, location ↔ locations[locId]
+function fieldGet(o, key){
+  normalizeProduction();
+  const p = project.production;
+  if(o.kind === 'prodinfo') return key === 'name' ? (project.shootName || '') : (p[key] || '');
+  const loc = p.locations.find(l=>l.id===o.locId);
+  return (loc && loc[key]) || '';
+}
+function fieldSet(o, key, v){
+  normalizeProduction();
+  const p = project.production;
+  if(o.kind === 'prodinfo'){
+    if(key === 'name') project.shootName = v;
+    else p[key] = v;
+    return;
+  }
+  let loc = p.locations.find(l=>l.id===o.locId);
+  if(!loc){
+    loc = {id:o.locId || uid(), name:'', address:'', parking:'', power:'', hospital:'', notes:''};
+    o.locId = loc.id;
+    p.locations.push(loc);
+  }
+  loc[key] = v;
 }
 function peopleReg(){ normalizeProduction(); return project.production.people; }
 function cardPeople(o){
@@ -1033,6 +1067,53 @@ function drawObjectShape(o, ghost){
       ctx.textAlign = 'left';
     } else { o._plusRow = null; o._rowDels = null; }
     ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'fieldcard'){
+    const spec = FIELD_CARDS[o.kind] || FIELD_CARDS.prodinfo;
+    const G = FIELD_GEO;
+    // label column + self-sizing value column
+    ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+    let labW = 0;
+    for(const r of spec.rows) labW = Math.max(labW, ctx.measureText(r.label.toUpperCase()).width);
+    labW += 20;
+    ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+    let valW = 170;
+    for(const r of spec.rows)
+      valW = Math.max(valW, ctx.measureText(fieldGet(o, r.key) || r.ph).width + 18);
+    valW = Math.min(300, valW);
+    o._labW = labW;
+    o.w = labW + valW;
+    o.h = G.titleH + spec.rows.length*G.rowH;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.clip();
+    ctx.fillStyle = spec.color; ctx.globalAlpha = .14;
+    ctx.fillRect(-o.w/2, -o.h/2, o.w, G.titleH);
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#33322E';
+    ctx.fillText(spec.title, -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-o.w/2, -o.h/2 + G.titleH); ctx.lineTo(o.w/2, -o.h/2 + G.titleH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-o.w/2 + labW, -o.h/2 + G.titleH); ctx.lineTo(-o.w/2 + labW, o.h/2); ctx.stroke();
+    spec.rows.forEach((r, i)=>{
+      const yTop = -o.h/2 + G.titleH + i*G.rowH;
+      if(i){ ctx.beginPath(); ctx.moveTo(-o.w/2, yTop); ctx.lineTo(o.w/2, yTop); ctx.stroke(); }
+      ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#8A877F';
+      ctx.fillText(r.label.toUpperCase(), -o.w/2 + 10, yTop + G.rowH/2 + .5);
+      if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='fval:'+i)){
+        const v = fieldGet(o, r.key);
+        ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+        ctx.fillStyle = v ? '#4A4636' : 'rgba(74,70,54,.35)';
+        ctx.fillText(trimText(ctx, v || r.ph, valW - 16), -o.w/2 + labW + 8, yTop + G.rowH/2 + .5);
+      }
+    });
+    ctx.restore();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'file'){
     const thumb = o.imgId ? imgCache[o.imgId] : null;
     if(thumb && thumb.complete && thumb.naturalWidth){
@@ -1206,26 +1287,37 @@ function drawObjectShape(o, ghost){
     const def = o.kind.startsWith('custom:')
       ? (project.customProps.find(p=>p.id===o.kind.slice(7)) || {shape:'rect'})
       : null;
-    // lights throw a soft beam / glow (subtle, under the icon); Beam toggle in selBar
+    // lights throw a beam / glow (under the icon); Beam toggle in selBar,
+    // amber handles adjust spread + throw (stored as o.beamSpread/o.beamRange)
     const beam = (!def && o.beam !== false) ? LIGHT_BEAMS[o.kind] : null;
     if(beam && !ghost){
+      const selMe = sel && sel.type==='object' && sel.id===o.id;
       ctx.save();
       if(beam.omni){
-        const g = ctx.createRadialGradient(0,0,6, 0,0,beam.omni);
-        g.addColorStop(0, 'rgba('+beam.tint+',.16)');
+        const rg = o.beamRange || beam.omni;
+        const g = ctx.createRadialGradient(0,0,6, 0,0,rg);
+        g.addColorStop(0, 'rgba('+beam.tint+',.26)');
         g.addColorStop(1, 'rgba('+beam.tint+',0)');
         ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(0,0,beam.omni,0,7); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,0,rg,0,7); ctx.fill();
       } else {
         ctx.rotate(beam.axis || 0);
-        const a = rad(beam.spread/2);
-        const g = ctx.createRadialGradient(0,0,8, 0,0,beam.range);
-        g.addColorStop(0, 'rgba('+beam.tint+',.15)');
+        const sp = o.beamSpread || beam.spread;
+        const rg = o.beamRange || beam.range;
+        const a = rad(sp/2);
+        const g = ctx.createRadialGradient(0,0,8, 0,0,rg);
+        g.addColorStop(0, 'rgba('+beam.tint+',.26)');
         g.addColorStop(1, 'rgba('+beam.tint+',0)');
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.moveTo(0,0);
-        ctx.arc(0,0,beam.range,-a,a);
+        ctx.arc(0,0,rg,-a,a);
         ctx.closePath(); ctx.fill();
+        if(selMe){ // show the adjustable edges while selected
+          ctx.strokeStyle = 'rgba(226,169,59,.6)'; ctx.lineWidth = 1.2; ctx.setLineDash([5,5]);
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(-a)*rg, Math.sin(-a)*rg);
+          ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*rg, Math.sin(a)*rg);
+          ctx.stroke(); ctx.setLineDash([]);
+        }
       }
       ctx.restore();
     }
