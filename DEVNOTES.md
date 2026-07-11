@@ -38,7 +38,19 @@ Storyboard (`write`) · Shot designer (`design`) · Production (`org`).
   lazy loader, audio, file/audio creators, trash can, production switcher.
 - `js/vendor/` — self-hosted supabase.js, pdf.min.js + pdf.worker.min.js
   (NEVER use CDNs — user's ad-blocker eats them; this cost us an afternoon).
-- `js/07-share.js` — sharing rung 2 (v0.15): owner share popover
+- `js/07-share.js` — sharing rungs 2 + 3. Rung 3 (v0.16, co-editing):
+  `initSharedProductions` (fetch memberships after login, then
+  `wrapStorageForShared` — window.storage routes a shared production's
+  `sd:project:/sd:img:/sd:file:` keys to `production_docs`, falling back to
+  personal kv for pre-share assets; `window.__sharedCurrent` set in
+  loadProject). `convertToShared` copies doc + assets up and adds the owner
+  as member; `createEditorInvite` → `?join=CODE` links redeemed via the
+  `redeem_production_invite` RPC in boot (05 polls for the fn — classic
+  script timing). `sharedPresenceGuard` = the async-editing warning ("X
+  opened this N min ago — last save wins"). Members/invites UI lives in the
+  Share popover; the switcher marks shared productions ⇄, editors "leave"
+  instead of delete, owner delete cascades FOR EVERYONE (confirmed loudly).
+  Rung 2 (v0.15): owner share popover
   (`createShareLink`/`buildSharePop`), the `?view=TOKEN` read-only viewer
   (`__floorViewerBoot` — 05's boot polls for it because timers can fire
   BETWEEN classic scripts), comment pins (`drawCommentPins`, `__viewerTap`,
@@ -190,7 +202,7 @@ the current row is entirely blank (keeps the registry junk-free).
 7. **Version discipline:** bump the `#verChip` in index.html, the SW cache
    name (`floor-shell-vN`), and the zip name (`floor-repo-vN.zip`) together
    every release. Identical zip names caused a lost afternoon once.
-   Current: verChip v0.15 ↔ floor-shell-v14 (07-share.js added to SHELL).
+   Current: verChip v0.16 ↔ floor-shell-v15.
 8. **closeNoteEditor re-entrancy (fixed v0.12, keep it fixed).** Removing
    the focused textarea re-fires its own `blur` → `closeNoteEditor` again
    mid-removal → NotFoundError that aborts whatever handler called it (this
@@ -241,20 +253,34 @@ noreply@mail.app.supabase.io until custom SMTP is configured (Auth → SMTP)
 — revisit when a floorstudio domain exists. The in-app overlay copy already
 sets expectations (v0.14).
 
+## Co-editing data model (v0.16)
+Tables: `productions` (id = the kv-era project id, owner, name, opened_by/
+opened_at for the presence guard), `production_members` (role owner|editor,
+email cached for display), `production_docs` (production_id+key → value —
+same key shapes as kv), `production_invites` (code pk, role). RLS via the
+SECURITY DEFINER `is_production_member()` (avoids policy self-recursion);
+invites redeem through `redeem_production_invite(code)` (definer, anon
+revoked). No live co-editing: last write wins after the presence warning.
+Known limits, revisit before teams lean on it: whole-project saves (no
+per-board granularity yet), REST body limits cap huge asset rows, and a
+member's local index name can drift from the shared name.
+
 ## Sharing status & the validation TODO
 P1 v0.12 · P2 v0.14 · P3 + multi-select + table grow + sbrow chaining +
 .floorproj + share links **v0.15**. Sharing rung 1 (.floorproj) is fully
 verified. Rung 2 (share links + comments): migrations applied
 (shares/share_comments tables + RLS + realtime + public 'shares' bucket),
-viewer error-path verified against production; the HAPPY path needs a
-logged-in owner — **user validation TODO:** sign in on the deployed app,
-Share → Create read-only link, open it in a private window, pin a comment.
+viewer error-path verified against production; the happy path was VALIDATED
+by the user on July 11 2026 (a real share + comment exist in the DB). The
+viewer got a scene picker in v0.16 (viewers browse every scene read-only).
 Note: share snapshots carry assets inside the JSON blob, so the kv→Storage
 asset migration is NOT yet done (that still makes sense before heavy use —
 big productions make big snapshots). Comments are readable by anyone who
 guesses a token-less select; tighten with share-scoped tokens/JWT before
-GDPR-sensitive crew data circulates (see ROADMAP risk 4). Rung 3
-(memberships & roles) deliberately parked until rung 2 is validated.
+GDPR-sensitive crew data circulates (see ROADMAP risk 4). Rung 3 (co-editors) shipped v0.16 after the user validated rung 2 —
+**co-edit validation TODO:** two signed-in accounts, owner enables
+co-editing + copies an invite link, second account opens it, both edit and
+confirm the presence warning + last-save-wins behaviour.
 
 ## What's next (see ROADMAP.md)
 The **call-sheet PDF generator** — Day header + Crew + Location + Weather

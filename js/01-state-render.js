@@ -208,6 +208,9 @@ async function loadProject(){
     const cur = await window.storage.get('sd:current').catch(()=>null);
     currentProjectId = (cur && cur.value && idx.some(p=>p.id===cur.value))
       ? cur.value : idx[0].id;
+    // co-editing: assets touched while a shared production is open live with it
+    window.__sharedCurrent = (window.FLOOR_SHARED && window.FLOOR_SHARED.has(currentProjectId))
+      ? currentProjectId : null;
     const res = await window.storage.get('sd:project:' + currentProjectId).catch(()=>null);
     if(res && res.value){ project = JSON.parse(res.value); }
   }catch(e){ /* first run */ }

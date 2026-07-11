@@ -110,6 +110,73 @@ async function buildSharePop(){
     row.appendChild(cp); row.appendChild(op); row.appendChild(rm);
     pop.appendChild(row);
   }
+  await buildCoEditorSection(pop);
+}
+async function buildCoEditorSection(pop){
+  const sb = shareClient();
+  pop.insertAdjacentHTML('beforeend', '<div class="xp-title" style="margin-top:12px">Co-editors</div>');
+  const isShared = window.FLOOR_SHARED && FLOOR_SHARED.has(currentProjectId);
+  const inv = document.createElement('button');
+  inv.className = 'btn';
+  inv.style.cssText = 'width:100%;';
+  inv.textContent = isShared ? '+ Invite a co-editor' : 'Enable co-editing + invite…';
+  inv.addEventListener('click', createEditorInvite);
+  pop.appendChild(inv);
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size:10px;color:var(--ink2);margin-top:6px;line-height:1.5;';
+  note.textContent = isShared
+    ? 'Everyone below edits the same production. No live co-editing yet — if two people work at once, the last save wins.'
+    : 'Moves this production to the shared cloud space, then hands you an invite link. Invitees sign in with their email and edit the same production.';
+  pop.appendChild(note);
+  if(!isShared) return;
+  const me = FLOOR_USER.id;
+  const amOwner = FLOOR_SHARED.get(currentProjectId).role === 'owner';
+  const {data: mem} = await sb.from('production_members').select('*')
+    .eq('production_id', currentProjectId).order('added_at');
+  for(const m of (mem || [])){
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 2px;font-size:11.5px;';
+    row.innerHTML = '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+      esc(m.email || m.user_id) + (m.user_id === me ? ' (you)' : '') + '</span>' +
+      '<span style="color:var(--ink2)">' + esc(m.role) + '</span>';
+    if(amOwner && m.user_id !== me){
+      const rm = document.createElement('button');
+      rm.className = 'btn'; rm.textContent = '×'; rm.title = 'Remove this co-editor';
+      rm.addEventListener('click', async ()=>{
+        await sb.from('production_members').delete()
+          .eq('production_id', currentProjectId).eq('user_id', m.user_id);
+        toast('Co-editor removed');
+        buildSharePop();
+      });
+      row.appendChild(rm);
+    }
+    pop.appendChild(row);
+  }
+  if(amOwner){
+    const {data: invites} = await sb.from('production_invites').select('*')
+      .eq('production_id', currentProjectId).order('created_at');
+    for(const i of (invites || [])){
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 2px;font-size:11px;color:var(--ink2);';
+      row.innerHTML = '<span style="flex:1">invite · ' + esc(i.code.slice(0,6)) + '… (' + esc(i.role) + ')</span>';
+      const cp = document.createElement('button');
+      cp.className = 'btn'; cp.textContent = 'Copy';
+      cp.addEventListener('click', async ()=>{
+        const url = location.origin + location.pathname + '?join=' + i.code;
+        try{ await navigator.clipboard.writeText(url); toast('Invite link copied'); }
+        catch(_){ prompt('Invite link:', url); }
+      });
+      const rm = document.createElement('button');
+      rm.className = 'btn'; rm.textContent = '×'; rm.title = 'Revoke this invite';
+      rm.addEventListener('click', async ()=>{
+        await sb.from('production_invites').delete().eq('code', i.code);
+        toast('Invite revoked');
+        buildSharePop();
+      });
+      row.appendChild(cp); row.appendChild(rm);
+      pop.appendChild(row);
+    }
+  }
 }
 (function wireShareBtn(){
   const b = document.getElementById('shareBtn');
@@ -125,6 +192,166 @@ async function buildSharePop(){
        e.target.id !== 'shareBtn') pop.classList.remove('show');
   });
 })();
+
+// ---------------------------------------------------------------- co-editing (rung 3, first slice)
+// A production becomes SHARED when its owner enables co-editing: doc + assets
+// copy into production_docs, and window.storage routes that production's keys
+// to Supabase so every member reads/writes the same data. Invites are
+// role-carrying ?join=CODE links redeemed after magic-link login.
+// No live co-editing: the presence guard warns, last save wins.
+
+async function initSharedProductions(){
+  if(!window.FLOOR_SB) return; // local mode — co-editing needs the cloud version
+  if(window.FLOOR_READY) await window.FLOOR_READY;
+  const sb = shareClient();
+  window.FLOOR_SHARED = new Map();
+  try{
+    const {data} = await sb.from('production_members').select('production_id, role')
+      .eq('user_id', window.FLOOR_USER.id);
+    const ids = (data || []).map(m=>m.production_id);
+    let names = {};
+    if(ids.length){
+      const r = await sb.from('productions').select('id, name').in('id', ids);
+      for(const p of (r.data || [])) names[p.id] = p.name;
+    }
+    for(const m of (data || []))
+      window.FLOOR_SHARED.set(m.production_id, {role:m.role, name:names[m.production_id] || ''});
+  }catch(e){ console.warn('memberships fetch failed', e); }
+  wrapStorageForShared();
+}
+function wrapStorageForShared(){
+  if(window.__storageWrapped) return;
+  window.__storageWrapped = true;
+  const base = window.storage;
+  const sharedPid = k=>{
+    const m = /^sd:project:(.+)$/.exec(k);
+    if(m && window.FLOOR_SHARED && FLOOR_SHARED.has(m[1])) return m[1];
+    // assets read/written while a shared production is open live with it
+    if(window.__sharedCurrent && /^sd:(img|file):/.test(k)) return window.__sharedCurrent;
+    return null;
+  };
+  const sb = ()=>shareClient();
+  window.storage = {
+    async get(k){
+      const pid = sharedPid(k);
+      if(pid){
+        const {data} = await sb().from('production_docs').select('value')
+          .eq('production_id', pid).eq('key', k).maybeSingle();
+        if(data) return {key:k, value:data.value};
+        if(/^sd:(img|file):/.test(k)) return base.get(k); // owner's pre-share assets
+        return null;
+      }
+      return base.get(k);
+    },
+    async set(k, v){
+      const pid = sharedPid(k);
+      if(pid){
+        const {error} = await sb().from('production_docs')
+          .upsert({production_id:pid, key:k, value:v, updated_at:new Date().toISOString()});
+        if(error) throw error;
+        if(/^sd:project:/.test(k))
+          await sb().from('productions').update({updated_at:new Date().toISOString(),
+            name:(project && project.shootName) || ''}).eq('id', pid);
+        return {key:k, value:v};
+      }
+      return base.set(k, v);
+    },
+    async delete(k){
+      const pid = sharedPid(k);
+      if(pid){ await sb().from('production_docs').delete().eq('production_id', pid).eq('key', k); return {key:k, deleted:true}; }
+      return base.delete(k);
+    },
+    async list(prefix){ return base.list(prefix); },
+  };
+}
+async function convertToShared(){
+  const sb = shareClient();
+  if(!window.FLOOR_USER || !sb){ toast('Co-editing needs the cloud version — sign in first'); return false; }
+  toast('Enabling co-editing — copying the production to the shared space…');
+  try{
+    await saveProject();
+    const id = currentProjectId;
+    let r = await sb.from('productions').upsert({id, name:project.shootName || 'Untitled production'});
+    if(r.error) throw r.error;
+    r = await sb.from('production_members').upsert({production_id:id,
+      user_id:FLOOR_USER.id, email:FLOOR_USER.email || '', role:'owner'});
+    if(r.error) throw r.error;
+    window.FLOOR_SHARED.set(id, {role:'owner', name:project.shootName || ''});
+    window.__sharedCurrent = id;
+    // copy doc + every referenced asset (one row at a time — rows can be MBs)
+    const rows = [{key:'sd:project:' + id, value:JSON.stringify(project)}];
+    const assets = await collectAssets();
+    for(const [k,v] of Object.entries(assets.img)) rows.push({key:'sd:img:' + k, value:v});
+    for(const [k,v] of Object.entries(assets.file)) rows.push({key:'sd:file:' + k, value:v});
+    for(const row of rows){
+      const u = await sb.from('production_docs').upsert({production_id:id, ...row});
+      if(u.error) throw u.error;
+    }
+    // flag it in the local index so the switcher shows the badge
+    const idx = (await loadProjectIndex()) || [];
+    const e0 = idx.find(p=>p.id === id);
+    if(e0){ e0.shared = true; await saveProjectIndex(idx); }
+    toast('Co-editing enabled — now invite someone');
+    return true;
+  }catch(e){
+    console.error('convertToShared failed', e);
+    toast('Could not enable co-editing — see the console');
+    return false;
+  }
+}
+async function createEditorInvite(){
+  const sb = shareClient();
+  if(!window.FLOOR_SHARED || !FLOOR_SHARED.has(currentProjectId)){
+    if(!(await convertToShared())) return;
+  }
+  const code = shareToken();
+  const {error} = await sb.from('production_invites')
+    .insert({code, production_id:currentProjectId, role:'editor'});
+  if(error){ toast('Could not create the invite'); return; }
+  const url = location.origin + location.pathname + '?join=' + code;
+  try{ await navigator.clipboard.writeText(url); toast('Invite link copied — valid until you revoke it'); }
+  catch(_){ prompt('Invite link (copy it):', url); }
+  buildSharePop();
+}
+async function redeemJoinCode(code){
+  const sb = shareClient();
+  if(!sb || !window.FLOOR_USER){ toast('Sign in with the cloud version to join a production'); return; }
+  try{
+    const {data, error} = await sb.rpc('redeem_production_invite', {invite_code:code});
+    if(error) throw error;
+    const row = data && data[0];
+    if(!row) throw new Error('empty');
+    window.FLOOR_SHARED.set(row.production_id, {role:'editor', name:row.name});
+    const idx = (await loadProjectIndex()) || [];
+    if(!idx.find(p=>p.id === row.production_id))
+      idx.push({id:row.production_id, name:row.name || 'Shared production', updated:Date.now(), shared:true});
+    await saveProjectIndex(idx);
+    await window.storage.set('sd:current', row.production_id);
+    history.replaceState(null, '', location.pathname);
+    toast('Joined "' + (row.name || 'shared production') + '" as co-editor');
+  }catch(e){
+    console.error('invite redeem failed', e);
+    toast('That invite link is invalid or was revoked');
+    history.replaceState(null, '', location.pathname);
+  }
+}
+// async editing guard: no live co-editing — warn, then last save wins
+async function sharedPresenceGuard(){
+  if(!window.__sharedCurrent || !shareClient() || !window.FLOOR_USER) return;
+  const sb = shareClient();
+  try{
+    const {data} = await sb.from('productions').select('opened_by, opened_at')
+      .eq('id', window.__sharedCurrent).maybeSingle();
+    if(data && data.opened_by && data.opened_by !== (FLOOR_USER.email || '') && data.opened_at){
+      const min = Math.round((Date.now() - new Date(data.opened_at).getTime()) / 60000);
+      if(min < 15)
+        toast('⚠ ' + data.opened_by + ' opened this production ' +
+          (min < 1 ? 'moments' : min + ' min') + ' ago — no live co-editing yet, last save wins');
+    }
+    await sb.from('productions').update({opened_by:FLOOR_USER.email || '',
+      opened_at:new Date().toISOString()}).eq('id', window.__sharedCurrent);
+  }catch(e){ /* guard is best-effort */ }
+}
 
 // ---------------------------------------------------------------- viewer side
 let VIEW_TOKEN = null;
@@ -187,14 +414,31 @@ async function __floorViewerBoot(token){
   }
 }
 
+// scene picker in the viewer bar — viewers browse every scene, read-only
+function updateViewerBar(){
+  const selEl = document.getElementById('vScene');
+  if(!selEl) return;
+  if(activeTab !== 'design'){ selEl.style.display = 'none'; return; }
+  selEl.style.display = '';
+  selEl.innerHTML = project.scenes.map((s,i)=>
+    '<option value="' + s.id + '"' + (s.id===project.activeSceneId ? ' selected' : '') + '>' +
+    (i+1) + ' · ' + esc(s.name) + '</option>').join('');
+}
+
 async function initViewerComments(token, name){
   // floating comment controls
   const bar = document.createElement('div');
   bar.id = 'viewerBar';
   bar.innerHTML = '<span style="font-weight:600">' + esc(name || 'Shared production') + '</span>' +
     '<span style="color:var(--ink2);font-size:11px">read-only</span>' +
+    '<select id="vScene" title="Browse scenes" style="display:none;max-width:190px;border:1px solid var(--line);border-radius:2px;padding:4px 6px;font-size:12px"></select>' +
     '<button class="btn" id="cmtToggle">💬 Comment</button>';
   document.body.appendChild(bar);
+  bar.querySelector('#vScene').addEventListener('change', e=>{ switchShot(e.target.value); updateViewerBar(); });
+  // keep the scene picker in sync with tab switches
+  const origSwitchTab = switchTab;
+  switchTab = function(t){ origSwitchTab(t); updateViewerBar(); };
+  updateViewerBar();
   const tg = bar.querySelector('#cmtToggle');
   tg.addEventListener('click', ()=>{
     commentMode = !commentMode;

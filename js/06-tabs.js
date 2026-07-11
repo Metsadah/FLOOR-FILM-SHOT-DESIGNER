@@ -793,7 +793,9 @@ async function openProjectPop(){
   idx.forEach(p=>{
     const row = document.createElement('button');
     row.className = 'proj-row' + (p.id === currentProjectId ? ' on' : '');
-    row.textContent = p.name || 'Untitled production';
+    const isShared = p.shared || (window.FLOOR_SHARED && window.FLOOR_SHARED.has(p.id));
+    row.textContent = (p.name || 'Untitled production') + (isShared ? '  ⇄' : '');
+    if(isShared) row.title = 'Shared production — co-editors work on the same data';
     row.addEventListener('click', async ()=>{
       if(p.id === currentProjectId){ pop.classList.remove('show'); return; }
       await flushSave();
@@ -842,12 +844,27 @@ async function openProjectPop(){
     const del = document.createElement('button');
     del.className = 'btn';
     del.style.cssText = 'width:100%;margin-top:6px;color:#C0392B;';
-    del.textContent = 'Delete current production\u2026';
+    const curShared = window.FLOOR_SHARED && window.FLOOR_SHARED.has(currentProjectId);
+    const curRole = curShared ? window.FLOOR_SHARED.get(currentProjectId).role : null;
+    del.textContent = curShared && curRole !== 'owner'
+      ? 'Leave this shared production\u2026'
+      : 'Delete current production\u2026';
     del.addEventListener('click', async ()=>{
-      if(!confirm('Delete "' + (project.shootName || 'Untitled production') + '" permanently? This cannot be undone.')) return;
+      if(curShared && curRole !== 'owner'){
+        // editor: leave \u2014 the production keeps existing for everyone else
+        if(!confirm('Leave "' + (project.shootName || 'this production') + '"? You can rejoin with a new invite.')) return;
+        await window.FLOOR_SB.from('production_members').delete()
+          .eq('production_id', currentProjectId).eq('user_id', window.FLOOR_USER.id);
+      } else {
+        const warn = curShared
+          ? 'Delete "' + (project.shootName || 'Untitled production') + '" permanently FOR ALL CO-EDITORS? This cannot be undone.'
+          : 'Delete "' + (project.shootName || 'Untitled production') + '" permanently? This cannot be undone.';
+        if(!confirm(warn)) return;
+        if(curShared) await window.FLOOR_SB.from('productions').delete().eq('id', currentProjectId);
+        await window.storage.delete('sd:project:' + currentProjectId).catch(()=>{});
+      }
       const idx2 = ((await loadProjectIndex()) || []).filter(p=>p.id !== currentProjectId);
       await saveProjectIndex(idx2);
-      await window.storage.delete('sd:project:' + currentProjectId).catch(()=>{});
       await window.storage.set('sd:current', idx2[0].id);
       location.reload();
     });

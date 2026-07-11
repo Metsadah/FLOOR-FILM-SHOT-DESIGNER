@@ -95,6 +95,7 @@
     return loginOverlay();
   })();
   ready.then(u=>{ window.FLOOR_USER = u; });
+  window.FLOOR_READY = ready; // co-editing (07-share.js) awaits login before fetching memberships
 
   // ---- storage API (same shape the app expects) ---------------------
   window.FLOOR_STORAGE = {

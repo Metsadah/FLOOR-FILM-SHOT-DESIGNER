@@ -322,7 +322,7 @@ function refreshSelBar(){
       sbtn('+ Row below', ()=>addSbRowBelow(o));
       const sc0 = o.sceneId && project.scenes.find(x=>x.id===o.sceneId);
       if(sc0){
-        sbtn('Open scene \u2197', ()=>{ switchScene(sc0.id); switchTab('design'); });
+        sbtn('Open scene \u2197', ()=>{ switchShot(sc0.id); switchTab('design'); });
       } else {
         sbtn('Create scene board', ()=>{
           const sc = newShot(project.scenes.length + 1);

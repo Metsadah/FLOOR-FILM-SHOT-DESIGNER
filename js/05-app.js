@@ -783,7 +783,17 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
     go();
     return;
   }
+  // co-editing: memberships must be known before loadProject so storage can
+  // route shared productions to Supabase (07-share.js loads after this file)
+  await new Promise(res=>{
+    const go2 = ()=>typeof initSharedProductions === 'function' ? res() : setTimeout(go2, 30);
+    go2();
+  });
+  await initSharedProductions();
+  const joinCode = new URLSearchParams(location.search).get('join');
+  if(joinCode) await redeemJoinCode(joinCode);
   await loadProject();
+  if(typeof sharedPresenceGuard === 'function') sharedPresenceGuard();
   document.getElementById('loading').remove();
   initInfoForm();
   buildShotList();

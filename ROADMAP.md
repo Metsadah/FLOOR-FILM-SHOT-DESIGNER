@@ -145,12 +145,12 @@ co-editing (4) stays parked until real teams demand it.
    *Prereq bundled here: move images/files from kv to Supabase Storage
    buckets — share links are broken without shared assets, and kv was never
    the right home for base64 blobs anyway.*
-3. **Memberships & roles**: productions get their own table + members list
-   (owner / editor / commenter / viewer), RLS per role. Invites as
-   role-carrying codes/links redeemed after magic-link login (no server code
-   needed); email invites arrive with Edge Functions. Async editing guard:
-   "X opened this production N minutes ago" + per-board saves. **No
-   simultaneous editing yet** — last-write-wins with a warning.
+3. ✅ **Memberships & roles** — first slice shipped v0.16: productions /
+   members / docs / invites tables with per-role RLS, owner + editor roles
+   (commenter/viewer = share links), invite links (?join=CODE) redeemed
+   after magic-link login, async editing guard ("X opened this N min ago"),
+   last-write-wins. Still open from the original plan: per-board saves,
+   email invites via Edge Functions, and a viewer/commenter membership role.
 4. **Live co-editing** (CRDTs — Yjs + provider): a save-layer re-architecture,
    not a feature. Only when teams ask.
 
