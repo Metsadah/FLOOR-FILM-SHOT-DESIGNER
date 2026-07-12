@@ -245,6 +245,10 @@ future server code = **Supabase Edge Functions** (not Netlify Functions),
 first use = AI script breakdown.
 
 ## Supabase magic-link email branding (dashboard TODO — not in code)
+Now matters double: co-editor invitees get this same mail. Also note the
+BUILT-IN mailer is rate-limited to a few emails/hour — inviting a whole
+crew needs custom SMTP (Auth → SMTP; Resend/Postmark + a FLOOR domain),
+which is also the only way to change the from-address.
 The login mail's subject/body are Supabase Auth settings, not client code.
 In supabase.com dashboard → project → Authentication → Email Templates →
 Magic Link: subject "Your FLOOR Studio login link", body should say FLOOR
@@ -267,6 +271,17 @@ sets expectations (v0.14).
    the real error, then reproduce in `execute_sql` with
    `set_config('role','authenticated')` + `set_config('request.jwt.claims',
    '{"sub":"<uid>"}')` inside a rolled-back transaction.
+
+12. **PL/pgSQL `RETURNS TABLE` names shadow columns** (found v0.17 #2, cost
+   the first invite redeem). `returns table(production_id …)` made
+   `production_id` ambiguous inside the function's `ON CONFLICT
+   (production_id, …)` → 42702 on every call, which the client's generic
+   catch mislabeled "invalid or revoked invite". Fix: `#variable_conflict
+   use_column` pragma (out-param names must stay — the client reads them).
+   Rule: test every RPC with an impersonated role BEFORE shipping —
+   `set_config('role','authenticated')` + jwt claims in a rolled-back
+   transaction (same recipe as lesson 11); RLS never runs your function's
+   body until a real user does.
 
 ## Co-editing data model (v0.16)
 Tables: `productions` (id = the kv-era project id, owner, name, opened_by/
