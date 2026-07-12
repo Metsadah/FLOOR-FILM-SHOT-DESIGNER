@@ -1360,13 +1360,22 @@ function drawObjectShape(o, ghost){
     }
     if(inc.weather){
       const L = [];
-      if(wea){
+      // auto forecast from the day header's place + date beats the manual card
+      if(day && day.date && day.lat != null && typeof callsheetWeather === 'function')
+        callsheetWeather(o, day);
+      if(o.wx && o.wx.data){
+        L.push(['b', (o.wx.place || 'Shoot location') + ' · ' + o.wx.date]);
+        for(const [k, v] of o.wx.data) L.push(['n', k + ': ' + v]);
+      } else if(wea){
         if(wea.place) L.push(['b', wea.place + (wea.date ? ' · ' + wea.date : '')]);
         for(const [k, v] of wea.data) L.push(['n', k + ': ' + v]);
+      } else if(o.wx && o.wx.key){
+        L.push(['p', 'forecast opens ~16 days before the shoot day']);
       }
       const sun = day && day.date && day.lat != null ? sunTimes(day.date, day.lat, day.lon) : null;
       if(sun && sun.rise) L.push(['n', 'Sunrise ' + sun.rise + ' · sunset ' + sun.set]);
-      secs.push(['WEATHER & SUN', L.length ? L : [['p','drop a Weather card & fetch…']]]);
+      secs.push(['WEATHER & SUN', L.length ? L
+        : [['p','needs the Day header: date + "Sun from location ↻"']]]);
     }
     // header block: production + day/calls
     const head = [];

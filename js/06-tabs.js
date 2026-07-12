@@ -362,6 +362,90 @@ async function fetchWeatherFor(o){
   }
 }
 
+// bare forecast for a known lat/lon + date (the call sheet's auto-weather)
+async function fetchDailyForecast(lat, lon, dateStr){
+  const days = Math.round((new Date(dateStr) - new Date().setHours(0,0,0,0)) / 864e5);
+  if(days < 0 || days > 15) return null; // outside the ~16-day forecast window
+  try{
+    const q = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+      '&daily=weather_code,temperature_2m_min,temperature_2m_max,precipitation_probability_max,wind_speed_10m_max' +
+      '&timezone=auto&start_date=' + dateStr + '&end_date=' + dateStr;
+    const w = await (await fetch(q)).json();
+    const d = w.daily;
+    if(!d || !d.time || !d.time.length) return null;
+    return [
+      ['Forecast', WMO[d.weather_code[0]] || ('code ' + d.weather_code[0])],
+      ['Temp', Math.round(d.temperature_2m_min[0]) + '–' + Math.round(d.temperature_2m_max[0]) + ' °C'],
+      ['Rain chance', (d.precipitation_probability_max[0] ?? '—') + ' %'],
+      ['Wind', Math.round(d.wind_speed_10m_max[0]) + ' km/h'],
+    ];
+  }catch(e){ return null; }
+}
+// the call sheet fetches its own weather from the day header's place + date;
+// cached on the card under a key so render() can call this freely
+async function callsheetWeather(o, day){
+  const key = day.date + '@' + (+day.lat).toFixed(2) + ',' + (+day.lon).toFixed(2);
+  if(o._wxBusy || (o.wx && o.wx.key === key)) return;
+  o._wxBusy = true;
+  try{
+    const data = await fetchDailyForecast(day.lat, day.lon, day.date);
+    o.wx = {key, date:day.date, place:day.place || '', data};
+    markDirty(); render();
+  } finally { o._wxBusy = false; }
+}
+
+// one-page call-sheet PDF: the card rendered alone, A4 portrait
+function exportCallSheetPDF(o){
+  render(); // fresh self-sizing
+  const scale = 3;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(o.w*scale); c.height = Math.ceil(o.h*scale);
+  const prevCtx = ctx, prevSel = sel;
+  ctx = c.getContext('2d');
+  sel = null; // no selection chrome in print
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.setTransform(scale, 0, 0, scale, (o.w/2 - o.x)*scale, (o.h/2 - o.y)*scale);
+  try{ drawObject(o); }
+  finally { ctx = prevCtx; sel = prevSel; render(); }
+  const jpeg = atob(c.toDataURL('image/jpeg', .92).split(',')[1]);
+  const PW = 595, PH = 842, M = 36; // A4 portrait
+  const maxW = PW - M*2, maxH = PH - M*2;
+  const k = Math.min(maxW/c.width, maxH/c.height);
+  const iw = c.width*k, ih = c.height*k;
+  const ix = (PW - iw)/2, iy = PH - M - ih; // top-aligned under the margin
+  const content = 'q ' + iw.toFixed(2) + ' 0 0 ' + ih.toFixed(2) + ' ' + ix.toFixed(2) + ' ' + iy.toFixed(2) +
+    ' cm /Im1 Do Q';
+  const objs = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] ' +
+      '/Resources << /XObject << /Im1 5 0 R >> >> /Contents 4 0 R >>',
+    '<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream',
+    '<< /Type /XObject /Subtype /Image /Width ' + c.width + ' /Height ' + c.height +
+      ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpeg.length +
+      ' >>\nstream\n' + jpeg + '\nendstream',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objs.forEach((obj, i)=>{
+    offsets.push(pdf.length);
+    pdf += (i+1) + ' 0 obj\n' + obj + '\nendobj\n';
+  });
+  const xref = pdf.length;
+  pdf += 'xref\n0 ' + (objs.length+1) + '\n0000000000 65535 f \n';
+  for(let i=1;i<=objs.length;i++) pdf += String(offsets[i]).padStart(10,'0') + ' 00000 n \n';
+  pdf += 'trailer\n<< /Size ' + (objs.length+1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF';
+  const bytes = new Uint8Array(pdf.length);
+  for(let i=0;i<pdf.length;i++) bytes[i] = pdf.charCodeAt(i) & 0xFF;
+  const a = document.createElement('a');
+  a.download = ((project.shootName || 'production').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') || 'production') + '_callsheet.pdf';
+  a.href = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  toast('Call sheet PDF exported');
+}
+
 // ---------------------------------------------------------------- pdf.js (lazy, self-hosted)
 let _pdfjsReady = null;
 function loadPdfJs(){

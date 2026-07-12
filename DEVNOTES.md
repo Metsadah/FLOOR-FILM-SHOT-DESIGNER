@@ -223,8 +223,16 @@ the current row is entirely blank (keeps the registry junk-free).
    is now a colcard preset (dropLib colcard accepts libDrag.title/text/cw).
    Mood tab renamed "Mood & inspiration" (`buildMoodLibSection` = brainstorm
    colcard presets). Floating label chip suppressed for todo/avscript
-   (title lives in the strip). Next for the call sheet: a dedicated
-   one-page PDF export (currently it exports as part of the board PNG/PDF).
+   (title lives in the strip).
+   v0.21 — roadmap 1.4 COMPLETE: the call sheet exports itself as a
+   one-page A4 portrait PDF (`exportCallSheetPDF` in 06 — renders the card
+   alone to an offscreen canvas via the ctx-swap trick, hand-rolled PDF
+   like exportBoardPDF; "Export PDF ↓" in its selBar). And it fetches its
+   OWN weather: `callsheetWeather` caches an Open-Meteo forecast on the
+   card (`o.wx`, keyed on date+lat/lon so render() may call it freely) from
+   the DAY HEADER's date + geocoded place — no Weather card needed; the
+   manual card is only a fallback. Out-of-range dates render "forecast
+   opens ~16 days before the shoot"; "Weather ↻" in selBar clears the cache.
    Color card (v0.19): selBar has a native `<input type=color>` (macOS gives
    the wheel) synced two-way with the hex field → `o.hex`. NEVER draw
    external favicons/OG images onto the canvas without routing them through

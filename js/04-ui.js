@@ -267,6 +267,7 @@ function refreshSelBar(){
     }
     if(o.cat === 'callsheet'){
       if(!o.inc) o.inc = {location:true, crew:true, cast:true, client:true, weather:true};
+      sbtn('Export PDF ↓', ()=>exportCallSheetPDF(o));
       for(const [key, lab] of [['location','Location'],['crew','Crew'],['cast','Cast'],
                                ['client','Client'],['weather','Weather']]){
         sbtn((o.inc[key] ? '✓ ' : '') + lab, ()=>{
@@ -274,9 +275,10 @@ function refreshSelBar(){
           markDirty(); render(); refreshSelBar();
         });
       }
+      sbtn('Weather ↻', ()=>{ o.wx = null; markDirty(); render(); });
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
-      hint.textContent = 'Fills itself from the day header, registry, location & weather cards';
+      hint.textContent = 'Fills itself from the day header, registry & location';
       selBar.appendChild(hint);
     }
     if(o.cat === 'avscript'){
