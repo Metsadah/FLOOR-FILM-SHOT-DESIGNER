@@ -202,7 +202,7 @@ the current row is entirely blank (keeps the registry junk-free).
 7. **Version discipline:** bump the `#verChip` in index.html, the SW cache
    name (`floor-shell-vN`), and the zip name (`floor-repo-vN.zip`) together
    every release. Identical zip names caused a lost afternoon once.
-   Current: verChip v0.16 ↔ floor-shell-v15.
+   Current: verChip v0.17 ↔ floor-shell-v16.
 8. **closeNoteEditor re-entrancy (fixed v0.12, keep it fixed).** Removing
    the focused textarea re-fires its own `blur` → `closeNoteEditor` again
    mid-removal → NotFoundError that aborts whatever handler called it (this
@@ -253,6 +253,21 @@ noreply@mail.app.supabase.io until custom SMTP is configured (Auth → SMTP)
 — revisit when a floorstudio domain exists. The in-app overlay copy already
 sets expectations (v0.14).
 
+11. **`.upsert()` + RLS: ON CONFLICT enforces the SELECT policy on the NEW
+   row** (found v0.17, cost the first co-editing attempt). supabase-js
+   upsert = `INSERT … ON CONFLICT`, and Postgres then requires the inserted
+   row to be visible under the table's SELECT policy — a plain INSERT does
+   not. production_members' select policy required an existing membership,
+   so the owner's own FIRST membership row could never be upserted
+   (chicken-and-egg, error 42501 "new row violates row-level security").
+   Fix: owners see their productions' members regardless (+ an UPDATE
+   policy for the DO UPDATE arm). Rule of thumb: any table you `.upsert()`
+   into needs SELECT + UPDATE policies that pass for the writer.
+   Debugging recipe that found it: Supabase MCP `get_logs(postgres)` for
+   the real error, then reproduce in `execute_sql` with
+   `set_config('role','authenticated')` + `set_config('request.jwt.claims',
+   '{"sub":"<uid>"}')` inside a rolled-back transaction.
+
 ## Co-editing data model (v0.16)
 Tables: `productions` (id = the kv-era project id, owner, name, opened_by/
 opened_at for the presence guard), `production_members` (role owner|editor,
@@ -260,7 +275,10 @@ email cached for display), `production_docs` (production_id+key → value —
 same key shapes as kv), `production_invites` (code pk, role). RLS via the
 SECURITY DEFINER `is_production_member()` (avoids policy self-recursion);
 invites redeem through `redeem_production_invite(code)` (definer, anon
-revoked). No live co-editing: last write wins after the presence warning.
+revoked). Members policies (fixed v0.17): select = member OR production
+owner; update = self or owner — both required because the client upserts
+(see scar-tissue lesson 11). No live co-editing: last write wins after the
+presence warning.
 Known limits, revisit before teams lean on it: whole-project saves (no
 per-board granularity yet), REST body limits cap huge asset rows, and a
 member's local index name can drift from the shared name.

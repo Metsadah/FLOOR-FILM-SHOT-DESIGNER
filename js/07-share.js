@@ -53,7 +53,7 @@ async function createShareLink(){
     buildSharePop();
   }catch(e){
     console.error('share failed', e);
-    toast('Could not create the share link — see the console');
+    toast('Could not create the share link: ' + (e.message || e.error_description || e));
   }
 }
 async function deleteShareLink(token){
@@ -295,7 +295,7 @@ async function convertToShared(){
     return true;
   }catch(e){
     console.error('convertToShared failed', e);
-    toast('Could not enable co-editing — see the console');
+    toast('Could not enable co-editing: ' + (e.message || e.error_description || e));
     return false;
   }
 }
@@ -307,7 +307,7 @@ async function createEditorInvite(){
   const code = shareToken();
   const {error} = await sb.from('production_invites')
     .insert({code, production_id:currentProjectId, role:'editor'});
-  if(error){ toast('Could not create the invite'); return; }
+  if(error){ toast('Could not create the invite: ' + error.message); return; }
   const url = location.origin + location.pathname + '?join=' + code;
   try{ await navigator.clipboard.writeText(url); toast('Invite link copied — valid until you revoke it'); }
   catch(_){ prompt('Invite link (copy it):', url); }
