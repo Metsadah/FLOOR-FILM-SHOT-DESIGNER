@@ -629,9 +629,22 @@ function parseAV(text){
 }
 function createScenesFromBreakdown(parsed){
   const made = [];
-  const startN = project.scenes.length;
+  // every project is born with an empty "Scene 1" — if it's still untouched,
+  // the first detected scene takes its place so numbering starts at 1
+  const pristine = s => !s.objects.length && !s.walls.length && !s.stills.length &&
+    !s.script && !s.scene && !s.sceneDesc && !(s.shots || []).length &&
+    /^Scene \d+$/.test(s.name || '');
+  const reusable = (project.scenes.length === 1 && pristine(project.scenes[0]))
+    ? project.scenes[0] : null;
+  const startN = reusable ? 0 : project.scenes.length;
   parsed.forEach((s, i)=>{
-    const sc = newShot(startN + i + 1);
+    let sc;
+    if(i === 0 && reusable){
+      sc = reusable;
+    } else {
+      sc = newShot(startN + i + 1);
+      project.scenes.push(sc);
+    }
     sc.name = 'Sc ' + (startN + i + 1);
     sc.scene = String(startN + i + 1);
     sc.sceneDesc = s.heading.replace(SCENE_HEADING_RE, (m0,p1,p2)=>p1 + ' ' + p2) || s.heading;
@@ -642,7 +655,6 @@ function createScenesFromBreakdown(parsed){
         x: -140 + (ci%4)*95, y: -60 + Math.floor(ci/4)*110, rot: 0,
         w:34, h:34, color: COLORS[ci % COLORS.length], label: name, path:[]});
     });
-    project.scenes.push(sc);
     made.push(sc);
   });
   if(!project.activeSceneId && project.scenes.length) project.activeSceneId = project.scenes[0].id;

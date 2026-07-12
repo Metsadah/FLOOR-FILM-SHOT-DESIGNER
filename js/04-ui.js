@@ -798,8 +798,9 @@ function addSbRowBelow(o){
     if(ob.pts) ob.pts.forEach(p=>p.y += dy);
     if(ob.path) ob.path.forEach(p=>p.y += dy);
   }
+  // same scene, next board: carry the scene number/title along
   const n = {id:uid(), cat:'sbrow', kind:'sbrow', x:o.x, y:o.y + dy, rot:0,
-    w:o.w, h:o.h, title:'', desc:'', imgId:null, sceneId:o.sceneId || null,
+    w:o.w, h:o.h, title:o.title || '', desc:'', imgId:null, sceneId:o.sceneId || null,
     color:o.color, label:'', path:[]};
   shot.objects.push(n);
   sel = {type:'object', id:n.id};

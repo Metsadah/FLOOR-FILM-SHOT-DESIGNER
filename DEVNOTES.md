@@ -274,6 +274,13 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## Breakdown numbering (v0.22)
+`createScenesFromBreakdown` REUSES the pristine starter scene (empty
+"Scene N", no objects/walls/script) as the first detected scene, so
+numbering starts at 1 on fresh projects; with real scenes present it keeps
+appending. `addSbRowBelow` copies title + sceneId from the row above —
+one scene, many storyboard boards.
+
 ## Supabase (project id jcasjylzosgtitaxbrjo, eu-west-1)
 Table `public.kv` (user_id uuid default auth.uid(), key, value, updated_at;
 PK user_id+key; RLS "users manage their own rows"). Publishable key in the
