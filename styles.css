@@ -104,7 +104,7 @@
   .lib-item:hover{border-color:var(--border2); box-shadow:var(--shadow);}
   .lib-item:active{cursor:grabbing;}
   .lib-item canvas{pointer-events:none;}
-  .lib-item span{font-size:10px; color:var(--ink2); white-space:nowrap; overflow:hidden; max-width:100%; text-align:center;}
+  .lib-item span{font-size:9px; letter-spacing:-.1px; color:var(--ink2); white-space:nowrap; overflow:hidden; max-width:100%; text-align:center;}
   .lib-item .del-custom{
     position:absolute; top:2px; right:2px; width:16px; height:16px; font-size:11px; line-height:1;
     color:var(--ink2); border-radius:4px; display:none;

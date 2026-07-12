@@ -265,6 +265,20 @@ function refreshSelBar(){
         : 'One location from the production \u2014 Tab hops fields';
       selBar.appendChild(hint);
     }
+    if(o.cat === 'callsheet'){
+      if(!o.inc) o.inc = {location:true, crew:true, cast:true, client:true, weather:true};
+      for(const [key, lab] of [['location','Location'],['crew','Crew'],['cast','Cast'],
+                               ['client','Client'],['weather','Weather']]){
+        sbtn((o.inc[key] ? '✓ ' : '') + lab, ()=>{
+          o.inc[key] = !o.inc[key];
+          markDirty(); render(); refreshSelBar();
+        });
+      }
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = 'Fills itself from the day header, registry, location & weather cards';
+      selBar.appendChild(hint);
+    }
     if(o.cat === 'avscript'){
       sbtn('+ Row', ()=>addAvRow(o));
       o.cols = o.cols || {no:false, still:false, notes:false};
@@ -475,7 +489,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','file','colorcard','audio'].includes(o.cat)){
+    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','callsheet','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -1234,6 +1248,7 @@ function buildLibrary(){
   lib.appendChild(bh); lib.appendChild(bg);
   if(activeTab === 'org' && typeof buildProdLibSection === 'function') buildProdLibSection(lib);
   if(activeTab === 'write' && typeof buildWriteLibSection === 'function') buildWriteLibSection(lib);
+  if(activeTab === 'mood' && typeof buildMoodLibSection === 'function') buildMoodLibSection(lib);
 
   // Custom section (shot designer only)
   if(activeTab !== 'design') return;
@@ -1308,7 +1323,7 @@ function startLibDrag(e, spec){
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
   };
-  else if(['listcard','fieldcard','dayheader','avscript','colcard'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
+  else if(['listcard','fieldcard','dayheader','avscript','colcard','callsheet'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.globalAlpha=.3; tc.fillRect(-w2/2,-h2/2,w2,h2*.24); tc.globalAlpha=1;
@@ -1361,8 +1376,13 @@ function dropLib(e){
            cols:{no:false, still:false, notes:false},
            color:libDrag.color || '#8B5CF6', label:'', path:[]};
     } else if(libDrag.cat === 'colcard'){
-      o = {id:uid(), cat:'colcard', kind:'colcard', x, y, rot:0, w:240, h:120,
-           title:'', text:'', color:libDrag.color || '#4B6BFB', label:'', path:[]};
+      o = {id:uid(), cat:'colcard', kind:'colcard', x, y, rot:0, w:libDrag.cw || 240, h:120,
+           title:libDrag.title || '', text:libDrag.text || '',
+           color:libDrag.color || '#4B6BFB', label:'', path:[]};
+    } else if(libDrag.cat === 'callsheet'){
+      o = {id:uid(), cat:'callsheet', kind:'callsheet', x, y, rot:0, w:380, h:300,
+           inc:{location:true, crew:true, cast:true, client:true, weather:true},
+           color:libDrag.color || '#4B6BFB', label:'', path:[]};
     } else if(libDrag.cat === 'dayheader'){
       o = {id:uid(), cat:'dayheader', kind:'dayheader', x, y, rot:0, w:DAYH.w, h:140,
            date:new Date().toISOString().slice(0,10), call:'', shootCall:'', wrap:'',

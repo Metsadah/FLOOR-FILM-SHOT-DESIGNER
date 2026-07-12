@@ -214,7 +214,17 @@ the current row is entirely blank (keeps the registry junk-free).
 7. **Version discipline:** bump the `#verChip` in index.html, the SW cache
    name (`floor-shell-vN`), and the zip name (`floor-repo-vN.zip`) together
    every release. Identical zip names caused a lost afternoon once.
-   Current: verChip v0.19 ↔ floor-shell-v18.
+   Current: verChip v0.20 ↔ floor-shell-v19.
+   v0.20: **callsheet card** = READ-ONLY live composite (day header +
+   registry + first filled location + weather card + sunTimes); sections
+   toggle via `o.inc` in selBar; nothing on it is editable by design — the
+   roadmap's "call sheet is a view" made literal. The old Call sheet /
+   Day schedule NOTE templates are gone (PROD_CARDS deleted); Day schedule
+   is now a colcard preset (dropLib colcard accepts libDrag.title/text/cw).
+   Mood tab renamed "Mood & inspiration" (`buildMoodLibSection` = brainstorm
+   colcard presets). Floating label chip suppressed for todo/avscript
+   (title lives in the strip). Next for the call sheet: a dedicated
+   one-page PDF export (currently it exports as part of the board PNG/PDF).
    Color card (v0.19): selBar has a native `<input type=color>` (macOS gives
    the wheel) synced two-way with the hex field → `o.hex`. NEVER draw
    external favicons/OG images onto the canvas without routing them through

@@ -48,11 +48,48 @@ document.querySelectorAll('#tabbar button').forEach(b =>
 function ensureMoodboard(){
   if(!project.moodboard){
     const m = newShot(0);
-    m.name = 'Moodboard';
+    m.name = 'Mood & inspiration';
     project.moodboard = m;
     markDirty();
   }
   migrateShot(project.moodboard);
+}
+// library section for the Mood & inspiration board — brainstorm cards
+function buildMoodLibSection(lib){
+  const h = document.createElement('div');
+  h.className = 'side-head';
+  h.style.marginTop = '10px';
+  h.textContent = 'Brainstorm';
+  lib.appendChild(h);
+  const grid = document.createElement('div');
+  grid.className = 'lib-grid';
+  const preset = (name, color, title, ph)=>{
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
+      tc.fillStyle='#fff'; tc.fill();
+      tc.strokeStyle=color; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle=color; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2,-h2*.4,w2,h2*.18); tc.globalAlpha=1;
+      tc.globalAlpha=.5;
+      for(const y2 of [-h2*.06, h2*.1, h2*.26]) tc.fillRect(-w2*.36, y2, w2*.72, 2.5);
+      tc.globalAlpha=1;
+    }, 100, 100, color));
+    el.insertAdjacentHTML('beforeend', '<span>' + esc(name) + '</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e,
+      {cat:'colcard', kind:'colcard', w:220, h:120, cw:220, color, title, text:ph||''}));
+    grid.appendChild(el);
+  };
+  preset('Idea', '#E2A93B', 'Idea');
+  preset('Question', '#8B5CF6', 'Question');
+  preset('Theme', '#3E9B6E', 'Theme');
+  preset('Do / Don’t', '#E8604C', 'Do / don’t');
+  lib.appendChild(grid);
+  const tip = document.createElement('div');
+  tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 10px;line-height:1.5;';
+  tip.textContent = 'Column cards for thinking out loud — pose a question, stack ideas under it, group by theme. Paste stills (Cmd+V), drop links for references, use color cards for the palette.';
+  lib.appendChild(tip);
 }
 function ensureScriptBoard(){
   if(!project.scriptboard){
@@ -134,13 +171,7 @@ function ensureProdBoard(){
   migrateShot(project.prodboard);
 }
 
-// ---- production card library (templated notes — drag onto the board) ----
-const PROD_CARDS = [
-  ['Call sheet', '#4B6BFB', 280, 360, 'CALL SHEET',
-   'Production: \nDate: \nCrew call: \nOn set: \nLunch: \nWrap: \n\nLocation: \nAddress: \nParking: \nNearest hospital: \n\nWeather: \nSunrise / sunset: \n\nNotes: '],
-  ['Day schedule', '#E8934C', 250, 300, 'SCHEDULE',
-   '07:00  Crew call\n07:30  Build & light\n09:00  Shot 1\n11:00  Shot 2\n13:00  Lunch\n14:00  Shot 3\n17:30  Last looks\n18:00  Wrap'],
-];
+// ---- production card library (smart cards — drag onto the board) ----
 function buildProdLibSection(lib){
   const h = document.createElement('div');
   h.className = 'side-head';
@@ -190,7 +221,7 @@ function buildProdLibSection(lib){
     grid.appendChild(el);
   }
   // field cards — label:value windows onto the production data
-  for(const [kind, name] of [['prodinfo','Production info'],['location','Location']]){
+  for(const [kind, name] of [['prodinfo','Production'],['location','Location']]){
     const spec = FIELD_CARDS[kind];
     const el = document.createElement('div');
     el.className = 'lib-item';
@@ -227,20 +258,45 @@ function buildProdLibSection(lib){
       {cat:'todo', kind:'todo', w:230, h:120, color:'#8B5CF6', checklist:true}));
     grid.appendChild(el);
   }
-  for(const [name, color, w, hh, label, text] of PROD_CARDS){
+  // the call sheet — a live composite of everything above
+  {
     const el = document.createElement('div');
     el.className = 'lib-item';
     el.appendChild(tileCanvas((tc,w2,h2)=>{
-      drawNoteShape(tc, {w:w2, h:h2, color, text:''}, true);
-      tc.fillStyle = color;
-      tc.fillRect(-w2*.32, -h2*.3, w2*.64, 4);
-      tc.globalAlpha = .5;
-      for(const y2 of [-h2*.08, h2*.1, h2*.28]) tc.fillRect(-w2*.32, y2, w2*.64, 2.5);
-      tc.globalAlpha = 1;
-    }, 100, 100, color));
-    el.insertAdjacentHTML('beforeend', '<span>' + esc(name) + '</span>');
-    el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'note', kind:'note', color,
-      props:{label, text, w, h:hh, color}}));
+      tc.beginPath(); tc.roundRect(-w2/2,-h2*.44,w2,h2*.88,4);
+      tc.fillStyle='#fff'; tc.fill();
+      tc.strokeStyle='#4B6BFB'; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle='#4B6BFB'; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2,-h2*.44,w2,h2*.16); tc.globalAlpha=1;
+      tc.globalAlpha=.55;
+      for(const y2 of [-h2*.18, -h2*.06, h2*.1, h2*.22, h2*.34])
+        tc.fillRect(-w2*.36, y2, w2*(y2===-h2*.18||y2===h2*.1 ? .34 : .72), 2.5);
+      tc.globalAlpha=1;
+    }, 100, 100, '#4B6BFB'));
+    el.insertAdjacentHTML('beforeend', '<span>Call sheet</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e,
+      {cat:'callsheet', kind:'callsheet', w:380, h:300, color:'#4B6BFB'}));
+    grid.appendChild(el);
+  }
+  // day schedule — a column card born with the classic timeline
+  {
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
+      tc.fillStyle='#fff'; tc.fill();
+      tc.strokeStyle='#E8934C'; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle='#E8934C'; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2,-h2*.4,w2,h2*.16); tc.globalAlpha=1;
+      tc.globalAlpha=.5;
+      for(const y2 of [-h2*.1, h2*.04, h2*.18]) tc.fillRect(-w2*.36, y2, w2*.72, 2.5);
+      tc.globalAlpha=1;
+    }, 100, 100, '#E8934C'));
+    el.insertAdjacentHTML('beforeend', '<span>Day schedule</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e,
+      {cat:'colcard', kind:'colcard', w:240, h:180, cw:240, color:'#E8934C',
+       title:'Day schedule',
+       text:'07:00  Crew call\n07:30  Build & light\n09:00  Shot 1\n11:00  Shot 2\n13:00  Lunch\n14:00  Shot 3\n17:30  Last looks\n18:00  Wrap'}));
     grid.appendChild(el);
   }
   // live weather card (Open-Meteo: free GFS/ICON model data, no key)

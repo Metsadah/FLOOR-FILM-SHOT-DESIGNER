@@ -1316,6 +1316,113 @@ function drawObjectShape(o, ghost){
     ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
     ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'callsheet'){
+    // THE call sheet — a live composite of the other cards. Nothing here is
+    // edited directly: day header, registry, location and weather feed it.
+    normalizeProduction();
+    if(!o.inc) o.inc = {location:true, crew:true, cast:true, client:true, weather:true};
+    const inc = o.inc;
+    const b = project.prodboard;
+    const day = b && b.objects.find(x=>x.cat==='dayheader');
+    const wea = b && b.objects.find(x=>x.cat==='weather' && x.data && x.data.length);
+    const loc = project.production.locations.find(l=>l.name || l.address) || null;
+    const ppl = t => peopleReg().filter(p=>p.tag===t);
+    const titleH = 26, rowH = 17, secHead = 16, gap = 8, pad = 10;
+    o.w = 380;
+    ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
+    // build sections as [header, [lines...]]
+    const line1 = p => trimText(ctx, [p.call, p.role && p.role + ' —', p.name, p.phone && '· ' + p.phone]
+      .filter(Boolean).join(' '), o.w - pad*2);
+    const secs = [];
+    if(inc.location){
+      const L = [];
+      if(loc){
+        if(loc.name) L.push(['b', loc.name]);
+        if(loc.address) L.push(['n', loc.address]);
+        for(const [k, lab] of [['parking','Parking'],['power','Power'],['hospital','Hospital'],['notes','Notes']])
+          if(loc[k]) L.push(['n', lab + ': ' + loc[k]]);
+      }
+      secs.push(['LOCATION', L.length ? L : [['p','fill a Location card…']]]);
+    }
+    if(inc.crew){
+      const c = ppl('crew');
+      secs.push(['CREW', c.length ? c.map(p=>['n', line1(p)]) : [['p','add people on the Crew card…']]]);
+    }
+    if(inc.cast){
+      const c = ppl('cast');
+      secs.push(['CAST', c.length ? c.map(p=>['n', trimText(ctx,
+        [p.call, p.name, p.role && '(' + p.role + ')', p.phone && '· ' + p.phone].filter(Boolean).join(' '), o.w - pad*2)]) : [['p','—']]]);
+    }
+    if(inc.client){
+      const c = ppl('client');
+      secs.push(['CLIENT', c.length ? c.map(p=>['n', trimText(ctx,
+        [p.name, p.role && '— ' + p.role, p.phone && '· ' + p.phone, p.email && '· ' + p.email].filter(Boolean).join(' '), o.w - pad*2)]) : [['p','—']]]);
+    }
+    if(inc.weather){
+      const L = [];
+      if(wea){
+        if(wea.place) L.push(['b', wea.place + (wea.date ? ' · ' + wea.date : '')]);
+        for(const [k, v] of wea.data) L.push(['n', k + ': ' + v]);
+      }
+      const sun = day && day.date && day.lat != null ? sunTimes(day.date, day.lat, day.lon) : null;
+      if(sun && sun.rise) L.push(['n', 'Sunrise ' + sun.rise + ' · sunset ' + sun.set]);
+      secs.push(['WEATHER & SUN', L.length ? L : [['p','drop a Weather card & fetch…']]]);
+    }
+    // header block: production + day/calls
+    const head = [];
+    head.push(['t', (project.shootName || 'Production').toUpperCase()]);
+    if(day){
+      const d = day.date ? new Date(day.date + 'T12:00:00') : null;
+      const ds = d && !isNaN(d) ? d.toLocaleDateString('nl-NL', {weekday:'long', day:'numeric', month:'long', year:'numeric'}) : '';
+      const calls = [day.call && 'CALL ' + day.call, day.shootCall && 'shoot ' + day.shootCall,
+        day.wrap && 'wrap ' + day.wrap].filter(Boolean).join('  ·  ');
+      if(ds) head.push(['b', ds]);
+      if(calls) head.push(['b', calls]);
+    } else head.push(['p', 'drop a Day header card for date & calls…']);
+    o.h = titleH + pad + head.length*rowH + gap +
+      secs.reduce((a, s)=>a + secHead + s[1].length*rowH + gap, 0) + pad - gap + 6;
+    // draw
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.clip();
+    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillRect(-o.w/2, -o.h/2, o.w, titleH);
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#33322E';
+    ctx.fillText('CALL SHEET', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+    ctx.font = '10px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#8A877F';
+    ctx.textAlign = 'right';
+    ctx.fillText('live — edits happen on the source cards', o.w/2 - 8, -o.h/2 + titleH/2 + .5);
+    ctx.textAlign = 'left';
+    let y = -o.h/2 + titleH + pad + rowH/2;
+    const drawLine = (kind, txt)=>{
+      if(kind === 't'){ ctx.font = '800 13px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = '#33322E'; }
+      else if(kind === 'b'){ ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = '#33322E'; }
+      else if(kind === 'p'){ ctx.font = 'italic 11px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = 'rgba(74,70,54,.4)'; }
+      else { ctx.font = '11.5px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = '#4A4636'; }
+      ctx.fillText(trimText(ctx, txt, o.w - pad*2), -o.w/2 + pad, y);
+      y += rowH;
+    };
+    for(const [k, t] of head) drawLine(k, t);
+    y += gap - rowH + rowH;
+    for(const [name, lines] of secs){
+      ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-o.w/2 + pad, y - rowH/2 - 2); ctx.lineTo(o.w/2 - pad, y - rowH/2 - 2); ctx.stroke();
+      ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = shade(o.color, .8);
+      ctx.fillText(name, -o.w/2 + pad, y + 2);
+      y += secHead;
+      for(const [k, t] of lines) drawLine(k, t);
+      y += gap;
+    }
+    ctx.restore();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'dayheader'){
     // the call-time block — echoes a Dutch call sheet header
     const G = DAYH;
@@ -1633,7 +1740,8 @@ function drawObjectShape(o, ghost){
     (def ? PROPS.custom.draw : (PROPS[o.kind]||PROPS.custom).draw)(ctx, o.w, o.h, o.color, def);
   }
   ctx.restore();
-  const chipText = !ghost && o.cat!=='note' && o.cat!=='text' && o.cat!=='link'
+  // todo + avscript already show their label in the title strip — no floating chip
+  const chipText = !ghost && !['note','text','link','todo','avscript'].includes(o.cat)
     ? (o.cat==='camera'
         ? [o.label, o.framing, o.support].filter(Boolean).join(' \u00b7 ')
         : o.label)
