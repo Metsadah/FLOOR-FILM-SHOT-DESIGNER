@@ -93,16 +93,20 @@ function buildWriteLibSection(lib){
     tc.globalAlpha=1;
   }, {cat:'script', kind:'script', mode:'film'});
   tile('AV script', (tc,w2,h2,c2)=>{
-    tc.strokeStyle=c2; tc.lineWidth=2.5;
-    tc.strokeRect(-w2*.38,-h2*.4,w2*.76,h2*.8);
-    tc.beginPath(); tc.moveTo(0,-h2*.4); tc.lineTo(0,h2*.4); tc.stroke();
-    tc.globalAlpha=.6;
-    for(let i=0;i<4;i++){
-      tc.beginPath(); tc.moveTo(-w2*.3,-h2*.24+i*h2*.14); tc.lineTo(-w2*.08,-h2*.24+i*h2*.14);
-      tc.moveTo(w2*.08,-h2*.24+i*h2*.14); tc.lineTo(w2*.3,-h2*.24+i*h2*.14); tc.stroke();
+    tc.beginPath(); tc.roundRect(-w2*.42,-h2*.4,w2*.84,h2*.8,3);
+    tc.fillStyle='#fff'; tc.fill();
+    tc.strokeStyle='#8B5CF6'; tc.lineWidth=2.5; tc.stroke();
+    tc.fillStyle='#8B5CF6'; tc.globalAlpha=.28;
+    tc.fillRect(-w2*.42,-h2*.4,w2*.84,h2*.14); tc.globalAlpha=1;
+    tc.globalAlpha=.5; tc.strokeStyle='#8B5CF6'; tc.lineWidth=1.5;
+    for(const x2 of [-w2*.18, w2*.1]){
+      tc.beginPath(); tc.moveTo(x2,-h2*.26); tc.lineTo(x2,h2*.4); tc.stroke();
+    }
+    for(const y2 of [-h2*.04, h2*.18]){
+      tc.beginPath(); tc.moveTo(-w2*.42,y2); tc.lineTo(w2*.42,y2); tc.stroke();
     }
     tc.globalAlpha=1;
-  }, {cat:'script', kind:'script', mode:'av'});
+  }, {cat:'avscript', kind:'avscript', w:560, h:150, color:'#8B5CF6'});
   tile('Storyboard row', (tc,w2,h2,c2)=>{
     tc.strokeStyle=c2; tc.lineWidth=2.5;
     tc.strokeRect(-w2*.42,-h2*.18,w2*.84,h2*.36);
@@ -117,7 +121,7 @@ function buildWriteLibSection(lib){
   lib.appendChild(grid);
   const tip = document.createElement('div');
   tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 8px;line-height:1.5;';
-  tip.textContent = 'Write in a script block, then select it and hit "Break down" — FLOOR creates a storyboard row and a scene board per detected scene, with every camera on that board mapping to a shot.';
+  tip.textContent = 'Film script: write, select, hit "Break down" — FLOOR creates a storyboard row and a scene board per detected scene. AV script: a row per beat — time, what you hear, what you see; toggle scene #, stills and director notes columns in its selection bar.';
   lib.appendChild(tip);
 }
 function ensureProdBoard(){

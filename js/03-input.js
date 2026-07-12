@@ -479,6 +479,28 @@ cv.addEventListener('pointerdown', e => {
         return;
       }
     }
+    if(so && so.cat === 'avscript' && !so.locked){
+      if(so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
+        addAvRow(so);
+        return;
+      }
+      const del = (so._rowDels||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
+      if(del){
+        so.rows = so.rows.filter(r=>r.id !== del.rowId);
+        markDirty(); render(); refreshSelBar();
+        return;
+      }
+      const st = (so._stillRects||[]).find(z=> wx >= z.x && wx <= z.x + z.w &&
+                                               wy >= z.y && wy <= z.y + z.h);
+      if(st){
+        const row = so.rows.find(r=>r.id === st.rowId);
+        if(row) pickSbImage(row); // sets row.imgId — same picker as storyboard rows
+        return;
+      }
+      const rr = (so._rowRects||[]).find(r=> wx >= r.x && wx <= r.x + r.w &&
+                                             wy >= r.y && wy <= r.y + r.h);
+      if(rr){ drag = {kind:'avrow', o:so, rowId:rr.rowId}; return; }
+    }
     if(so && so.cat === 'listcard' && !so.locked){
       // list-card chips live outside the frame, so catch them here (before hitObject)
       if(so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
@@ -508,7 +530,7 @@ cv.addEventListener('pointerdown', e => {
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
-    if(['link','todo','audio','table','listcard','fieldcard','dayheader'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
+    if(['link','todo','audio','table','listcard','fieldcard','dayheader','avscript','colcard'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
     if(obj.cat === 'link'){ drag.linkX0=obj.x; drag.linkY0=obj.y; }
     refreshSelBar(); render();
     return;
@@ -655,6 +677,22 @@ cv.addEventListener('pointermove', e => {
       const o = drag.o;
       const idx = Math.floor((wy - (o.y - o.h/2) - LIST_GEO.titleH - LIST_GEO.headH) / LIST_GEO.rowH);
       if(moveListRow(o, drag.personId, idx)) markDirty();
+      break;
+    }
+    case 'avrow': {
+      // AV rows reorder live using the per-row heights
+      const o = drag.o;
+      const hs2 = o._rowHs || [];
+      let ly = wy - (o.y - o.h/2) - AVS.titleH - AVS.headH;
+      let idx = 0;
+      for(let i=0;i<hs2.length;i++){ if(ly > hs2[i]){ ly -= hs2[i]; idx++; } else break; }
+      idx = clamp(idx, 0, o.rows.length - 1);
+      const from = o.rows.findIndex(r=>r.id === drag.rowId);
+      if(from > -1 && from !== idx){
+        const [row] = o.rows.splice(from, 1);
+        o.rows.splice(idx, 0, row);
+        markDirty();
+      }
       break;
     }
     case 'drawWall': {
@@ -1029,6 +1067,16 @@ cv.addEventListener('pointerup', e => {
         const key = dayCellAt(o, up.x, up.y);
         if(key) openDayCell(o, key);
       }
+    } else if(o.cat === 'avscript'){
+      if(typeof avCellAt === 'function'){
+        const cell = avCellAt(o, up.x, up.y);
+        if(cell && cell.key !== 'still') openAvCell(o, cell.rowId, cell.key);
+      }
+    } else if(o.cat === 'colcard'){
+      if(typeof colCellAt === 'function'){
+        const key = colCellAt(o, up.x, up.y);
+        if(key) openColCell(o, key);
+      }
     }
   }
   if(drag.kind === 'drawWall'){
@@ -1191,6 +1239,16 @@ cv.addEventListener('dblclick', e => {
     if(o.cat === 'dayheader'){
       const key = dayCellAt(o, wx, wy);
       if(key) openDayCell(o, key);
+      return;
+    }
+    if(o.cat === 'avscript'){
+      const cell = avCellAt(o, wx, wy);
+      if(cell && cell.key !== 'still') openAvCell(o, cell.rowId, cell.key);
+      return;
+    }
+    if(o.cat === 'colcard'){
+      const key = colCellAt(o, wx, wy);
+      if(key) openColCell(o, key);
       return;
     }
     if(o.cat === 'link'){

@@ -34,7 +34,7 @@ async function fetchLinkThumb(o){
     imgCache[id] = im;
     im.onload = ()=>render();
     o.imgId = id;
-    o.w = 220; o.h = 150;
+    o.w = Math.max(o.w, 180); // renderer keeps the preview square
     markDirty(); render(); refreshSelBar();
     toast('Video thumbnail added');
   }catch(e){
@@ -187,14 +187,33 @@ function refreshSelBar(){
       selBar.appendChild(cap);
     }
     if(o.cat === 'colorcard'){
+      // the full picker (color wheel on macOS/iPadOS) + the hex field, synced
+      const expand = h => /^#[0-9a-f]{3}$/i.test(h)
+        ? '#' + h[1]+h[1] + h[2]+h[2] + h[3]+h[3] : h;
+      const pick = document.createElement('input');
+      pick.type = 'color';
+      pick.title = 'Pick any color';
+      pick.value = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(o.hex||'') ? expand(o.hex) : '#E8604C';
+      pick.style.cssText = 'width:34px;height:26px;border:1px solid var(--border);' +
+        'border-radius:2px;padding:1px;background:#fff;cursor:pointer;';
+      selBar.appendChild(pick);
       const hx = document.createElement('input');
       hx.className = 'lbl'; hx.style.width = '84px';
       hx.placeholder = '#RRGGBB';
       hx.value = o.hex || '';
+      pick.addEventListener('input', ()=>{
+        o.hex = pick.value;
+        hx.value = pick.value;
+        markDirty(); render();
+      });
       hx.addEventListener('input', ()=>{
         let v = hx.value.trim();
         if(v && !v.startsWith('#')) v = '#' + v;
-        if(/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v)){ o.hex = v; markDirty(); render(); }
+        if(/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v)){
+          o.hex = v;
+          pick.value = expand(v);
+          markDirty(); render();
+        }
       });
       hx.addEventListener('keydown', e=>{ if(e.key==='Enter') hx.blur(); e.stopPropagation(); });
       selBar.appendChild(hx);
@@ -244,6 +263,21 @@ function refreshSelBar(){
       hint.textContent = o.kind === 'prodinfo'
         ? 'Live view of the production info \u2014 Tab hops fields'
         : 'One location from the production \u2014 Tab hops fields';
+      selBar.appendChild(hint);
+    }
+    if(o.cat === 'avscript'){
+      sbtn('+ Row', ()=>addAvRow(o));
+      o.cols = o.cols || {no:false, still:false, notes:false};
+      const tgl = (label, key)=>sbtn((o.cols[key] ? '✓ ' : '') + label, ()=>{
+        o.cols[key] = !o.cols[key];
+        markDirty(); render(); refreshSelBar();
+      });
+      tgl('Scene #', 'no');
+      tgl('Stills', 'still');
+      tgl('Notes', 'notes');
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = 'Click a cell to write · Tab hops cells · Enter = new line';
       selBar.appendChild(hint);
     }
     if(o.cat === 'dayheader'){
@@ -441,7 +475,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','file','colorcard','audio'].includes(o.cat)){
+    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -626,6 +660,12 @@ function editorGetValue(o, field){
     return row ? fieldGet(o, row.key) : '';
   }
   if(field && field.startsWith('dh:')) return o[field.slice(3)] || '';
+  if(field && field.startsWith('avr:')){
+    const [,rid,key] = field.split(':');
+    const r = (o.rows||[]).find(x=>x.id===rid);
+    return (r && r[key]) || '';
+  }
+  if(field && field.startsWith('cc:')) return o[field.slice(3)] || '';
   return o[field || 'text'] || '';
 }
 function editorSetValue(o, field, v){
@@ -661,6 +701,16 @@ function editorSetValue(o, field, v){
   }
   if(field && field.startsWith('dh:')){
     o[field.slice(3)] = v.replace(/\n/g,' ').trim();
+    return;
+  }
+  if(field && field.startsWith('avr:')){
+    const [,rid,key] = field.split(':');
+    const r = (o.rows||[]).find(x=>x.id===rid);
+    if(r) r[key] = (key==='time' || key==='no') ? v.replace(/\n/g,' ').trim() : v;
+    return;
+  }
+  if(field && field.startsWith('cc:')){
+    o[field.slice(3)] = field === 'cc:title' ? v.replace(/\n/g,' ') : v;
     return;
   }
   o[field || 'text'] = v;
@@ -739,6 +789,54 @@ function addSbRowBelow(o){
   sel = {type:'object', id:n.id};
   markDirty(); render(); refreshSelBar();
   return n;
+}
+
+// ---- AV script card (rows: time | audio | video, optional sc#/still/notes) ----
+function avCellAt(o, wx, wy){
+  const G = AVS;
+  const cols = o._avCols || avCols(o);
+  const hs = o._rowHs || [];
+  const lx = wx - o.x + o.w/2, ly0 = wy - o.y + o.h/2;
+  if(ly0 < G.titleH + G.headH || lx < G.grip) return null;
+  let ly = ly0 - G.titleH - G.headH, ri = 0;
+  for(; ri < hs.length; ri++){ if(ly <= hs[ri]) break; ly -= hs[ri]; }
+  if(ri >= o.rows.length) return null;
+  let acc = G.grip, key = cols[cols.length-1][0];
+  for(const [k,,wd] of cols){ acc += wd; if(lx < acc){ key = k; break; } }
+  return {rowId:o.rows[ri].id, key, rowIdx:ri};
+}
+function openAvCell(o, rowId, key){
+  const G = AVS;
+  const cols = o._avCols || avCols(o);
+  const hs = o._rowHs || [];
+  const ri = o.rows.findIndex(r=>r.id===rowId);
+  if(ri < 0 || key === 'still') return;
+  let yTop = -o.h/2 + G.titleH + G.headH;
+  for(let i=0;i<ri;i++) yTop += hs[i];
+  let x0 = -o.w/2 + G.grip, wd = 100;
+  for(const [k,,cw] of cols){ if(k === key){ wd = cw; break; } x0 += cw; }
+  openNoteEditor(o, 'avr:' + rowId + ':' + key,
+    {x:x0+3, y:yTop+2, w:wd-6, h:(hs[ri]||G.minRowH)-4}, 12);
+}
+function addAvRow(o, openIt){
+  o.rows.push({id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgId:null});
+  markDirty(); render();
+  if(openIt !== false){
+    const r = o.rows[o.rows.length-1];
+    setTimeout(()=>openAvCell(o, r.id, o.cols && o.cols.no ? 'no' : 'time'), 0);
+  }
+}
+
+// ---- column card (title strip + text body) ----
+function colCellAt(o, wx, wy){
+  const ly = wy - o.y + o.h/2;
+  return ly < 26 ? 'title' : 'text';
+}
+function openColCell(o, key){
+  if(key === 'title')
+    openNoteEditor(o, 'cc:title', {x:-o.w/2+4, y:-o.h/2+2, w:o.w-8, h:22}, 11);
+  else
+    openNoteEditor(o, 'cc:text', {x:-o.w/2+4, y:-o.h/2+30, w:o.w-8, h:o.h-36}, 12.5);
 }
 
 // ---- day header (the call-time block) ----
@@ -867,6 +965,33 @@ function openNoteEditor(o, field, rect, fs){
       i += (e.key === 'Tab' && e.shiftKey) ? -1 : 1;
       render();
       if(i >= 0 && i < order.length) setTimeout(()=>openDayCell(o, order[i]), 0);
+      return;
+    }
+    if(fld.startsWith('avr:')){
+      const [,rid,key] = fld.split(':');
+      const single = key === 'time' || key === 'no';
+      // Enter = newline in the text cells; Tab (or Enter in time/sc) navigates
+      if(e.key === 'Tab' || (e.key === 'Enter' && single)){
+        e.preventDefault();
+        const keys = (o._avCols || avCols(o)).map(c=>c[0]).filter(k=>k !== 'still');
+        let ri = o.rows.findIndex(r=>r.id === rid);
+        let ci = keys.indexOf(key);
+        closeNoteEditor(true);
+        if(e.key === 'Tab' && e.shiftKey){ ci--; if(ci < 0){ ci = keys.length-1; ri--; } }
+        else { ci++; if(ci >= keys.length){ ci = 0; ri++; } }
+        if(ri < 0){ render(); return; }
+        if(ri >= o.rows.length) addAvRow(o, false);
+        render();
+        const target = o.rows[ri];
+        if(target) setTimeout(()=>openAvCell(o, target.id, keys[ci]), 0);
+        return;
+      }
+    }
+    if(fld === 'cc:title' && (e.key === 'Enter' || e.key === 'Tab')){
+      e.preventDefault();
+      closeNoteEditor(true);
+      render();
+      setTimeout(()=>openColCell(o, 'text'), 0);
       return;
     }
     if(fld.startsWith('item:')){
@@ -1042,15 +1167,27 @@ function buildLibrary(){
     tc.beginPath(); tc.ellipse(-w2*.14,h2*.14,w2*.24,h2*.15,-Math.PI/4,0,7); tc.stroke();
     tc.beginPath(); tc.ellipse(w2*.14,-h2*.14,w2*.24,h2*.15,-Math.PI/4,0,7); tc.stroke();
   }, 90, 90, '#4B6BFB', {cat:'link', kind:'link', w:130, h:34, color:'#4B6BFB'});
-  boardTile('Info card', (tc,w2,h2,c)=>{
-    tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,6);
+  // shot info card mirrors the Shot info panel — only meaningful on the designer
+  if(activeTab === 'design'){
+    boardTile('Shot info card', (tc,w2,h2,c)=>{
+      tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
+      tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=c; tc.stroke();
+      tc.fillStyle=c; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2,-h2/2,w2,h2*.2); tc.globalAlpha=1;
+      tc.globalAlpha=.55;
+      for(const y2 of [h2*.02,h2*.18,h2*.34]) tc.fillRect(-w2*.34,y2,w2*.68,3);
+      tc.globalAlpha=1;
+    }, 90, 70, '#4B6BFB', {cat:'infocard', kind:'infocard', w:260, h:180, color:'#4B6BFB'});
+  }
+  boardTile('Column', (tc,w2,h2,c)=>{
+    tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=c; tc.stroke();
-    tc.fillStyle=c;
-    tc.fillRect(-w2/2,-h2/2,w2,5);
-    tc.globalAlpha=.55;
-    for(const y2 of [-h2*.12,h2*.08,h2*.28]) tc.fillRect(-w2*.34,y2,w2*.68,3);
+    tc.fillStyle=c; tc.globalAlpha=.28;
+    tc.fillRect(-w2/2,-h2/2,w2,h2*.2); tc.globalAlpha=1;
+    tc.globalAlpha=.5;
+    for(const y2 of [h2*.04,h2*.18,h2*.32]) tc.fillRect(-w2*.34,y2,w2*.68,2.5);
     tc.globalAlpha=1;
-  }, 90, 70, '#4B6BFB', {cat:'infocard', kind:'infocard', w:260, h:180, color:'#4B6BFB'});
+  }, 90, 110, '#4B6BFB', {cat:'colcard', kind:'colcard', w:240, h:120, color:'#4B6BFB'});
   boardTile('Production', (tc,w2,h2)=>{
     drawNoteShape(tc, {w:w2, h:h2, color:'#5B6472', text:''}, true);
     tc.fillStyle='#5B6472'; tc.globalAlpha=.7;
@@ -1171,7 +1308,7 @@ function startLibDrag(e, spec){
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
   };
-  else if(spec.cat==='listcard' || spec.cat==='fieldcard' || spec.cat==='dayheader') drawFn = (tc,w2,h2,col)=>{
+  else if(['listcard','fieldcard','dayheader','avscript','colcard'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.globalAlpha=.3; tc.fillRect(-w2/2,-h2/2,w2,h2*.24); tc.globalAlpha=1;
@@ -1218,6 +1355,14 @@ function dropLib(e){
     } else if(libDrag.cat === 'listcard'){
       o = {id:uid(), cat:'listcard', kind:libDrag.kind, x, y, rot:0, w:360, h:74,
            color:(LIST_CARDS[libDrag.kind] || LIST_CARDS.crew).color, label:'', path:[]};
+    } else if(libDrag.cat === 'avscript'){
+      o = {id:uid(), cat:'avscript', kind:'avscript', x, y, rot:0, w:560, h:150,
+           rows:[1,2,3].map(()=>({id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgId:null})),
+           cols:{no:false, still:false, notes:false},
+           color:libDrag.color || '#8B5CF6', label:'', path:[]};
+    } else if(libDrag.cat === 'colcard'){
+      o = {id:uid(), cat:'colcard', kind:'colcard', x, y, rot:0, w:240, h:120,
+           title:'', text:'', color:libDrag.color || '#4B6BFB', label:'', path:[]};
     } else if(libDrag.cat === 'dayheader'){
       o = {id:uid(), cat:'dayheader', kind:'dayheader', x, y, rot:0, w:DAYH.w, h:140,
            date:new Date().toISOString().slice(0,10), call:'', shootCall:'', wrap:'',
@@ -1263,7 +1408,7 @@ function dropLib(e){
            p1:{x:x-110, y}, p2:{x:x+110, y},
            weight:2.5, dashed:false, arrow:true, color:libDrag.color||'#E8604C', label:'', path:[]};
     } else if(libDrag.cat === 'link'){
-      o = {id:uid(), cat:'link', kind:'link', x, y, rot:0, w:130, h:34,
+      o = {id:uid(), cat:'link', kind:'link', x, y, rot:0, w:180, h:218,
            label:'', url:'', color:libDrag.color||'#4B6BFB', path:[]};
     } else if(libDrag.cat === 'infocard'){
       o = {id:uid(), cat:'infocard', kind:'infocard', x, y, rot:0, w:260, h:180,

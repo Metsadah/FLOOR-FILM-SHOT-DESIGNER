@@ -142,9 +142,21 @@ Storyboard (`write`) · Shot designer (`design`) · Production (`org`).
   nothing on canvas, so refreshSelBar skips the swatches (`colorless` guard).
 
 ## Object types on canvas (drawn in drawObjectShape, 01)
-camera, actor, note, text, line (bendable via `o.mid`), link (auto-title from
-URL unless custom label; auto-fetches video thumbs, debounced), ink,
-infocard, colorcard, todo (cell rows; tap checkbox zone <34px toggles;
+camera, actor, note, text, line (bendable via `o.mid`), link (v0.19:
+bookmark card — SQUARE preview on top [video thumb via dataURL, or tinted
+placeholder with the domain initial], title + domain strip below; width
+resizable, height = w + 38 enforced by the renderer; legacy pill links
+reflow automatically; auto-title from URL unless custom label), ink,
+**avscript** (v0.18 — row-based AV script: TIME | AUDIO | VIDEO with
+scene-#/still/notes column toggles in selBar; rows self-size to wrapped
+text via `AVS`/`avCols` in 00; editor fields `avr:<rowId>:<key>` — Enter is
+a NEWLINE in text cells, Tab navigates, Enter navigates only in time/sc;
+still cells reuse `pickSbImage(row)`; grips/chips like listcard; the old
+free-text `script mode:'av'` still renders for legacy boards but the
+library now drops avscript), **colcard** (v0.18 — title strip + free-text
+body, fields `cc:title`/`cc:text`, width resizable, height auto),
+infocard (v0.18: restyled to shared chrome, titled SHOT INFO, library tile
+"Shot info card" on the design tab ONLY), colorcard, todo (cell rows; tap checkbox zone <34px toggles;
 dblclick row edits; Enter chains new items), table (SELF-SIZING columns from
 content — **no resize handles by design**; `o._colWs` cached; + chips when
 selected; Tab/Enter hop cells), **listcard** (`kind:'crew'|'cast'|'client'`;
@@ -202,7 +214,15 @@ the current row is entirely blank (keeps the registry junk-free).
 7. **Version discipline:** bump the `#verChip` in index.html, the SW cache
    name (`floor-shell-vN`), and the zip name (`floor-repo-vN.zip`) together
    every release. Identical zip names caused a lost afternoon once.
-   Current: verChip v0.17 ↔ floor-shell-v16.
+   Current: verChip v0.19 ↔ floor-shell-v18.
+   Color card (v0.19): selBar has a native `<input type=color>` (macOS gives
+   the wheel) synced two-way with the hex field → `o.hex`. NEVER draw
+   external favicons/OG images onto the canvas without routing them through
+   a stored dataURL first — a tainted canvas kills every PNG/PDF export.
+   Card chrome rule (v0.18): every smart card = white shell, 3px radius,
+   26px title strip tinted `o.color` at .14 alpha, 700 11px UPPERCASE
+   title, #E5E3DE grid, #D8D5CF frame — copy an existing branch, don't
+   invent new chrome.
 8. **closeNoteEditor re-entrancy (fixed v0.12, keep it fixed).** Removing
    the focused textarea re-fires its own `blur` → `closeNoteEditor` again
    mid-removal → NotFoundError that aborts whatever handler called it (this
@@ -245,10 +265,18 @@ future server code = **Supabase Edge Functions** (not Netlify Functions),
 first use = AI script breakdown.
 
 ## Supabase magic-link email branding (dashboard TODO — not in code)
-Now matters double: co-editor invitees get this same mail. Also note the
-BUILT-IN mailer is rate-limited to a few emails/hour — inviting a whole
-crew needs custom SMTP (Auth → SMTP; Resend/Postmark + a FLOOR domain),
-which is also the only way to change the from-address.
+Now matters double: co-editor invitees get this same mail. Supabase only
+honors custom templates + sane rate limits with CUSTOM SMTP. Agreed plan
+(July 2026): Resend free tier + sending subdomain `floor.zoutwater.com`
+(user already owns zoutwater.com; no new mailbox or website needed —
+DKIM/SPF DNS records only). Steps: Resend → add domain (subdomain) → DNS
+records at the zoutwater.com DNS host → API key → Supabase Project
+Settings → Auth → SMTP (host smtp.resend.com, port 465, user `resend`,
+pass = API key, sender "FLOOR Studio <login@floor.zoutwater.com>") → then
+edit Email Templates (Magic Link + Confirm signup, keep
+{{ .ConfirmationURL }}) and raise Auth → Rate Limits. A dedicated FLOOR
+domain (floorstudio.nl etc.) can replace the subdomain later — ten-minute
+DNS/settings swap, wanted anyway for Phase 4.
 The login mail's subject/body are Supabase Auth settings, not client code.
 In supabase.com dashboard → project → Authentication → Email Templates →
 Magic Link: subject "Your FLOOR Studio login link", body should say FLOOR

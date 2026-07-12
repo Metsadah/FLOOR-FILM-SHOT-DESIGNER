@@ -731,19 +731,25 @@ function drawNoteShape(ctx,o,editing){
 // live shot-info card drawn on the canvas (contents come from the Shot info panel)
 function drawInfoCard(ctx, o){
   const s = (typeof drawShot !== 'undefined' && drawShot) ? drawShot : activeShot();
-  const w=o.w, h=o.h, pad=14;
-  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,10);
+  const w=o.w, h=o.h, pad=14, titleH=26;
+  // shared smart-card chrome: white shell + tinted title strip
+  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,3);
   ctx.fillStyle='#fff'; ctx.fill();
   ctx.strokeStyle='#D8D5CF'; ctx.lineWidth=1.5; ctx.stroke();
-  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,7,[10,10,0,0]);
-  ctx.fillStyle=o.color; ctx.globalAlpha=.85; ctx.fill(); ctx.globalAlpha=1;
   ctx.save();
-  ctx.beginPath(); ctx.rect(-w/2+3,-h/2+3,w-6,h-6); ctx.clip();
-  ctx.textBaseline='top';
-  let y=-h/2+pad+6;
-  ctx.font='700 15px -apple-system,Segoe UI,sans-serif';
+  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,3); ctx.clip();
+  ctx.fillStyle=o.color; ctx.globalAlpha=.14;
+  ctx.fillRect(-w/2,-h/2,w,titleH);
+  ctx.globalAlpha=1;
+  ctx.textBaseline='middle';
+  ctx.font='700 11px -apple-system,Segoe UI,sans-serif';
   ctx.fillStyle='#33322E';
-  ctx.fillText(s.name||'', -w/2+pad, y); y+=24;
+  ctx.fillText('SHOT INFO', -w/2+10, -h/2+titleH/2+.5);
+  ctx.textBaseline='top';
+  let y=-h/2+titleH+10;
+  ctx.font='700 14px -apple-system,Segoe UI,sans-serif';
+  ctx.fillStyle='#33322E';
+  ctx.fillText(trimText(ctx, s.name||'', w-pad*2), -w/2+pad, y); y+=22;
   const wrapT = (typeof addMinutes==='function') ? addMinutes(s.time, s.duration) : '';
   const rows=[
     ['SCENE', [s.scene, s.sceneDesc].filter(Boolean).join(' — ')],
@@ -876,6 +882,24 @@ const FIELD_CARDS = {
   ]},
 };
 const FIELD_GEO = {titleH:26, rowH:26};
+
+// ---------------------------------------------------------------- AV script card
+// Row-based AV script: TIME | AUDIO (what you hear) | VIDEO (what you see),
+// with optional scene-number, still and director-notes columns. The classic
+// free-text two-column AV block grown into the smart-card system.
+const AVS = {titleH:26, headH:22, rowPad:7, lineH:15, minRowH:36, grip:14, stillH:52,
+  w:{no:44, time:64, still:96, audio:215, video:255, notes:170}};
+function avCols(o){
+  const c = o.cols || {};
+  const out = [];
+  if(c.no) out.push(['no','SC', AVS.w.no]);
+  out.push(['time','TIME', AVS.w.time]);
+  if(c.still) out.push(['still','STILL', AVS.w.still]);
+  out.push(['audio','AUDIO — HEAR', AVS.w.audio]);
+  out.push(['video','VIDEO — SEE', AVS.w.video]);
+  if(c.notes) out.push(['notes','NOTES', AVS.w.notes]);
+  return out;
+}
 
 // ---------------------------------------------------------------- day header
 // geometry of the call-time block (renderer + hit zones + editor agree)
