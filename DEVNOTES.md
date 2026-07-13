@@ -274,6 +274,16 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## v0.23 odds & ends
+Openings (door/window/gap) hit-test like walls now: thin band along the
+wall line, only within the opening span — the old `max(op.w/2, thr)`
+CIRCLE made windows swallow clicks. New props: bed_single, bed_hospital,
+wheelchair (actors dropped on it get `mount:{type:'seat', id}` and ride
+along when the chair moves; picking the actor up releases), train,
+tractor, mirror, books, newspaper, toys. The curved-stairs LIBRARY TILE is
+gone — stairs get a "Curved: on/off" selBar toggle that swaps `kind`
+between stairs/stairs_curved (PROPS entry kept for old boards).
+
 ## Breakdown numbering (v0.22)
 `createScenesFromBreakdown` REUSES the pristine starter scene (empty
 "Scene N", no objects/walls/script) as the first detected scene, so

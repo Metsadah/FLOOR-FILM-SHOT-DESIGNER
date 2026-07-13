@@ -111,6 +111,40 @@ const PROPS = {
     ctx.beginPath(); ctx.roundRect(w/2-w*.4+2,-h/2+6,w*.4-10,h*.18,5); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-w/2,-h/2+h*.3); ctx.lineTo(w/2,-h/2+h*.3); ctx.stroke(); ctx.globalAlpha=1;
   }},
+  bed_single:{w:90,h:200,name:'Single bed',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,8);
+    ctx.strokeStyle=c; ctx.globalAlpha=.55;
+    ctx.beginPath(); ctx.roundRect(-w/2+8,-h/2+6,w-16,h*.18,5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-w/2,-h/2+h*.3); ctx.lineTo(w/2,-h/2+h*.3); ctx.stroke();
+    ctx.globalAlpha=1;
+  }},
+  bed_hospital:{w:100,h:215,name:'Hospital bed',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,6);
+    ctx.strokeStyle=c; ctx.globalAlpha=.55;
+    ctx.beginPath(); ctx.roundRect(-w/2+8,-h/2+8,w-16,h*.15,4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-w/2,-h/2+h*.26); ctx.lineTo(w/2,-h/2+h*.26); ctx.stroke();
+    ctx.globalAlpha=1;
+    ctx.lineWidth=3.5; // side rails
+    ctx.beginPath(); ctx.moveTo(-w/2-4,-h*.2); ctx.lineTo(-w/2-4,h*.2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w/2+4,-h*.2); ctx.lineTo(w/2+4,h*.2); ctx.stroke();
+    ctx.lineWidth=2;
+    for(const [x2,y2] of [[-w/2+9,-h/2-5],[w/2-9,-h/2-5],[-w/2+9,h/2+5],[w/2-9,h/2+5]]){
+      ctx.beginPath(); ctx.arc(x2,y2,4,0,7); ctx.stroke(); // castors
+    }
+  }},
+  wheelchair:{w:66,h:76,name:'Wheelchair',round:1,draw(ctx,w,h,c){
+    ctx.strokeStyle=c;
+    ctx.beginPath(); ctx.roundRect(-w*.28,-h*.25,w*.56,h*.5,4); // seat
+    ctx.fillStyle=c; ctx.globalAlpha=.22; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+    ctx.lineWidth=4.5; // big side wheels
+    ctx.beginPath(); ctx.moveTo(-w*.44,-h*.3); ctx.lineTo(-w*.44,h*.32); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w*.44,-h*.3); ctx.lineTo(w*.44,h*.32); ctx.stroke();
+    ctx.lineWidth=2;
+    ctx.beginPath(); // footrests forward, push handles back
+    ctx.moveTo(-w*.17,h*.3); ctx.lineTo(-w*.17,h*.46); ctx.moveTo(w*.17,h*.3); ctx.lineTo(w*.17,h*.46);
+    ctx.moveTo(-w*.2,-h*.3); ctx.lineTo(-w*.2,-h*.44); ctx.moveTo(w*.2,-h*.3); ctx.lineTo(w*.2,-h*.44);
+    ctx.stroke();
+  }},
   rug:{w:200,h:140,name:'Rug',draw(ctx,w,h,c){
     ctx.setLineDash([5,4]);
     ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,10);
@@ -138,6 +172,32 @@ const PROPS = {
     ctx.beginPath(); ctx.roundRect(-w*.34,-h*.38,w*.62,h*.76,8); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(w*.36,-h*.32); ctx.lineTo(w*.36,h*.32); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-w*.05,h*.38); ctx.lineTo(w*.14,h*.38); ctx.strokeStyle=c; ctx.lineWidth=3.5; ctx.stroke(); ctx.lineWidth=2; // slider door
+  }},
+  train:{w:1900,h:300,name:'Train car',draw(ctx,w,h,c){
+    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,h*.1);
+    ctx.fillStyle=c; ctx.globalAlpha=.22; ctx.fill(); ctx.globalAlpha=1;
+    ctx.strokeStyle=c; ctx.stroke();
+    ctx.globalAlpha=.5;
+    const n=8, step=w/(n+1);
+    for(let i=1;i<=n;i++) ctx.strokeRect(-w/2 + i*step - step*.26, -h*.34, step*.52, h*.2);
+    ctx.beginPath();
+    ctx.moveTo(-w*.36,-h/2); ctx.lineTo(-w*.36,h/2);
+    ctx.moveTo(w*.36,-h/2); ctx.lineTo(w*.36,h/2);
+    ctx.stroke();
+    ctx.globalAlpha=1;
+  }},
+  tractor:{w:360,h:190,name:'Tractor',draw(ctx,w,h,c){
+    ctx.strokeStyle=c;
+    ctx.beginPath(); ctx.roundRect(-w*.22,-h*.3,w*.5,h*.6,10); // cab + body
+    ctx.fillStyle=c; ctx.globalAlpha=.22; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(w*.28,-h*.19,w*.2,h*.38,6); ctx.stroke(); // hood
+    ctx.lineWidth=6; // big rear wheels
+    ctx.beginPath(); ctx.moveTo(-w*.36,-h*.46); ctx.lineTo(-w*.1,-h*.46); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-w*.36,h*.46); ctx.lineTo(-w*.1,h*.46); ctx.stroke();
+    ctx.lineWidth=4; // small front wheels
+    ctx.beginPath(); ctx.moveTo(w*.3,-h*.4); ctx.lineTo(w*.44,-h*.4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w*.3,h*.4); ctx.lineTo(w*.44,h*.4); ctx.stroke();
+    ctx.lineWidth=2;
   }},
   bus:{w:1200,h:255,name:'Bus',draw(ctx,w,h,c){
     ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,h*.14);
@@ -173,6 +233,48 @@ const PROPS = {
     baseRect(ctx,w,h,c,3);
     ctx.beginPath(); ctx.moveTo(-w/2,-h/2); ctx.lineTo(w/2,h/2); ctx.moveTo(w/2,-h/2); ctx.lineTo(-w/2,h/2);
     ctx.strokeStyle=c; ctx.globalAlpha=.4; ctx.stroke(); ctx.globalAlpha=1;
+  }},
+  mirror:{w:90,h:12,name:'Mirror',draw(ctx,w,h,c){
+    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,3);
+    ctx.fillStyle=c; ctx.globalAlpha=.32; ctx.fill(); ctx.globalAlpha=1;
+    ctx.strokeStyle=c; ctx.stroke();
+    ctx.globalAlpha=.6; // glints
+    ctx.beginPath();
+    ctx.moveTo(-w*.32,-h*.1); ctx.lineTo(-w*.12,-h*.1);
+    ctx.moveTo(-w*.06,-h*.1); ctx.lineTo(w*.18,-h*.1);
+    ctx.stroke(); ctx.globalAlpha=1;
+  }},
+  books:{w:36,h:26,name:'Books',draw(ctx,w,h,c){
+    ctx.strokeStyle=c;
+    ctx.beginPath(); ctx.roundRect(-w*.46,-h*.46,w*.86,h*.44,2);
+    ctx.fillStyle=c; ctx.globalAlpha=.25; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+    ctx.save(); ctx.rotate(rad(-7));
+    ctx.beginPath(); ctx.roundRect(-w*.4,0,w*.86,h*.44,2); ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha=.5;
+    ctx.beginPath(); ctx.moveTo(-w*.3,-h*.24); ctx.lineTo(w*.24,-h*.24); ctx.stroke();
+    ctx.globalAlpha=1;
+  }},
+  newspaper:{w:38,h:28,name:'Newspaper',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,2);
+    ctx.strokeStyle=c; ctx.globalAlpha=.6;
+    ctx.beginPath(); ctx.moveTo(0,-h/2); ctx.lineTo(0,h/2); ctx.stroke(); // fold
+    for(const y2 of [-h*.24, -h*.02, h*.2]){
+      ctx.beginPath();
+      ctx.moveTo(-w*.4,y2); ctx.lineTo(-w*.08,y2);
+      ctx.moveTo(w*.08,y2); ctx.lineTo(w*.4,y2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+  }},
+  toys:{w:55,h:45,name:'Toys',draw(ctx,w,h,c){
+    ctx.strokeStyle=c;
+    ctx.strokeRect(-w*.4,-h*.34,w*.3,w*.3); // block
+    ctx.save(); ctx.rotate(rad(16));
+    ctx.strokeRect(-w*.06,-h*.02,w*.26,w*.26); ctx.restore(); // tumbled block
+    ctx.beginPath(); ctx.arc(w*.26,-h*.14,w*.15,0,7); // ball
+    ctx.fillStyle=c; ctx.globalAlpha=.25; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(w*.26,-h*.14,w*.15,rad(200),rad(340)); ctx.stroke();
   }},
   // ---- grip & light ----
   cstand:{w:45,h:45,name:'C-stand light',round:1,draw(ctx,w,h,c){
@@ -805,10 +907,10 @@ const CATS = [
     'cstand','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','track','jib','technocrane','truss','monitor','camcart'
   ].map(k=>({cat:'prop', kind:k}))},
   {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','neon'].map(k=>({cat:'prop', kind:k}))},
-  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','closet','kitchen','fridge','rug','stairs','stairs_curved'].map(k=>({cat:'prop', kind:k}))},
-  {name:'Vehicles', open:false, items:['bicycle','motorcycle','car_small','car','car_suv','car_police','minivan','bus'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Vehicles', open:false, items:['bicycle','motorcycle','car_small','car','car_suv','car_police','minivan','bus','train','tractor'].map(k=>({cat:'prop', kind:k}))},
   {name:'Outdoor', open:false, items:['road','crossing','bikelane','rails'].map(k=>({cat:'prop', kind:k}))},
-  {name:'Set dressing', open:false, items:['plant','tree','crate'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Set dressing', open:false, items:['plant','tree','crate','mirror','books','newspaper','toys'].map(k=>({cat:'prop', kind:k}))},
   {name:'Tech', open:false, items:['laptop','computer','tablet'].map(k=>({cat:'prop', kind:k}))},
 ];
 

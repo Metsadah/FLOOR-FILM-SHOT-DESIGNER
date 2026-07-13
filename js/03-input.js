@@ -240,14 +240,21 @@ function hitWall(shot, wx, wy){
   return best;
 }
 function hitOpening(shot, wx, wy){
-  const thr = Math.max(12/view.scale, 10);
+  // openings select like walls: a thin band along the wall line, only
+  // within the opening's span — no more giant catch-all circle
+  const thr = Math.max(9/view.scale, 8);
   for(const w of shot.walls){
     if(!(w.openings||[]).length) continue;
-    const geom = wallGeom(w);
+    const {smp, cum, L} = wallGeom(w);
+    let bd = Infinity, bdist = 0;
+    for(let i=1;i<smp.length;i++){
+      const r = ptSeg(wx,wy, smp[i-1].x,smp[i-1].y, smp[i].x,smp[i].y);
+      if(r.d < bd){ bd = r.d; bdist = cum[i-1] + r.t*(cum[i]-cum[i-1]); }
+    }
+    if(bd > thr) continue;
     for(let i=0;i<w.openings.length;i++){
       const op = w.openings[i];
-      const pc = wallPointAt(geom, op.t*geom.L);
-      if(dist(wx,wy,pc.x,pc.y) <= Math.max(op.w/2, thr)) return {wallId:w.id, index:i};
+      if(Math.abs(bdist - op.t*L) <= op.w/2) return {wallId:w.id, index:i};
     }
   }
   return null;
@@ -527,6 +534,7 @@ cv.addEventListener('pointerdown', e => {
     sel = {type:'object', id:obj.id};
     if(obj.locked){ drag = null; refreshSelBar(); render(); return; }
     if(obj.cat === 'camera') obj.mount = null; // picking a camera up releases it from a jib
+    if(obj.cat === 'actor' && obj.mount && obj.mount.type === 'seat') obj.mount = null; // out of the wheelchair
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
@@ -744,6 +752,13 @@ cv.addEventListener('pointermove', e => {
       }
       o.x = wx + drag.ox; o.y = wy + drag.oy;
       if(e.shiftKey){ o.x = Math.round(o.x/25)*25; o.y = Math.round(o.y/25)*25; }
+      if(o.kind === 'wheelchair'){
+        // the wheelchair carries whoever is seated in it
+        for(const a of shot.objects)
+          if(a.cat === 'actor' && a.mount && a.mount.type === 'seat' && a.mount.id === o.id){
+            a.x = o.x; a.y = o.y;
+          }
+      }
       markDirty();
       break;
     }
@@ -1099,6 +1114,20 @@ cv.addEventListener('pointerup', e => {
       );
       markDirty();
       setTool('select');
+    }
+  }
+  // actor dropped on a wheelchair → seated (the chair carries them)
+  if(drag.kind === 'move' && drag.o.cat === 'actor' && !drag.o.mount){
+    const a = drag.o;
+    for(const wc of shot.objects){
+      if(wc.kind !== 'wheelchair') continue;
+      if(dist(a.x, a.y, wc.x, wc.y) < 46){
+        a.mount = {type:'seat', id:wc.id};
+        a.x = wc.x; a.y = wc.y;
+        toast('Seated — moving the wheelchair takes ' + (a.label || 'the actor') + ' along');
+        markDirty(); refreshSelBar();
+        break;
+      }
     }
   }
   // camera dropped on a jib head → mount it (it follows the arm)

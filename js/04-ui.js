@@ -235,6 +235,15 @@ function refreshSelBar(){
       hint.textContent = 'Drag the corner handle to add/remove rows & cols \u00b7 Tab/Enter hop cells';
       selBar.appendChild(hint);
     }
+    if(o.cat === 'prop' && (o.kind === 'stairs' || o.kind === 'stairs_curved')){
+      sbtn(o.kind === 'stairs_curved' ? 'Curved: on' : 'Curved: off', ()=>{
+        const sc = o.w / PROPS[o.kind].w; // keep the current scale
+        o.kind = o.kind === 'stairs' ? 'stairs_curved' : 'stairs';
+        o.w = PROPS[o.kind].w * sc;
+        o.h = PROPS[o.kind].h * sc;
+        markDirty(); render(); refreshSelBar();
+      });
+    }
     if(o.cat === 'prop' && LIGHT_BEAMS[o.kind]){
       sbtn(o.beam === false ? 'Beam: off' : 'Beam: on', ()=>{
         o.beam = o.beam === false;
