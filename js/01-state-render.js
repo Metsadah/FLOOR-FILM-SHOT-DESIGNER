@@ -543,11 +543,15 @@ function drawWalls(shot){
           ctx.restore();
         }
       } else {
+        // flip = which side of the wall it swings to; hinge = which jamb it hangs on
         const s = o.flip ? -1 : 1;
+        const hx = o.hinge ? o.w/2 : -o.w/2;
         ctx.strokeStyle = WALL_COLOR; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(-o.w/2, 0); ctx.lineTo(-o.w/2, -s*o.w); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(hx, 0); ctx.lineTo(hx, -s*o.w); ctx.stroke();
         ctx.lineWidth = 1.3; ctx.setLineDash([4,4]);
-        ctx.beginPath(); ctx.arc(-o.w/2, 0, o.w, s>0 ? -Math.PI/2 : 0, s>0 ? 0 : Math.PI/2);
+        ctx.beginPath();
+        if(o.hinge) ctx.arc(hx, 0, o.w, s>0 ? Math.PI : Math.PI/2, s>0 ? Math.PI*1.5 : Math.PI);
+        else ctx.arc(hx, 0, o.w, s>0 ? -Math.PI/2 : 0, s>0 ? 0 : Math.PI/2);
         ctx.stroke(); ctx.setLineDash([]);
       }
       ctx.restore();

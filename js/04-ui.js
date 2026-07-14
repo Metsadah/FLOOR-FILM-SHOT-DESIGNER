@@ -612,8 +612,10 @@ function refreshSelBar(){
     info.style.cssText='font-size:11.5px;color:var(--ink2);padding:0 4px;text-transform:capitalize;';
     info.textContent = op.type;
     selBar.appendChild(info);
-    if(op.type === 'door')
+    if(op.type === 'door'){
       sbtn('Flip swing', ()=>{ op.flip=!op.flip; markDirty(); render(); });
+      sbtn('Flip hinge', ()=>{ op.hinge=!op.hinge; markDirty(); render(); });
+    }
     if(op.type === 'window'){
       sbtn(op.curtain ? 'Curtain: on' : 'Curtain: off', ()=>{
         op.curtain = !op.curtain; markDirty(); render(); refreshSelBar();

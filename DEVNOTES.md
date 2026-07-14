@@ -274,6 +274,12 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## v0.25 — bathroom + door hinge
+New Bathroom category (bath, shower, toilet, sink + mirror shortcut), bin
+in Set dressing. Doors: `op.flip` = which SIDE of the wall the swing goes,
+`op.hinge` = which JAMB it hangs on — both toggles in the opening selBar,
+four combinations total.
+
 ## v0.24 — the production loop closes
 - **schedule card** (cat 'schedule'): LIVE — calls from the day header,
   a checkbox per scene ("shooting today?"), times chain from the shooting

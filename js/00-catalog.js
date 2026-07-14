@@ -234,6 +234,46 @@ const PROPS = {
     ctx.beginPath(); ctx.moveTo(-w/2,-h/2); ctx.lineTo(w/2,h/2); ctx.moveTo(w/2,-h/2); ctx.lineTo(-w/2,h/2);
     ctx.strokeStyle=c; ctx.globalAlpha=.4; ctx.stroke(); ctx.globalAlpha=1;
   }},
+  // ---- bathroom ----
+  bath:{w:170,h:75,name:'Bath',draw(ctx,w,h,c){
+    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,10);
+    ctx.strokeStyle=c; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(-w/2+8,-h/2+8,w-16,h-16,h*.4);
+    ctx.fillStyle=c; ctx.globalAlpha=.18; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(-w/2+22,0,3.5,0,7); ctx.stroke(); // drain
+    ctx.beginPath(); ctx.moveTo(w/2-14,-h*.18); ctx.lineTo(w/2-14,h*.18); ctx.stroke(); // tap
+  }},
+  shower:{w:90,h:90,name:'Shower',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,4);
+    ctx.strokeStyle=c; ctx.globalAlpha=.55;
+    ctx.beginPath(); ctx.arc(0,0,5,0,7); ctx.stroke(); // drain
+    for(const d of [.3,.45]){ // spray rings
+      ctx.beginPath(); ctx.arc(0,0,w*d,0,7); ctx.setLineDash([3,6]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.globalAlpha=1;
+    ctx.lineWidth=2.5; // glass corner
+    ctx.beginPath(); ctx.moveTo(-w/2,h/2); ctx.lineTo(-w/2,-h/2); ctx.lineTo(w/2,-h/2); ctx.stroke();
+    ctx.lineWidth=2;
+  }},
+  toilet:{w:42,h:66,name:'Toilet',draw(ctx,w,h,c){
+    ctx.strokeStyle=c;
+    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h*.34,4); ctx.stroke(); // cistern
+    ctx.beginPath(); ctx.ellipse(0,h*.16,w*.42,h*.3,0,0,7);
+    ctx.fillStyle=c; ctx.globalAlpha=.18; ctx.fill(); ctx.globalAlpha=1; ctx.stroke(); // bowl
+  }},
+  sink:{w:55,h:42,name:'Sink',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,6);
+    ctx.strokeStyle=c;
+    ctx.beginPath(); ctx.ellipse(0,h*.06,w*.3,h*.26,0,0,7); ctx.stroke(); // basin
+    ctx.beginPath(); ctx.arc(0,-h*.3,2.5,0,7); ctx.stroke(); // tap
+  }},
+  bin:{w:32,h:32,name:'Bin',round:1,draw(ctx,w,h,c){
+    const r=Math.min(w,h)/2*.85;
+    ctx.beginPath(); ctx.arc(0,0,r,0,7);
+    ctx.fillStyle=c; ctx.globalAlpha=.18; ctx.fill(); ctx.globalAlpha=1;
+    ctx.strokeStyle=c; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,r*.55,0,7); ctx.globalAlpha=.55; ctx.stroke(); ctx.globalAlpha=1;
+  }},
   mirror:{w:90,h:12,name:'Mirror',draw(ctx,w,h,c){
     ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,3);
     ctx.fillStyle=c; ctx.globalAlpha=.32; ctx.fill(); ctx.globalAlpha=1;
@@ -908,9 +948,10 @@ const CATS = [
   ].map(k=>({cat:'prop', kind:k}))},
   {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','neon'].map(k=>({cat:'prop', kind:k}))},
   {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Bathroom', open:false, items:['bath','shower','toilet','sink','mirror'].map(k=>({cat:'prop', kind:k}))},
   {name:'Vehicles', open:false, items:['bicycle','motorcycle','car_small','car','car_suv','car_police','minivan','bus','train','tractor'].map(k=>({cat:'prop', kind:k}))},
   {name:'Outdoor', open:false, items:['road','crossing','bikelane','rails'].map(k=>({cat:'prop', kind:k}))},
-  {name:'Set dressing', open:false, items:['plant','tree','crate','mirror','books','newspaper','toys'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Set dressing', open:false, items:['plant','tree','crate','mirror','books','newspaper','toys','bin'].map(k=>({cat:'prop', kind:k}))},
   {name:'Tech', open:false, items:['laptop','computer','tablet'].map(k=>({cat:'prop', kind:k}))},
 ];
 
