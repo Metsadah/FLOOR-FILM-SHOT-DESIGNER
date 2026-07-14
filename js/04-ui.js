@@ -300,7 +300,7 @@ function refreshSelBar(){
       sbtn('+ Prep', ()=>addSchedBlock(o, 'prep'));
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
-      hint.textContent = 'Drag rows to reorder · click a time to pin it · click a name to rename';
+      hint.textContent = 'Drag rows to reorder · click a time to pin it · click a name or length to change it';
       selBar.appendChild(hint);
     }
     if(o.cat === 'avscript'){
@@ -715,7 +715,12 @@ function editorGetValue(o, field){
     const [,iid,key] = field.split(':');
     const it = (o.items||[]).find(x=>x.id===iid);
     if(!it) return '';
-    if(key === 'dur') return String(it.dur || 30);
+    if(key === 'dur'){
+      if(it.dur != null) return String(it.dur);
+      // scene rows prefill with the shot-designer duration
+      const s = it.type === 'scene' && project.scenes.find(x=>x.id === it.sceneId);
+      return String(it.type === 'scene' ? ((s && s.duration) || 60) : 30);
+    }
     return it[key] || '';
   }
   return o[field || 'text'] || '';
@@ -771,8 +776,10 @@ function editorSetValue(o, field, v){
     if(!it) return;
     const clean = v.replace(/\n/g,' ').trim();
     if(key === 'dur'){
-      // "45", "45m" or "1:30" all work
-      it.dur = clean.includes(':') ? (toMinutes(clean) || 30)
+      // "45", "45m" or "1:30" all work; EMPTY hands a scene back to its
+      // shot-designer duration
+      it.dur = !clean ? null
+             : clean.includes(':') ? (toMinutes(clean) || 30)
              : Math.max(5, parseInt(clean, 10) || 30);
     } else if(key === 'time'){
       it.time = clean; // empty = back to auto-chaining
@@ -911,7 +918,6 @@ function openSchedCell(o, itemId, key){
   const items = schedItems(o);
   const i = items.findIndex(x=>x.id === itemId);
   if(i < 0) return;
-  if(key === 'dur' && items[i].type === 'scene') return; // scene length lives on the scene
   const rowH = 24, grip = 14, pad = 10;
   const headH = 26 + pad + 26; // title + calls line
   const cy = -o.h/2 + headH + i*rowH;
@@ -1089,10 +1095,8 @@ function openNoteEditor(o, field, rect, fs){
       const [,iid,key] = fld.split(':');
       closeNoteEditor(true);
       render();
-      if(e.key === 'Tab'){ // time → label → (dur for blocks), then done
-        const it = (o.items||[]).find(x=>x.id===iid);
-        const next = key === 'time' ? 'label'
-                   : (key === 'label' && it && it.type !== 'scene') ? 'dur' : null;
+      if(e.key === 'Tab'){ // time → label → dur, then done
+        const next = key === 'time' ? 'label' : key === 'label' ? 'dur' : null;
         if(next) setTimeout(()=>openSchedCell(o, iid, next), 0);
       }
       return;

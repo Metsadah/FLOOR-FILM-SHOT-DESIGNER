@@ -274,6 +274,19 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## v0.29 — scene lengths editable in the schedule
+Scene rows now honour a per-schedule duration override: `computeSchedule`
+uses `it.dur != null ? it.dur : scene.duration` (the shot designer stays
+the default, the schedule can diverge). The dur cell is an edit zone for
+EVERY row type now (the `it.type !== 'scene'` guard on `_durRects` and
+the openSchedCell early-return are gone); Tab hops time→label→dur on
+scenes too. Editor prefills the EFFECTIVE value (scene duration when no
+override) and an EMPTY commit sets `it.dur = null` — back to the shot
+designer. Overridden scene durations render in the card color (same
+signal as pinned times); scene boards are never touched. Note: the sch:
+editor commits on the textarea's `input` event, not on close — headless
+tests must dispatch `new Event('input')` after setting `.value`.
+
 ## v0.28 — schedule & call sheet width
 Both cards auto-widen to their longest line (lines are built UNTRIMMED,
 measured with the per-kind font, then `o.w = clamp(max(needed, o.userW ||

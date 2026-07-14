@@ -196,7 +196,8 @@ function computeSchedule(o, day){
     const pin = toMinutes(it.time);
     let start = null, dur, label = it.label;
     if(it.type === 'scene'){
-      dur = (s && s.duration) || 60;
+      // scene length comes from the shot designer — unless overridden here
+      dur = it.dur != null ? it.dur : ((s && s.duration) || 60);
       if(!label) label = s ? ((s.scene ? s.scene + ' · ' : '') + (s.sceneDesc || s.name)) : '?';
       if(it.on !== false){
         t += s ? (s.travelMin || 0) + (s.setupMin || 0) : 0;
@@ -1462,16 +1463,16 @@ function drawObjectShape(o, ghost){
         ctx.fillText(trimText(ctx, r.label, dX - lX - 8), lX, cy);
       }
       o._labelRects.push({itemId:it.id, x:o.x + lX - 4, y:o.y + cy - 11, w:dX - lX, h:22});
-      // duration — editable for blocks, informative for scenes
+      // duration — always editable; scene overrides show in the card color
       if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='sch:'+it.id+':dur')){
         ctx.font = '10.5px -apple-system,Segoe UI,sans-serif';
-        ctx.fillStyle = on ? '#8A877F' : 'rgba(74,70,54,.25)';
+        const overridden = it.type === 'scene' && it.dur != null;
+        ctx.fillStyle = !on ? 'rgba(74,70,54,.25)' : (overridden ? shade(o.color,.75) : '#8A877F');
         ctx.textAlign = 'right';
         ctx.fillText(r.dur + 'm', o.w/2 - pad, cy);
         ctx.textAlign = 'left';
       }
-      if(it.type !== 'scene')
-        o._durRects.push({itemId:it.id, x:o.x + dX, y:o.y + cy - 11, w:52 - pad, h:22});
+      o._durRects.push({itemId:it.id, x:o.x + dX, y:o.y + cy - 11, w:52 - pad, h:22});
       y += rowH;
     });
     // wrap line
