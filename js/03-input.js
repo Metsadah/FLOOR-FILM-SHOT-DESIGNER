@@ -442,6 +442,8 @@ cv.addEventListener('pointerdown', e => {
       else if(h.id === 'tgrow') drag = {kind:'tgrow', o,
         left:o.x - o.w/2, top:o.y - o.h/2,
         avgW: Math.max(60, o.w / o.cells[0].length)};
+      else if(h.id === 'ksink' || h.id === 'khob')
+        drag = {kind:'kfix', o, key: h.id === 'ksink' ? 'sink' : 'hob'};
       else if(h.id.startsWith('beam')) drag = {kind:'beamfov', o};
       else if(h.id.startsWith('fov')) drag = {kind:'fov', o};
       else if(h.id === 'l1' || h.id === 'l2') drag = {kind:'lineEnd', o, end:h.id};
@@ -812,6 +814,15 @@ cv.addEventListener('pointermove', e => {
         const v = shot.objects.find(x=>x.id === o.mount.id);
         if(v && !v.locked){ v.x = o.x; v.y = o.y; }
       }
+      markDirty();
+      break;
+    }
+    case 'kfix': {
+      // slide the sink / hob along the counter (pointer → object-local → run fraction)
+      const o = drag.o;
+      const dx = wx - o.x, dy = wy - o.y;
+      const kc = Math.cos(-o.rot), ks = Math.sin(-o.rot);
+      o[drag.key] = kitchenParamFromLocal(o.kind, o.w, o.h, dx*kc - dy*ks, dx*ks + dy*kc);
       markDirty();
       break;
     }

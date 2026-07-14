@@ -65,12 +65,75 @@ function baseRect(ctx,w,h,c,r){
   ctx.fillStyle = c; ctx.globalAlpha = .28; ctx.fill(); ctx.globalAlpha = 1;
   ctx.strokeStyle = c; ctx.stroke();
 }
-function kitchenDraw(ctx,w,h,c){ // plain counter run — sink & hob are their own props now
+// ---- kitchen: ONE block, the sink & hob live INSIDE it (o.sink / o.hob are
+// 0..1 fractions along the counter run; null hides one; blue selection
+// handles slide them). The corner variant runs top edge then left edge.
+function kitchenBody(ctx,w,h,c){
   baseRect(ctx,w,h,c,4);
   ctx.strokeStyle=c; ctx.globalAlpha=.35;
   ctx.beginPath();
   for(let x=-w/2+60; x<w/2-12; x+=60){ ctx.moveTo(x,-h/2); ctx.lineTo(x,h/2); }
   ctx.stroke(); ctx.globalAlpha=1;
+}
+function kitchenCornerBody(ctx,w,h,c){
+  const d = Math.min(w, h) * .36; // counter depth
+  ctx.strokeStyle=c;
+  for(const [x,y,rw,rh] of [[-w/2,-h/2,w,d],[-w/2,-h/2,d,h]]){
+    ctx.beginPath(); ctx.roundRect(x, y, rw, rh, 4);
+    ctx.fillStyle=c; ctx.globalAlpha=.28; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+  }
+  ctx.globalAlpha=.35;
+  ctx.beginPath();
+  for(let x=-w/2+d; x<w/2-12; x+=60){ ctx.moveTo(x,-h/2); ctx.lineTo(x,-h/2+d); }
+  for(let y=-h/2+d; y<h/2-12; y+=60){ ctx.moveTo(-w/2,y); ctx.lineTo(-w/2+d,y); }
+  ctx.stroke(); ctx.globalAlpha=1;
+}
+function kitchenRunGeo(kind, w, h){
+  const d = kind === 'kitchen_corner' ? Math.min(w, h) * .36 : h;
+  return {d, L: w + (kind === 'kitchen_corner' ? h - d : 0)};
+}
+function kitchenPointAt(kind, w, h, t){
+  const {d, L} = kitchenRunGeo(kind, w, h);
+  const s = t * L;
+  if(kind !== 'kitchen_corner' || s <= w)
+    return {x: -w/2 + Math.min(s, w), y: -h/2 + d/2, vert:false, d};
+  return {x: -w/2 + d/2, y: -h/2 + d + (s - w), vert:true, d};
+}
+function kitchenParamFromLocal(kind, w, h, lx, ly){
+  const {d, L} = kitchenRunGeo(kind, w, h);
+  if(kind !== 'kitchen_corner') return clamp((lx + w/2) / w, .08, .92);
+  const dTop = Math.abs(ly - (-h/2 + d/2));
+  const dLeft = Math.abs(lx - (-w/2 + d/2));
+  const s = dTop <= dLeft
+    ? clamp(lx + w/2, d*.7, w - d*.5)                      // along the top run
+    : w + clamp(ly - (-h/2 + d), d*.3, h - d - d*.5);      // down the left run
+  return clamp(s / L, .02, .98);
+}
+function kitchenFixtures(ctx, kind, w, h, c, sink, hob){
+  const one = (t, isSink)=>{
+    if(t == null) return;
+    const p = kitchenPointAt(kind, w, h, t);
+    const d = p.d;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    if(p.vert) ctx.rotate(Math.PI/2);
+    ctx.strokeStyle = c;
+    if(isSink){
+      ctx.beginPath(); ctx.roundRect(-d*.3, -d*.26, d*.6, d*.52, 4); ctx.stroke();
+      ctx.fillStyle = c;
+      ctx.beginPath(); ctx.arc(0, -d*.37, 2.4, 0, 7); ctx.fill(); // tap
+      ctx.beginPath(); ctx.arc(0, 0, 1.8, 0, 7); ctx.fill();      // drain
+    } else {
+      ctx.globalAlpha=.75;
+      for(const [dx,dy] of [[-.5,-.5],[.5,-.5],[-.5,.5],[.5,.5]]){
+        ctx.beginPath(); ctx.arc(dx*d*.3, dy*d*.3, d*.16, 0, 7); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
+    ctx.restore();
+  };
+  one(sink, true);
+  one(hob, false);
 }
 function sofaDraw(ctx,w,h,c,seats){ // straight sofa, any seat count
   baseRect(ctx,w,h,c,12);
@@ -700,22 +763,16 @@ const PROPS = {
     ctx.fillStyle=c;
     ctx.beginPath(); ctx.arc(-w*.06,h*.3,2.5,0,7); ctx.arc(w*.06,h*.3,2.5,0,7); ctx.fill();
   }},
-  kitchen:{w:240,h:65,name:'Kitchen block',draw(ctx,w,h,c){ kitchenDraw(ctx,w,h,c); }},
-  kitchen_l:{w:340,h:65,name:'Kitchen block (long)',draw(ctx,w,h,c){ kitchenDraw(ctx,w,h,c); }},
-  kitchen_corner:{w:240,h:180,name:'Kitchen block (corner)',draw(ctx,w,h,c){
-    const d = Math.min(w, h) * .36; // counter depth
-    ctx.strokeStyle=c;
-    for(const [x,y,rw,rh] of [[-w/2,-h/2,w,d],[-w/2,-h/2,d,h]]){
-      ctx.beginPath(); ctx.roundRect(x, y, rw, rh, 4);
-      ctx.fillStyle=c; ctx.globalAlpha=.28; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
-    }
-    // cabinet splits on both runs
-    ctx.globalAlpha=.35;
-    ctx.beginPath();
-    for(let x=-w/2+d; x<w/2-12; x+=60){ ctx.moveTo(x,-h/2); ctx.lineTo(x,-h/2+d); }
-    for(let y=-h/2+d; y<h/2-12; y+=60){ ctx.moveTo(-w/2,y); ctx.lineTo(-w/2+d,y); }
-    ctx.stroke(); ctx.globalAlpha=1;
+  kitchen:{w:240,h:65,name:'Kitchen block',draw(ctx,w,h,c){
+    kitchenBody(ctx,w,h,c); kitchenFixtures(ctx,'kitchen',w,h,c,.22,.72);
   }},
+  kitchen_l:{w:340,h:65,name:'Kitchen block (long)',draw(ctx,w,h,c){
+    kitchenBody(ctx,w,h,c); kitchenFixtures(ctx,'kitchen_l',w,h,c,.22,.72);
+  }},
+  kitchen_corner:{w:240,h:180,name:'Kitchen block (corner)',draw(ctx,w,h,c){
+    kitchenCornerBody(ctx,w,h,c); kitchenFixtures(ctx,'kitchen_corner',w,h,c,.2,.78);
+  }},
+  // ksink / island stayed placeable in v0.34 boards — kept for those, not in the library
   ksink:{w:70,h:62,name:'Kitchen sink',draw(ctx,w,h,c){
     baseRect(ctx,w,h,c,4);
     ctx.strokeStyle=c;
@@ -1061,7 +1118,7 @@ const CATS = [
     'cstand','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','track','jib','technocrane','truss','monitor','camcart'
   ].map(k=>({cat:'prop', kind:k}))},
   {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','neon'].map(k=>({cat:'prop', kind:k}))},
-  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','tvunit','cabinet','bookcase','kitchen','island','ksink','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','tvunit','cabinet','bookcase','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
   {name:'Bathroom', open:false, items:['bath','shower','toilet','sink','mirror'].map(k=>({cat:'prop', kind:k}))},
   {name:'Vehicles', open:false, items:['bicycle','motorcycle','car_small','car','car_suv','car_police','minivan','bus','train','tractor'].map(k=>({cat:'prop', kind:k}))},
   {name:'Outdoor', open:false, items:['road','crossing','bikelane','rails'].map(k=>({cat:'prop', kind:k}))},

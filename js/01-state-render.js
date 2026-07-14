@@ -2185,6 +2185,13 @@ function drawObjectShape(o, ghost){
       }
       ctx.restore();
     }
+    if(['kitchen','kitchen_l','kitchen_corner'].includes(o.kind)){
+      // kitchens carry their own sink/hob positions (undefined = defaults, null = hidden)
+      (o.kind === 'kitchen_corner' ? kitchenCornerBody : kitchenBody)(ctx, o.w, o.h, o.color);
+      kitchenFixtures(ctx, o.kind, o.w, o.h, o.color,
+        o.sink === null ? null : (o.sink ?? .22),
+        o.hob === null ? null : (o.hob ?? .72));
+    } else
     (def ? PROPS.custom.draw : (PROPS[o.kind]||PROPS.custom).draw)(ctx, o.w, o.h, o.color, def);
   }
   ctx.restore();

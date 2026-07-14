@@ -257,6 +257,18 @@ function refreshSelBar(){
     if(o.cat === 'prop' && ['kitchen','kitchen_l','kitchen_corner'].includes(o.kind)){
       for(const [k, lab] of [['kitchen','Straight'],['kitchen_l','Long'],['kitchen_corner','Corner']])
         sbtn((o.kind === k ? '✓ ' : '') + lab, ()=>swapPropKind(o, k));
+      sbtn((o.sink !== null ? '✓ ' : '') + 'Sink', ()=>{
+        o.sink = o.sink === null ? .22 : null;
+        markDirty(); render(); refreshSelBar();
+      });
+      sbtn((o.hob !== null ? '✓ ' : '') + 'Hob', ()=>{
+        o.hob = o.hob === null ? .72 : null;
+        markDirty(); render(); refreshSelBar();
+      });
+      const kh = document.createElement('span');
+      kh.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      kh.textContent = 'Drag the blue handles to slide the sink & hob along the counter';
+      selBar.appendChild(kh);
     }
     if(o.cat === 'actor' && o.mount && (o.mount.type === 'seat' || o.mount.type === 'bed')){
       sbtn(o.mount.type === 'bed' ? 'Out of the bed' : 'Out of the chair', ()=>{

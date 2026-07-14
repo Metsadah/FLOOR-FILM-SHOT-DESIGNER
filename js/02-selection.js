@@ -58,6 +58,16 @@ function handleList(){
         hs.push({id:'fov'+(sgn<0?'A':'B'), x:o.x+Math.cos(a)*o.range, y:o.y+Math.sin(a)*o.range});
       }
     }
+    // kitchens: blue handles on the sink & hob — drag to slide them along the counter
+    if(o.cat === 'prop' && ['kitchen','kitchen_l','kitchen_corner'].includes(o.kind)){
+      const kc = Math.cos(o.rot), ks = Math.sin(o.rot);
+      for(const [key, id, defT] of [['sink','ksink',.22],['hob','khob',.72]]){
+        const t = o[key] === null ? null : (o[key] ?? defT);
+        if(t == null) continue;
+        const p = kitchenPointAt(o.kind, o.w, o.h, t);
+        hs.push({id, x:o.x + p.x*kc - p.y*ks, y:o.y + p.x*ks + p.y*kc});
+      }
+    }
     // directional lights: amber handles on the beam edges (drag = spread + throw)
     if(o.cat === 'prop' && LIGHT_BEAMS[o.kind] && !LIGHT_BEAMS[o.kind].omni && o.beam !== false){
       const b = LIGHT_BEAMS[o.kind];
@@ -108,6 +118,7 @@ function handleColor(id){
   if(id.startsWith('beam')) return '#E2A93B';
   if(id === 'rotate' || id.startsWith('pr') || id === 'sunH' || id === 'sunN') return '#E2A93B';
   if(id.startsWith('fov') || id.startsWith('pf') || id === 'jibHead' || id.startsWith('ch')) return '#8B5CF6';
+  if(id === 'ksink' || id === 'khob') return '#4CA6E8';
   return '#4B6BFB';
 }
 function drawSelection(shot){

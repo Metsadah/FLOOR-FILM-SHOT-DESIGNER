@@ -303,6 +303,23 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.37 — sink & hob live inside the kitchen block
+v0.34's separate ksink/island props reverted per user: ONE kitchen block
+with `o.sink` / `o.hob` = 0..1 fractions along the counter run (undefined
+= defaults .22/.72, null = hidden via selBar ✓Sink/✓Hob toggles). Blue
+selection handles ('ksink'/'khob' → drag kind 'kfix') slide the fixtures;
+`kitchenPointAt` / `kitchenParamFromLocal` (00) own the run geometry —
+the corner variant's path runs top edge then left edge, glyphs rotate 90°
+on the vertical run. Because PROPS draw() doesn't receive the object,
+drawObjectShape special-cases the three kitchen kinds; PROPS entries keep
+default-fixture draws for library tiles. ksink/island stay in PROPS
+(v0.34 boards) but are OUT of the library list.
+TESTING NOTE: the Browser pane screenshots at 800×1255 while the CSS
+viewport is 774×1215 — scale computer{} coordinates by innerW/screenshotW
+or canvas clicks land ~3% off (enough to miss a selection handle). And
+synthetic PointerEvents die at cv.setPointerCapture (inactive pointer id)
+— real pane drags are the only honest input test.
+
 ## v0.36 — Scene info rename + Recce & mood retired
 "Shot info" → "Scene info" everywhere (right panel tab, card title
 'SCENE INFO', library tile, panelToggle title, placeholder, help text).
