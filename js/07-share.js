@@ -235,13 +235,17 @@ function wrapStorageForShared(){
     return null;
   };
   const sb = ()=>shareClient();
+  window.FLOOR_STAMPS = window.FLOOR_STAMPS || {};
   window.storage = {
     async get(k){
       const pid = sharedPid(k);
       if(pid){
-        const {data} = await sb().from('production_docs').select('value')
+        const {data} = await sb().from('production_docs').select('value, updated_at')
           .eq('production_id', pid).eq('key', k).maybeSingle();
-        if(data) return {key:k, value:data.value};
+        if(data){
+          if(/^sd:project:/.test(k)) window.FLOOR_STAMPS[k] = data.updated_at;
+          return {key:k, value:data.value};
+        }
         if(/^sd:(img|file):/.test(k)) return base.get(k); // owner's pre-share assets
         return null;
       }
@@ -250,12 +254,25 @@ function wrapStorageForShared(){
     async set(k, v){
       const pid = sharedPid(k);
       if(pid){
+        // freshness check: refuse to silently clobber a co-editor's newer save
+        if(/^sd:project:/.test(k) && window.FLOOR_STAMPS[k]){
+          const {data:cur} = await sb().from('production_docs').select('updated_at')
+            .eq('production_id', pid).eq('key', k).maybeSingle();
+          if(cur && cur.updated_at !== window.FLOOR_STAMPS[k]){
+            const err = new Error('A co-editor saved a newer version');
+            err.floorConflict = true;
+            throw err;
+          }
+        }
+        const stamp = new Date().toISOString();
         const {error} = await sb().from('production_docs')
-          .upsert({production_id:pid, key:k, value:v, updated_at:new Date().toISOString()});
+          .upsert({production_id:pid, key:k, value:v, updated_at:stamp});
         if(error) throw error;
-        if(/^sd:project:/.test(k))
-          await sb().from('productions').update({updated_at:new Date().toISOString(),
+        if(/^sd:project:/.test(k)){
+          window.FLOOR_STAMPS[k] = stamp;
+          await sb().from('productions').update({updated_at:stamp,
             name:(project && project.shootName) || ''}).eq('id', pid);
+        }
         return {key:k, value:v};
       }
       return base.set(k, v);
@@ -267,6 +284,62 @@ function wrapStorageForShared(){
     },
     async list(prefix){ return base.list(prefix); },
   };
+}
+// ---------------------------------------------------------------- staying in sync
+// Every couple of minutes (and whenever the app returns to the foreground)
+// the cloud copy's stamp is compared with ours. Someone else saved?
+// No local edits → adopt theirs quietly. Local unsaved edits → the conflict
+// banner lets the user pick a side instead of the old silent last-save-wins.
+async function cloudDocStamp(){
+  const sbc = window.FLOOR_SB;
+  if(!sbc || !currentProjectId) return null;
+  const k = 'sd:project:' + currentProjectId;
+  if(window.FLOOR_SHARED && FLOOR_SHARED.has(currentProjectId)){
+    const {data} = await sbc.from('production_docs').select('updated_at')
+      .eq('production_id', currentProjectId).eq('key', k).maybeSingle();
+    return data && data.updated_at;
+  }
+  const {data} = await sbc.from('kv').select('updated_at').eq('key', k).maybeSingle();
+  return data && data.updated_at;
+}
+async function cloudRefreshTick(force){
+  try{
+    if(!window.FLOOR_SB || !currentProjectId || !project) return;
+    if(document.hidden && !force) return;
+    const k = 'sd:project:' + currentProjectId;
+    const remote = await cloudDocStamp();
+    if(!remote || remote === (window.FLOOR_STAMPS || {})[k]) return;
+    if(dirty || saveInFlight){
+      if(typeof saveBanner === 'function') saveBanner('conflict');
+      return;
+    }
+    await pullRemoteProject(true);
+  }catch(e){ console.warn('cloud refresh failed', e); }
+}
+async function pullRemoteProject(auto){
+  const res = await window.storage.get('sd:project:' + currentProjectId); // re-records the stamp
+  if(!res || !res.value) return;
+  project = JSON.parse(res.value);
+  normalizeLoadedProject();
+  dirty = false;
+  undoStack.length = 0; redoStack.length = 0; // undo must not resurrect a co-editor's past
+  if(typeof updateHistBtns === 'function') updateHistBtns();
+  sel = null; drag = null; hoverWall = null;
+  closeNoteEditor(false);
+  buildShotList(); buildLibrary(); syncTitle(); buildStills(); buildInfo();
+  refreshSelBar(); syncSunBtn();
+  if(typeof saveBanner === 'function') saveBanner(null);
+  histSettle();
+  await ensureShotImages(activeShot(), false);
+  render();
+  toast(auto ? 'Updated to the latest saved version' : 'Loaded the latest saved version');
+}
+function forceOverwriteSave(){
+  // user chose "keep mine": skip the freshness check for exactly one save
+  (window.FLOOR_STAMPS = window.FLOOR_STAMPS || {})['sd:project:' + currentProjectId] = null;
+  if(typeof saveBanner === 'function') saveBanner(null);
+  dirty = true;
+  saveProject();
 }
 async function convertToShared(){
   const sb = shareClient();

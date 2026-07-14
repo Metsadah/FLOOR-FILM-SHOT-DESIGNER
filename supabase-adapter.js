@@ -98,20 +98,36 @@
   window.FLOOR_READY = ready; // co-editing (07-share.js) awaits login before fetching memberships
 
   // ---- storage API (same shape the app expects) ---------------------
+  // freshness stamps: the updated_at we last read/wrote per project doc.
+  // Saving checks the cloud stamp first — a mismatch means ANOTHER session
+  // (second device / co-editor) saved in between, and silently overwriting
+  // it is how work disappears. The save path turns that into a choice.
+  window.FLOOR_STAMPS = window.FLOOR_STAMPS || {};
   window.FLOOR_STORAGE = {
     async get(key){
       await ready;
-      const {data, error} = await sb.from('kv').select('value').eq('key', key).maybeSingle();
+      const {data, error} = await sb.from('kv').select('value, updated_at').eq('key', key).maybeSingle();
       if(error) throw error;
+      if(data && /^sd:project:/.test(key)) window.FLOOR_STAMPS[key] = data.updated_at;
       return data ? {key, value:data.value} : null;
     },
     async set(key, value){
       await ready;
       const {data:{user}} = await sb.auth.getUser();
+      if(/^sd:project:/.test(key) && window.FLOOR_STAMPS[key]){
+        const {data:cur} = await sb.from('kv').select('updated_at').eq('key', key).maybeSingle();
+        if(cur && cur.updated_at !== window.FLOOR_STAMPS[key]){
+          const err = new Error('A newer version of this production exists in the cloud');
+          err.floorConflict = true;
+          throw err;
+        }
+      }
+      const stamp = new Date().toISOString();
       const {error} = await sb.from('kv')
-        .upsert({user_id:user.id, key, value, updated_at:new Date().toISOString()},
+        .upsert({user_id:user.id, key, value, updated_at:stamp},
                 {onConflict:'user_id,key'});
       if(error) throw error;
+      if(/^sd:project:/.test(key)) window.FLOOR_STAMPS[key] = stamp;
       return {key, value};
     },
     async delete(key){

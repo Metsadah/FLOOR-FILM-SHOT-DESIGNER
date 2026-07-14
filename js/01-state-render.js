@@ -334,6 +334,11 @@ async function loadProject(){
     const res = await window.storage.get('sd:project:' + currentProjectId).catch(()=>null);
     if(res && res.value){ project = JSON.parse(res.value); }
   }catch(e){ /* first run */ }
+  normalizeLoadedProject();
+}
+// every freshly parsed project doc goes through here — first load AND the
+// co-editing refresh pull (07-share.js) share one migration path
+function normalizeLoadedProject(){
   if(!project || !project.scenes || !project.scenes.length){
     project = {v:4, scenes:[newShot(1)], activeSceneId:null, customProps:[], shootName:''};
     project.activeSceneId = project.scenes[0].id;
@@ -360,17 +365,40 @@ async function loadProject(){
   project.scenes.forEach(migrateShot);
   if(!project.scenes.find(s=>s.id===project.activeSceneId)) project.activeSceneId = project.scenes[0].id;
 }
+let saveGen = 0, saveInFlight = false, saveRetryDelay = 0;
+function saveStateMark(ok){
+  const el = document.getElementById('saveState');
+  if(!el) return;
+  if(ok === true){
+    el.textContent = '✓ Saved ' + new Date().toTimeString().slice(0, 5);
+    el.style.color = '';
+  } else if(ok === false){
+    el.textContent = '⚠ Not saved';
+    el.style.color = '#D14B3A';
+  } else {
+    el.textContent = 'Saving…';
+    el.style.color = '';
+  }
+}
 function markDirty(){
   dirty = true;
-  document.getElementById('saveState').textContent = 'Saving…';
+  saveGen++; // edits made during an in-flight save must not be marked clean
+  saveStateMark(null);
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveProject, 700);
 }
 async function saveProject(){
-  if(!dirty) return;
-  dirty = false;
+  if(!dirty || saveInFlight) return;
+  saveInFlight = true;
+  const gen = saveGen;
   try{
     await window.storage.set('sd:project:' + currentProjectId, JSON.stringify(project));
+    // dirty clears ONLY after the write really landed — a failed save used
+    // to mark itself clean, which silenced every safety net (v0.33 fix)
+    if(gen === saveGen) dirty = false;
+    saveRetryDelay = 0;
+    saveStateMark(true);
+    if(typeof saveBanner === 'function') saveBanner(null);
     // keep the production list in sync (name + freshness)
     try{
       const idx = (await loadProjectIndex()) || [];
@@ -380,10 +408,24 @@ async function saveProject(){
       else idx.push({id:currentProjectId, name:nm, updated:Date.now()});
       await saveProjectIndex(idx);
     }catch(e){}
-    document.getElementById('saveState').textContent = 'Saved';
+    if(gen !== saveGen){ // edited while saving — go again shortly
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveProject, 400);
+    }
   }catch(e){
-    document.getElementById('saveState').textContent = 'Save failed';
     console.error('save error', e);
+    saveStateMark(false);
+    if(e && e.floorConflict){
+      // someone else saved a newer version — the user picks a side
+      if(typeof saveBanner === 'function') saveBanner('conflict');
+    } else {
+      if(typeof saveBanner === 'function') saveBanner('savefail');
+      saveRetryDelay = saveRetryDelay ? Math.min(saveRetryDelay * 2, 30000) : 4000;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveProject, saveRetryDelay);
+    }
+  } finally {
+    saveInFlight = false;
   }
 }
 async function loadStill(id){

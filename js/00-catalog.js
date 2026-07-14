@@ -65,6 +65,21 @@ function baseRect(ctx,w,h,c,r){
   ctx.fillStyle = c; ctx.globalAlpha = .28; ctx.fill(); ctx.globalAlpha = 1;
   ctx.strokeStyle = c; ctx.stroke();
 }
+function sofaDraw(ctx,w,h,c,seats){ // straight sofa, any seat count
+  baseRect(ctx,w,h,c,12);
+  ctx.fillStyle=c; ctx.globalAlpha=.5;
+  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h*.28,10); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w*.1,h,10); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(w/2-w*.1,-h/2,w*.1,h,10); ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.strokeStyle=c; ctx.globalAlpha=.4;
+  const a = w*.1, seatW = (w - a*2) / seats;
+  for(let i=1;i<seats;i++){
+    const x = -w/2 + a + seatW*i;
+    ctx.beginPath(); ctx.moveTo(x,-h*.2); ctx.lineTo(x,h/2-4); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
 function lampDraw(ctx,w,h,c){ // shared practical-light glyph
   const r = Math.min(w,h)/2;
   ctx.beginPath(); ctx.arc(0,0,r*.62,0,7);
@@ -95,14 +110,30 @@ const PROPS = {
     baseRect(ctx,w,h,c,7);
     ctx.beginPath(); ctx.moveTo(-w/2+8,0); ctx.lineTo(w/2-8,0); ctx.strokeStyle=c; ctx.globalAlpha=.4; ctx.stroke(); ctx.globalAlpha=1;
   }},
-  sofa:{w:220,h:90,name:'Sofa',draw(ctx,w,h,c){
-    baseRect(ctx,w,h,c,12);
-    ctx.fillStyle=c; ctx.globalAlpha=.5;
-    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h*.28,10); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w*.1,h,10); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(w/2-w*.1,-h/2,w*.1,h,10); ctx.fill();
-    ctx.globalAlpha=1;
-    ctx.beginPath(); ctx.moveTo(0,-h*.2); ctx.lineTo(0,h/2-4); ctx.strokeStyle=c; ctx.globalAlpha=.4; ctx.stroke(); ctx.globalAlpha=1;
+  sofa:{w:220,h:90,name:'Sofa',draw(ctx,w,h,c){ sofaDraw(ctx,w,h,c,2); }},
+  sofa_3:{w:280,h:90,name:'3-seat sofa',draw(ctx,w,h,c){ sofaDraw(ctx,w,h,c,3); }},
+  sofa_4:{w:350,h:90,name:'4-seat sofa',draw(ctx,w,h,c){ sofaDraw(ctx,w,h,c,4); }},
+  sofa_corner:{w:280,h:200,name:'Corner sofa',draw(ctx,w,h,c){
+    const d = Math.min(w, h) * .44;
+    // the L: a run along the top + a run down the left, back on the outer edges
+    ctx.strokeStyle = c;
+    for(const [x,y,rw,rh] of [[-w/2,-h/2,w,d],[-w/2,-h/2,d,h]]){
+      ctx.beginPath(); ctx.roundRect(x, y, rw, rh, 10);
+      ctx.fillStyle = c; ctx.globalAlpha = .14; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+    }
+    ctx.fillStyle = c; ctx.globalAlpha = .5;
+    ctx.beginPath(); ctx.roundRect(-w/2, -h/2, w, d*.3, 8); ctx.fill();      // back, top run
+    ctx.beginPath(); ctx.roundRect(-w/2, -h/2, d*.3, h, 8); ctx.fill();      // back, left run
+    ctx.beginPath(); ctx.roundRect(w/2 - w*.06, -h/2, w*.06, d, 8); ctx.fill();   // arm right
+    ctx.beginPath(); ctx.roundRect(-w/2, h/2 - h*.07, d, h*.07, 8); ctx.fill();   // arm bottom
+    ctx.globalAlpha = 1;
+    // cushion splits
+    ctx.strokeStyle = c; ctx.globalAlpha = .4;
+    ctx.beginPath();
+    ctx.moveTo(-w/2 + d, -h/2 + d*.3); ctx.lineTo(-w/2 + d, -h/2 + d - 3);   // corner seam
+    ctx.moveTo(-w/2 + (w - d)*.5 + d, -h/2 + d*.25); ctx.lineTo(-w/2 + (w - d)*.5 + d, -h/2 + d - 3);
+    ctx.moveTo(-w/2 + d*.3, 0); ctx.lineTo(-w/2 + d - 3, 0);                 // chaise seam
+    ctx.stroke(); ctx.globalAlpha = 1;
   }},
   bed:{w:160,h:200,name:'Bed',draw(ctx,w,h,c){
     baseRect(ctx,w,h,c,8);

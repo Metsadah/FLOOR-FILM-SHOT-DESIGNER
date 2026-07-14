@@ -866,6 +866,59 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
   zoomFit();
   updateZoomPct();
   histSettle(); // baseline for undo
-  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveProject(); });
-  window.addEventListener('beforeunload', ()=>{ if(dirty){ try{ saveProject(); }catch(_){} } });
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) saveProject();
+    else if(typeof cloudRefreshTick === 'function') cloudRefreshTick(true); // back in front → pull the latest
+  });
+  window.addEventListener('beforeunload', e=>{
+    if(dirty){
+      try{ saveProject(); }catch(_){}
+      e.preventDefault();
+      e.returnValue = ''; // "leave site?" — unsaved work exists, make closing deliberate
+    }
+  });
+  // co-editing safety net: check the cloud copy every 2 minutes
+  setInterval(()=>{ if(typeof cloudRefreshTick === 'function') cloudRefreshTick(); }, 120000);
 })();
+
+// ---------------------------------------------------------------- save banner
+// LOUD failure states — the tiny saveState chip was too easy to miss while
+// hours of work quietly stayed local. Two modes:
+//   'savefail'  red: the write failed, auto-retry is running
+//   'conflict'  amber: someone else saved a newer version, user picks a side
+function saveBanner(mode){
+  let el = document.getElementById('saveBanner');
+  if(!mode){ if(el) el.remove(); return; }
+  if(el && el.dataset.mode === mode) return; // already showing this state
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'saveBanner';
+    document.body.appendChild(el);
+  }
+  el.dataset.mode = mode;
+  el.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:400;' +
+    'display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;' +
+    'max-width:min(92vw,660px);padding:10px 16px;border-radius:11px;color:#fff;' +
+    'font:600 12.5px -apple-system,Segoe UI,sans-serif;box-shadow:0 10px 34px rgba(0,0,0,.28);';
+  el.innerHTML = '';
+  const btn = (label, fn)=>{
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = 'border:none;border-radius:7px;padding:6px 11px;cursor:pointer;' +
+      'font:600 12px -apple-system,Segoe UI,sans-serif;background:rgba(255,255,255,.94);color:#33322E;';
+    b.addEventListener('click', fn);
+    el.appendChild(b);
+  };
+  if(mode === 'savefail'){
+    el.style.background = '#D14B3A';
+    el.appendChild(document.createTextNode(
+      '⚠ Saving failed — your latest changes are NOT in the cloud yet. Retrying automatically…'));
+    btn('Retry now', ()=>{ saveBanner(null); dirty = true; saveProject(); });
+  } else if(mode === 'conflict'){
+    el.style.background = '#C7810A';
+    el.appendChild(document.createTextNode(
+      'Someone saved a newer version of this production.'));
+    btn('Load newest (drops my unsaved edits)', ()=>{ saveBanner(null); pullRemoteProject(); });
+    btn('Keep mine (overwrites theirs)', ()=>forceOverwriteSave());
+  }
+}

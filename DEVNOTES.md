@@ -274,13 +274,63 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## v0.32 — call sheet props, scene reorder, script on the info card
+1. Call sheet PROPS section (inc.props, toggle in the selBar, default on):
+   mirrors the Prop list card on the prodboard (falls back to pure
+   detection via `propListGroups({props:{},hide:{},done:{}})` when no card
+   is placed). Card renderer + callSheetText both emit it; the PDF renders
+   the card so it rides along free. Sections follow project.scenes order.
+2. Scene reorder in the Shot designer drawer: the row NUMBER is the grip
+   (pointer events + setPointerCapture, touch-action:none for iPad).
+   Midpoint rule gives the insertion index, blue border-top marks the
+   slot, splice on release (`fin = to > i ? to-1 : to`). Scene numbers
+   (s.scene) intentionally do NOT renumber — shooting order ≠ script
+   order. The reorder flows into schedule/props/callsheet automatically.
+3. Shot info card shows the scene's SCRIPT (the panel's iScript box),
+   wrapped, clipped to card height with an "… (pull the card taller)"
+   tail — the card still has free resize handles.
+LOCAL-TEST SCAR TISSUE: index.html scripts are `src="./js/…"` — a
+cache-bust regex matching only `src="js/` silently no-ops, AND the real
+service worker may already control localhost from an earlier run, serving
+STALE js from CacheStorage. Symptoms: fn.toString() shows old code while
+curl shows new. Fix: regex `src="(\.?/?)js/`, replace /serviceWorker/g,
+and when in doubt unregister SWs + caches.delete(...) in the page console
+before trusting any test result.
+
 ## v0.31 — TV + TV cabinet props
 `tv` (Tech group, slim top-down slab + center foot, 110×18) and `tvunit`
 (Furniture, split doors + handles + open media shelf, 160×45). Note: 'TV'
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
-## KNOWN DATA-LOSS RISK (diagnosed 2026-07-14, not yet fixed)
+## v0.33 — save reliability + co-editing sync (fixes the data-loss risk below)
+Confirmed cause of the user's lost scene: a co-editor had the production
+open for hours and their save clobbered everything (last-writer-wins).
+Four-part fix:
+1. saveProject (01): `dirty=false` only AFTER the write lands. `saveGen`
+   counter catches edits made during an in-flight save. Failure → dirty
+   stays true, exponential retry 4s→30s, `saveStateMark` turns the chip
+   into '✓ Saved HH:MM' / red '⚠ Not saved'. beforeunload now blocks with
+   the leave-site dialog while dirty.
+2. `saveBanner(mode)` (05): 'savefail' red banner with Retry; 'conflict'
+   amber banner with [Load newest] / [Keep mine → forceOverwriteSave].
+3. Freshness stamps: `window.FLOOR_STAMPS[key]` = updated_at last
+   read/written, recorded by BOTH storage layers (kv adapter + the
+   production_docs wrapper in 07). Every project save first compares the
+   cloud stamp — mismatch throws `err.floorConflict` → conflict banner
+   instead of a silent clobber. forceOverwriteSave nulls the stamp for
+   exactly one save. Covers co-editors AND the same account on two
+   devices.
+4. `cloudRefreshTick` (07): every 2 min + on visibilitychange-to-front,
+   compares the cloud stamp; newer + no local edits → `pullRemoteProject`
+   adopts it in place (shared migration path `normalizeLoadedProject`,
+   extracted from loadProject; clears undo stacks so Cmd+Z can't
+   resurrect a co-editor's past). Newer + local edits → conflict banner.
+Note: the zip now includes supabase-adapter.js + styles.css (earlier
+rebuilds this month shipped without them — repair if a deploy from those
+zips looks unstyled/local-only).
+
+## KNOWN DATA-LOSS RISK (diagnosed 2026-07-14 — FIXED in v0.33, kept for history)
 A user lost a session of work (duplicated scene, renamed, new walls/shots/
 stills) — app came back with the state from right after the duplicate.
 Root causes found in review, both still open:
