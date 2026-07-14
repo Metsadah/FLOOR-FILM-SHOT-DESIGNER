@@ -30,7 +30,7 @@ function handleList(){
       return hs;
     }
     if(['ink','listcard','fieldcard','dayheader','avscript'].includes(o.cat)) return hs; // self-sizing — no resize/rotate
-    if(o.cat === 'callsheet' || o.cat === 'schedule'){
+    if(o.cat === 'callsheet' || o.cat === 'schedule' || o.cat === 'proplist'){
       // width-only handle: give the cells more room (height stays automatic)
       hs.push({id:'cardW', x:o.x + o.w/2 + 10/s, y:o.y});
       return hs;

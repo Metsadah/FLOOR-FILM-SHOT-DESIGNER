@@ -217,6 +217,73 @@ function computeSchedule(o, day){
   return {rows, wrap: minToHHMM(t)};
 }
 
+// ---------------------------------------------------------------- prop list model
+// The prop list card watches every scene: props PLACED on its board and prop
+// names MENTIONED in its script text (the breakdown fills sc.script) appear by
+// themselves; manual rows live on the card per scene. o.hide dismisses an auto
+// row, o.done ticks one off — both keyed 'sceneId|name' so they survive
+// re-detection. Manual rows carry their own done flag.
+const PROPLIST_SKIP = new Set(['road','crossing','bikelane','rails']); // infrastructure, not gatherable
+function propDisplayName(ob){
+  if(PROPS[ob.kind] && PROPS[ob.kind].name) return PROPS[ob.kind].name;
+  if(ob.kind && ob.kind.startsWith('custom_')){
+    const def = (project.customProps||[]).find(p=>'custom_'+p.id === ob.kind);
+    if(def && def.name) return def.name;
+  }
+  return ob.label || null;
+}
+function scenePropMentions(s){
+  const txt = s.script || '';
+  if(s._pmSrc === txt) return s._pmCache || []; // memo — the scan is per-keystroke otherwise
+  const found = [], lo = txt.toLowerCase();
+  if(lo){
+    for(const k in PROPS){
+      const nm = PROPS[k].name;
+      if(!nm || nm.length < 3 || PROPLIST_SKIP.has(k)) continue;
+      if(new RegExp('\\b' + nm.toLowerCase() + 's?\\b').test(lo)) found.push(nm);
+    }
+  }
+  s._pmSrc = txt; s._pmCache = found;
+  return found;
+}
+function propListGroups(o){
+  if(!o.props) o.props = {}; // {sceneId: [{id, name, done}]} — manual rows
+  if(!o.hide) o.hide = {};
+  if(!o.done) o.done = {};
+  const groups = [];
+  for(const s of project.scenes){
+    const rows = [], seen = new Set();
+    // 1 · props placed on the scene board (with counts)
+    const counts = {};
+    for(const ob of s.objects || []){
+      if(ob.cat !== 'prop' || PROPLIST_SKIP.has(ob.kind)) continue;
+      const nm = propDisplayName(ob);
+      if(nm) counts[nm] = (counts[nm] || 0) + 1;
+    }
+    for(const nm in counts){
+      const key = s.id + '|' + nm.toLowerCase();
+      seen.add(nm.toLowerCase());
+      if(!o.hide[key]) rows.push({key, sceneId:s.id, name:nm, count:counts[nm], auto:true, done:!!o.done[key]});
+    }
+    // 2 · prop names the script mentions (word-boundary, singular/plural)
+    for(const nm of scenePropMentions(s)){
+      const lo = nm.toLowerCase(), key = s.id + '|' + lo;
+      if(seen.has(lo)) continue;
+      seen.add(lo);
+      if(!o.hide[key]) rows.push({key, sceneId:s.id, name:nm, count:0, auto:true, script:true, done:!!o.done[key]});
+    }
+    // 3 · manual rows (closeNoteEditor prunes the ones left nameless)
+    for(const r of o.props[s.id] || [])
+      rows.push({key:r.id, sceneId:s.id, rowId:r.id, name:r.name, count:0, auto:false, done:!!r.done});
+    groups.push({s, rows});
+  }
+  return groups;
+}
+function plSceneHead(s){
+  return ('SC ' + (s.scene || (s.name || '?').replace(/^Scene\s*/i,'')) +
+    (s.sceneDesc ? ' · ' + s.sceneDesc : '')).toUpperCase();
+}
+
 let activeTab = 'design'; // design | mood | script | story | org
 const BOARD_TABS = new Set(['mood','org','write']);
 function activeScene(){
@@ -1501,12 +1568,119 @@ function drawObjectShape(o, ghost){
       ctx.textAlign = 'left';
     }
     ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'proplist'){
+    // the prop master's list — auto-filled per scene (board objects + script
+    // mentions), tick boxes, dismissable auto rows, free manual rows.
+    const titleH = 26, rowH = 21, headH = 22, addH = 17, pad = 10;
+    const groups = propListGroups(o);
+    const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
+    // width: longest scene header / prop name sets it; the right-edge handle widens
+    let labMax = 120;
+    ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
+    for(const g of groups) labMax = Math.max(labMax, ctx.measureText(plSceneHead(g.s)).width - 22);
+    ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
+    for(const g of groups) for(const r of g.rows)
+      labMax = Math.max(labMax, ctx.measureText(r.name + (r.count > 1 ? '  ×' + r.count : '')).width);
+    o.w = clamp(Math.max(pad*2 + 22 + labMax + 14, o.userW || 280), 280, 900);
+    let need = titleH + 8;
+    for(const g of groups) need += headH + g.rows.length*rowH + addH;
+    o.h = need + pad - 2;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.clip();
+    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillRect(-o.w/2, -o.h/2, o.w, titleH);
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#33322E';
+    ctx.fillText('PROP LIST', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+    const total = groups.reduce((n,g)=>n + g.rows.length, 0);
+    const got = groups.reduce((n,g)=>n + g.rows.filter(r=>r.done).length, 0);
+    ctx.textAlign = 'right';
+    ctx.font = '600 10.5px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#8A877F';
+    ctx.fillText(total ? got + ' / ' + total : '', o.w/2 - 8, -o.h/2 + titleH/2 + .5);
+    ctx.textAlign = 'left';
+    o._plChecks = []; o._plNames = []; o._plAdds = []; o._plDels = [];
+    const cbX = -o.w/2 + pad, nX = cbX + 22;
+    let y = -o.h/2 + titleH + 8;
+    for(const g of groups){
+      // scene header
+      ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#8A877F';
+      ctx.fillText(trimText(ctx, plSceneHead(g.s), o.w - pad*2), cbX, y + headH/2 + 2);
+      y += headH;
+      for(const r of g.rows){
+        const cy = y + rowH/2;
+        // tick box
+        ctx.strokeStyle = r.done ? o.color : '#B9B6AE'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(cbX, cy - 7, 14, 14, 2);
+        if(r.done){
+          ctx.fillStyle = o.color; ctx.fill();
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(cbX + 3.4, cy); ctx.lineTo(cbX + 6.2, cy + 3.2); ctx.lineTo(cbX + 10.8, cy - 3.4);
+          ctx.stroke();
+        } else ctx.stroke();
+        o._plChecks.push({key:r.key, sceneId:r.sceneId, rowId:r.rowId || null,
+          x:o.x + cbX - 4, y:o.y + cy - 11, w:22, h:22});
+        // name — script mentions in italic, ticked rows struck through
+        if(!(noteEditor && noteEditor.id===o.id && r.rowId && noteEditor.field==='pl:'+r.sceneId+':'+r.rowId)){
+          ctx.font = (r.script ? 'italic ' : '') + '11.5px -apple-system,Segoe UI,sans-serif';
+          ctx.fillStyle = r.done ? 'rgba(74,70,54,.4)' : '#4A4636';
+          const txt = r.name + (r.count > 1 ? '  ×' + r.count : '');
+          ctx.fillText(trimText(ctx, txt, o.w/2 - pad - nX), nX, cy);
+          if(r.done){
+            const tw = Math.min(ctx.measureText(txt).width, o.w/2 - pad - nX);
+            ctx.strokeStyle = 'rgba(74,70,54,.4)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(nX, cy); ctx.lineTo(nX + tw, cy); ctx.stroke();
+          }
+        }
+        o._plNames.push({key:r.key, sceneId:r.sceneId, rowId:r.rowId || null,
+          x:o.x + nX - 4, y:o.y + cy - 10, w:o.w/2 - pad - nX + 8, h:20,
+          lx:nX, ly:cy - 9, lw:o.w/2 - pad - nX});
+        y += rowH;
+      }
+      // + prop
+      ctx.font = '600 10.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = shade(o.color, .75);
+      ctx.fillText('+ prop', nX, y + addH/2);
+      o._plAdds.push({sceneId:g.s.id, x:o.x + cbX, y:o.y + y - 2, w:90, h:addH + 4});
+      y += addH;
+    }
+    ctx.restore();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
+    // × chips: manual rows are removed, auto rows dismissed (they'd re-detect)
+    if(selMe){
+      ctx.textAlign = 'center'; ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+      let y2 = -o.h/2 + titleH + 8;
+      for(const g of groups){
+        y2 += headH;
+        for(const r of g.rows){
+          const cy = y2 + rowH/2;
+          ctx.beginPath(); ctx.arc(o.w/2 + 14, cy, 8, 0, 7);
+          ctx.fillStyle = '#fff'; ctx.fill();
+          ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1.2; ctx.stroke();
+          ctx.fillStyle = '#8A877F'; ctx.fillText('×', o.w/2 + 14, cy + 1);
+          o._plDels.push({key:r.key, sceneId:r.sceneId, rowId:r.rowId || null,
+            x:o.x + o.w/2 + 14, y:o.y + cy, r:11});
+          y2 += rowH;
+        }
+        y2 += addH;
+      }
+      ctx.textAlign = 'left';
+    }
+    ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'callsheet'){
     // THE call sheet — a live composite of the other cards. Nothing here is
     // edited directly: day header, registry, location and weather feed it.
     normalizeProduction();
-    if(!o.inc) o.inc = {location:true, schedule:true, crew:true, cast:true, client:true, weather:true};
+    if(!o.inc) o.inc = {location:true, schedule:true, props:true, crew:true, cast:true, client:true, weather:true};
     if(o.inc.schedule === undefined) o.inc.schedule = true;
+    if(o.inc.props === undefined) o.inc.props = true;
     const inc = o.inc;
     const b = project.prodboard;
     const day = b && b.objects.find(x=>x.cat==='dayheader');
@@ -1543,6 +1717,18 @@ function drawObjectShape(o, ghost){
       }
       if(L.length) L.push(['b', 'Est. wrap ' + ((day && day.wrap) || cs2.wrap)]);
       secs.push(['SCHEDULE', L.length ? L : [['p','tick scenes on the Day schedule card…']]]);
+    }
+    if(inc.props){
+      // mirrors the Prop list card: its dismissals and manual rows travel along
+      const plc = b && b.objects.find(x=>x.cat==='proplist');
+      const L = [];
+      for(const g of propListGroups(plc || {props:{}, hide:{}, done:{}})){
+        if(!g.rows.length) continue;
+        L.push(['b', plSceneHead(g.s)]);
+        for(const r of g.rows)
+          L.push(['n', '·  ' + r.name + (r.count > 1 ? '  ×' + r.count : '')]);
+      }
+      secs.push(['PROPS', L.length ? L : [['p','place props on the boards / drop a Prop list card…']]]);
     }
     if(inc.crew){
       const c = ppl('crew');

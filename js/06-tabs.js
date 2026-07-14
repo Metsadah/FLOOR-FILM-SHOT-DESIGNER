@@ -280,6 +280,32 @@ function buildProdLibSection(lib){
       {cat:'schedule', kind:'schedule', w:320, h:200, color:'#E8934C'}));
     grid.appendChild(el);
   }
+  // prop list — live: props per scene from the boards + script, plus your own
+  {
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
+      tc.fillStyle='#fff'; tc.fill();
+      tc.strokeStyle='#7FA05A'; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle='#7FA05A'; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2,-h2*.4,w2,h2*.16); tc.globalAlpha=1;
+      tc.globalAlpha=.55;
+      for(const y2 of [-h2*.1, h2*.04, h2*.18]){
+        tc.strokeRect(-w2*.36, y2-1, 6, 6);
+        tc.fillRect(-w2*.22, y2+1, w2*.55, 2.5);
+      }
+      // one ticked box
+      tc.globalAlpha=1; tc.lineWidth=1.8;
+      tc.beginPath();
+      tc.moveTo(-w2*.35, -h2*.09); tc.lineTo(-w2*.33, -h2*.06); tc.lineTo(-w2*.29, -h2*.12);
+      tc.stroke();
+    }, 100, 100, '#7FA05A'));
+    el.insertAdjacentHTML('beforeend', '<span>Prop list</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e,
+      {cat:'proplist', kind:'proplist', w:280, h:160, color:'#7FA05A'}));
+    grid.appendChild(el);
+  }
   // live weather card (Open-Meteo: free GFS/ICON model data, no key)
   const wEl = document.createElement('div');
   wEl.className = 'lib-item';
@@ -439,6 +465,17 @@ function callSheetText(o){
   if(rows.length){
     L.push(''); L.push('SCHEDULE:'); L.push(...rows);
     L.push('Est. wrap ' + ((day && day.wrap) || cs2.wrap));
+  }
+  if(!(o.inc && o.inc.props === false)){
+    const plc = b && b.objects.find(x=>x.cat==='proplist');
+    const gs = propListGroups(plc || {props:{}, hide:{}, done:{}}).filter(g=>g.rows.length);
+    if(gs.length){
+      L.push(''); L.push('PROPS:');
+      for(const g of gs){
+        L.push('  ' + plSceneHead(g.s));
+        for(const r of g.rows) L.push('    - ' + r.name + (r.count > 1 ? ' ×' + r.count : ''));
+      }
+    }
   }
   const ppl = tag => peopleReg().filter(p=>p.tag === tag);
   for(const [tag, name] of [['crew','CREW'],['cast','CAST'],['client','CLIENT']]){

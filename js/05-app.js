@@ -15,6 +15,49 @@ function buildShotList(){
       if(e.target.classList.contains('mini')) return;
       switchShot(s.id);
     });
+    // drag the number to reorder scenes (shooting order — scene #s stay put)
+    const num = el.querySelector('.num');
+    num.style.cursor = 'grab';
+    num.style.touchAction = 'none';
+    num.title = 'Drag to reorder';
+    num.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      num.setPointerCapture(e.pointerId);
+      const rows = [...list.children];
+      let to = i, moved = false;
+      const move = ev => {
+        if(!moved && Math.abs(ev.clientY - e.clientY) < 5) return;
+        moved = true;
+        el.style.opacity = .45;
+        // insertion index = rows whose midpoint sits above the pointer
+        to = 0;
+        rows.forEach(r => {
+          const rc = r.getBoundingClientRect();
+          if(ev.clientY > rc.top + rc.height/2) to++;
+        });
+        rows.forEach((r, j) => {
+          r.style.borderTop = (j === to && to !== i && to !== i+1) ? '2px solid #4B6BFB' : '';
+          r.style.borderBottom = (to === rows.length && j === rows.length-1 && i !== rows.length-1)
+            ? '2px solid #4B6BFB' : '';
+        });
+      };
+      let done = false;
+      const up = () => {
+        if(done) return; done = true;
+        num.removeEventListener('pointermove', move);
+        el.style.opacity = '';
+        rows.forEach(r => { r.style.borderTop = ''; r.style.borderBottom = ''; });
+        const fin = to > i ? to - 1 : to;
+        if(moved && fin !== i){
+          const [sc] = project.scenes.splice(i, 1);
+          project.scenes.splice(fin, 0, sc);
+          markDirty(); buildShotList(); buildStills(); buildInfo();
+        }
+      };
+      num.addEventListener('pointermove', move);
+      num.addEventListener('pointerup', up, {once:true});
+      num.addEventListener('pointercancel', up, {once:true});
+    });
     el.querySelector('.nm').addEventListener('dblclick', e => {
       e.stopPropagation();
       const inp = document.createElement('input');

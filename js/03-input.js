@@ -527,6 +527,16 @@ cv.addEventListener('pointerdown', e => {
                                              wy >= r.y && wy <= r.y + r.h);
       if(rr){ drag = {kind:'schrow', o:so, itemId:rr.itemId}; return; }
     }
+    if(so && so.cat === 'proplist' && !so.locked){
+      // × chips live outside the frame: manual rows go, auto rows are dismissed
+      const del = (so._plDels||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
+      if(del){
+        if(del.rowId) so.props[del.sceneId] = (so.props[del.sceneId]||[]).filter(r=>r.id !== del.rowId);
+        else so.hide[del.key] = true;
+        markDirty(); render();
+        return;
+      }
+    }
     if(so && so.cat === 'listcard' && !so.locked){
       // list-card chips live outside the frame, so catch them here (before hitObject)
       if(so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
@@ -557,7 +567,7 @@ cv.addEventListener('pointerdown', e => {
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
-    if(['link','todo','audio','table','listcard','fieldcard','dayheader','avscript','colcard','schedule'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
+    if(['link','todo','audio','table','listcard','fieldcard','dayheader','avscript','colcard','schedule','proplist'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
     if(obj.cat === 'link'){ drag.linkX0=obj.x; drag.linkY0=obj.y; }
     refreshSelBar(); render();
     return;
@@ -1156,6 +1166,20 @@ cv.addEventListener('pointerup', e => {
       } else if(tr){ openSchedCell(o, tr.itemId, 'time'); }
       else if(lr){ openSchedCell(o, lr.itemId, 'label'); }
       else if(dr){ openSchedCell(o, dr.itemId, 'dur'); }
+    } else if(o.cat === 'proplist'){
+      const hitZ = zones => (zones||[]).find(z=> up.x >= z.x && up.x <= z.x + z.w &&
+                                                 up.y >= z.y && up.y <= z.y + z.h);
+      const cb = hitZ(o._plChecks);
+      const ad = !cb && hitZ(o._plAdds);
+      const nm = !cb && !ad && hitZ(o._plNames);
+      if(cb){
+        if(cb.rowId){
+          const r = ((o.props||{})[cb.sceneId]||[]).find(x=>x.id === cb.rowId);
+          if(r) r.done = !r.done;
+        } else o.done[cb.key] = !o.done[cb.key];
+        markDirty(); render();
+      } else if(ad){ addPropRow(o, ad.sceneId); }
+      else if(nm && nm.rowId){ openPropCell(o, nm.sceneId, nm.rowId); } // auto rows aren't renamed — dismiss + add instead
     }
   }
   if(drag.kind === 'drawWall'){

@@ -285,7 +285,7 @@ function refreshSelBar(){
       sbtn('✉ Client', ()=>mailCallSheet(o, 'client'));
       sbtn('✉ All', ()=>mailCallSheet(o));
       sbtn('Copy emails', ()=>copySheetEmails(o));
-      for(const [key, lab] of [['location','Location'],['schedule','Schedule'],['crew','Crew'],
+      for(const [key, lab] of [['location','Location'],['schedule','Schedule'],['props','Props'],['crew','Crew'],
                                ['cast','Cast'],['client','Client'],['weather','Weather']]){
         sbtn((o.inc[key] ? '✓ ' : '') + lab, ()=>{
           o.inc[key] = !o.inc[key];
@@ -301,6 +301,12 @@ function refreshSelBar(){
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
       hint.textContent = 'Drag rows to reorder · click a time to pin it · click a name or length to change it';
+      selBar.appendChild(hint);
+    }
+    if(o.cat === 'proplist'){
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = 'Auto-filled from each scene’s board + script — tick the box, + prop to add, × to dismiss';
       selBar.appendChild(hint);
     }
     if(o.cat === 'avscript'){
@@ -513,7 +519,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','callsheet','schedule','file','colorcard','audio'].includes(o.cat)){
+    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','callsheet','schedule','proplist','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -723,6 +729,11 @@ function editorGetValue(o, field){
     }
     return it[key] || '';
   }
+  if(field && field.startsWith('pl:')){
+    const [,sid,rid] = field.split(':');
+    const r = ((o.props||{})[sid]||[]).find(x=>x.id===rid);
+    return (r && r.name) || '';
+  }
   return o[field || 'text'] || '';
 }
 function editorSetValue(o, field, v){
@@ -784,6 +795,13 @@ function editorSetValue(o, field, v){
     } else if(key === 'time'){
       it.time = clean; // empty = back to auto-chaining
     } else it.label = clean; // empty = back to the scene's own tag line
+    return;
+  }
+  if(field && field.startsWith('pl:')){
+    // manual prop name — an empty one is pruned by propListGroups on close
+    const [,sid,rid] = field.split(':');
+    const r = ((o.props||{})[sid]||[]).find(x=>x.id===rid);
+    if(r) r.name = v.replace(/\n/g,' ').trim();
     return;
   }
   o[field || 'text'] = v;
@@ -932,6 +950,21 @@ function addSchedBlock(o, type){
   items.push({id:uid(), type, sceneId:null, on:true, label:'', time:'',
     dur: type === 'break' ? 45 : 30});
   markDirty(); render();
+}
+
+// ---- prop list ----
+function openPropCell(o, sceneId, rowId){
+  const z = (o._plNames || []).find(n=>n.rowId === rowId);
+  if(!z) return;
+  openNoteEditor(o, 'pl:' + sceneId + ':' + rowId,
+    {x:z.lx - 2, y:z.ly, w:Math.max(90, z.lw), h:18}, 11.5);
+}
+function addPropRow(o, sceneId){
+  if(!o.props) o.props = {};
+  const r = {id:uid(), name:'', done:false};
+  (o.props[sceneId] = o.props[sceneId] || []).push(r);
+  markDirty(); render();
+  setTimeout(()=>openPropCell(o, sceneId, r.id), 0);
 }
 
 // ---- day header (the call-time block) ----
@@ -1101,6 +1134,15 @@ function openNoteEditor(o, field, rect, fs){
       }
       return;
     }
+    if(fld.startsWith('pl:') && (e.key === 'Enter' || e.key === 'Tab')){
+      e.preventDefault();
+      const [,sid,rid] = fld.split(':');
+      const named = ((o.props||{})[sid]||[]).some(x=>x.id===rid && x.name.trim());
+      closeNoteEditor(true);
+      render();
+      if(e.key === 'Enter' && named) addPropRow(o, sid); // Enter chains like a real list
+      return;
+    }
     if(fld.startsWith('item:')){
       const i = +fld.split(':')[1];
       if(e.key === 'Enter'){
@@ -1164,6 +1206,11 @@ function closeNoteEditor(save){
   noteEditor = null; // clear first — removing the focused textarea re-fires blur → closeNoteEditor
   const o = findObj(ne.id);
   if(o && save){ o.text = ne.ta.value; markDirty(); }
+  // a manual prop row left without a name evaporates when its editor closes
+  if(o && ne.field && ne.field.startsWith('pl:')){
+    const sid = ne.field.split(':')[1];
+    if(o.props && o.props[sid]) o.props[sid] = o.props[sid].filter(r=>r.name);
+  }
   try{ ne.ta.remove(); }catch(_){}
   render();
 }
@@ -1416,7 +1463,7 @@ function startLibDrag(e, spec){
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
   };
-  else if(['listcard','fieldcard','dayheader','avscript','colcard','callsheet','schedule'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
+  else if(['listcard','fieldcard','dayheader','avscript','colcard','callsheet','schedule','proplist'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.globalAlpha=.3; tc.fillRect(-w2/2,-h2/2,w2,h2*.24); tc.globalAlpha=1;
@@ -1479,11 +1526,14 @@ function dropLib(e){
            color:libDrag.color || '#4B6BFB', label:'', path:[]};
     } else if(libDrag.cat === 'callsheet'){
       o = {id:uid(), cat:'callsheet', kind:'callsheet', x, y, rot:0, w:380, h:300,
-           inc:{location:true, schedule:true, crew:true, cast:true, client:true, weather:true},
+           inc:{location:true, schedule:true, props:true, crew:true, cast:true, client:true, weather:true},
            color:libDrag.color || '#4B6BFB', label:'', path:[]};
     } else if(libDrag.cat === 'schedule'){
       o = {id:uid(), cat:'schedule', kind:'schedule', x, y, rot:0, w:320, h:200,
            on:{}, color:libDrag.color || '#E8934C', label:'', path:[]};
+    } else if(libDrag.cat === 'proplist'){
+      o = {id:uid(), cat:'proplist', kind:'proplist', x, y, rot:0, w:280, h:160,
+           props:{}, hide:{}, done:{}, color:libDrag.color || '#7FA05A', label:'', path:[]};
     } else if(libDrag.cat === 'dayheader'){
       o = {id:uid(), cat:'dayheader', kind:'dayheader', x, y, rot:0, w:DAYH.w, h:140,
            date:new Date().toISOString().slice(0,10), call:'', shootCall:'', wrap:'',

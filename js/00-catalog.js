@@ -479,6 +479,24 @@ const PROPS = {
     ctx.fillStyle=c; ctx.globalAlpha=.2; ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=c; ctx.stroke();
     ctx.beginPath(); ctx.arc(0,-h*.36,1.4,0,7); ctx.fillStyle=c; ctx.fill();
   }},
+  tv:{w:110,h:18,name:'TV',draw(ctx,w,h,c){
+    // flat screen, top-down: slim slab (screen faces down/front) + center foot
+    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h*.45,2);
+    ctx.fillStyle=c; ctx.globalAlpha=.45; ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=c; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(-w*.13,h*0,w*.26,h*.45,2); ctx.stroke();
+  }},
+  tvunit:{w:160,h:45,name:'TV cabinet',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,3);
+    ctx.strokeStyle=c;
+    ctx.beginPath(); ctx.moveTo(-w/6,-h/2); ctx.lineTo(-w/6,h/2);
+    ctx.moveTo(w/6,-h/2); ctx.lineTo(w/6,h/2); ctx.stroke();
+    // open middle shelf with a media box
+    ctx.globalAlpha=.55;
+    ctx.beginPath(); ctx.roundRect(-w*.09,-h*.16,w*.18,h*.32,2); ctx.stroke();
+    ctx.globalAlpha=1;
+    ctx.fillStyle=c;
+    ctx.beginPath(); ctx.arc(-w/6-6,h*.2,2.2,0,7); ctx.arc(w/6+6,h*.2,2.2,0,7); ctx.fill();
+  }},
   stairs:{w:100,h:250,name:'Stairs',draw(ctx,w,h,c){
     baseRect(ctx,w,h,c,2);
     ctx.strokeStyle=c; ctx.globalAlpha=.55;
@@ -912,7 +930,25 @@ function drawInfoCard(ctx, o){
     }
     y+=4;
   }
-  if(!rows.length){
+  // the scene's script (the panel's script box) — as much as fits; the card
+  // resizes, so pull it taller to read more
+  if(s.script && y < h/2-30){
+    ctx.font='700 9.5px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle='#8A877F';
+    ctx.fillText('SCRIPT', -w/2+pad, y); y+=13;
+    ctx.font='11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle='#4A4636';
+    const lines = wrapCanvasText(ctx, s.script, w-pad*2);
+    for(let li=0; li<lines.length; li++){
+      if(y > h/2-26 && li < lines.length-1){
+        ctx.fillStyle='#B9B6AE';
+        ctx.fillText('… (pull the card taller)', -w/2+pad, y);
+        break;
+      }
+      ctx.fillText(lines[li], -w/2+pad, y); y+=14.5;
+    }
+  }
+  if(!rows.length && !s.script){
     ctx.font='12px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle='#8A877F';
     ctx.fillText('Fill in the Shot info panel →', -w/2+pad, y);
@@ -947,12 +983,12 @@ const CATS = [
     'cstand','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','track','jib','technocrane','truss','monitor','camcart'
   ].map(k=>({cat:'prop', kind:k}))},
   {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','neon'].map(k=>({cat:'prop', kind:k}))},
-  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','tvunit','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
   {name:'Bathroom', open:false, items:['bath','shower','toilet','sink','mirror'].map(k=>({cat:'prop', kind:k}))},
   {name:'Vehicles', open:false, items:['bicycle','motorcycle','car_small','car','car_suv','car_police','minivan','bus','train','tractor'].map(k=>({cat:'prop', kind:k}))},
   {name:'Outdoor', open:false, items:['road','crossing','bikelane','rails'].map(k=>({cat:'prop', kind:k}))},
   {name:'Set dressing', open:false, items:['plant','tree','crate','mirror','books','newspaper','toys','bin'].map(k=>({cat:'prop', kind:k}))},
-  {name:'Tech', open:false, items:['laptop','computer','tablet'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Tech', open:false, items:['tv','laptop','computer','tablet'].map(k=>({cat:'prop', kind:k}))},
 ];
 
 // ---------------------------------------------------------------- light beams

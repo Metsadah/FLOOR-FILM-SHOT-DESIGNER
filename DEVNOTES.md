@@ -274,6 +274,52 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## v0.31 — TV + TV cabinet props
+`tv` (Tech group, slim top-down slab + center foot, 110×18) and `tvunit`
+(Furniture, split doors + handles + open media shelf, 160×45). Note: 'TV'
+is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
+false hits); board placement still lists it.
+
+## KNOWN DATA-LOSS RISK (diagnosed 2026-07-14, not yet fixed)
+A user lost a session of work (duplicated scene, renamed, new walls/shots/
+stills) — app came back with the state from right after the duplicate.
+Root causes found in review, both still open:
+1. `saveProject()` (01) sets `dirty = false` BEFORE the awaited write. On
+   the hosted build every save is a NETWORK write (kv upsert, or
+   production_docs when shared). If it throws, the only signal is the tiny
+   "Save failed" chip; dirty stays false, so the beforeunload/visibility
+   flushes think everything is saved and there is NO retry timer. Offline
+   stretch (or iPad PWA suspending mid-request, or expired session) →
+   every save quietly fails → close → revert to last good save.
+   Fix sketch: set dirty=false only AFTER success; on catch set dirty=true
+   + schedule a retry with backoff + make the failure loud (toast/banner).
+2. Shared productions are last-writer-wins on the WHOLE doc. The 07-share
+   header comment claims "the presence guard warns" but no presence guard
+   exists in the code. Any second session (other device, PWA + browser
+   tab, or a co-editor) that loaded earlier and saves later silently
+   clobbers everything since ITS load. Fix sketch: compare updated_at
+   before upsert (409 → reload/merge prompt), or a presence row per open
+   session.
+Scene duplication itself is clean (fresh ids for scene/walls/objects) and
+undo needs explicit Cmd+Z per step — both ruled out.
+
+## v0.30 — prop list card
+New Production card `cat:'proplist'` (green, between Day schedule and Call
+sheet in the library). LIVE per scene: `propListGroups(o)` (01) collects
+(1) props PLACED on each scene board (cat 'prop', counted, custom props
+resolved via `propDisplayName`; road/crossing/bikelane/rails skipped) and
+(2) prop names the scene's `script` text MENTIONS (`scenePropMentions` —
+word-boundary + optional plural, memoized on `s._pmSrc/_pmCache` because
+it runs per render), plus (3) manual rows in `o.props[sceneId]`. Auto rows
+key their state as 'sceneId|name': `o.done` ticks, `o.hide` dismisses
+(× chip). Manual rows: `+ prop` line per scene, `pl:sceneId:rowId` editor
+field, Enter chains a next row, a row left NAMELESS is pruned centrally in
+`closeNoteEditor` — NOT in propListGroups, because addPropRow's render()
+would eat the fresh empty row before its editor opens (learned the hard
+way). Script mentions render italic, ticked rows strike through, title
+shows got/total. Width machinery = schedule's (auto + `cardW` handle,
+280–900).
+
 ## v0.29 — scene lengths editable in the schedule
 Scene rows now honour a per-schedule duration override: `computeSchedule`
 uses `it.dur != null ? it.dur : scene.duration` (the shot designer stays
