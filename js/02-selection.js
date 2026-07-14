@@ -164,6 +164,17 @@ function drawSelection(shot){
       ctx.beginPath();
       smp.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
       ctx.stroke(); ctx.globalAlpha=1;
+      // quiet length readout: arc length, floated a little off the midpoint
+      const geom = wallGeom(w);
+      const pc = wallPointAt(geom, geom.L/2);
+      const L = Math.round(geom.L);
+      const txt = L >= 100 ? (L/100).toFixed(2).replace(/\.?0+$/,'') + ' m' : L + ' cm';
+      const ox = -Math.sin(pc.ang) * 16/s, oy = Math.cos(pc.ang) * 16/s;
+      ctx.font = `600 ${11/Math.max(s,.35)}px -apple-system,Segoe UI,sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(75,107,251,.75)';
+      ctx.fillText(txt, pc.x + ox, pc.y + oy);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     }
   } else if(sel.type === 'opening'){
     const w = shot.walls.find(x=>x.id===sel.wallId);

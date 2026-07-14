@@ -279,7 +279,11 @@ function refreshSelBar(){
     if(o.cat === 'callsheet'){
       if(!o.inc) o.inc = {location:true, schedule:true, crew:true, cast:true, client:true, weather:true};
       sbtn('Export PDF ↓', ()=>exportCallSheetPDF(o));
-      sbtn('Mail crew ✉', ()=>mailCallSheet(o));
+      if(navigator.share) sbtn('Share PDF…', ()=>shareCallSheetPDF(o));
+      sbtn('✉ Crew', ()=>mailCallSheet(o, 'crew'));
+      sbtn('✉ Cast', ()=>mailCallSheet(o, 'cast'));
+      sbtn('✉ Client', ()=>mailCallSheet(o, 'client'));
+      sbtn('✉ All', ()=>mailCallSheet(o));
       sbtn('Copy emails', ()=>copySheetEmails(o));
       for(const [key, lab] of [['location','Location'],['schedule','Schedule'],['crew','Crew'],
                                ['cast','Cast'],['client','Client'],['weather','Weather']]){

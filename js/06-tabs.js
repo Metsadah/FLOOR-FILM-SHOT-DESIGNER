@@ -493,7 +493,7 @@ async function shareCallSheetPDF(o){
 }
 
 // one-page call-sheet PDF: the card rendered alone, A4 portrait
-function exportCallSheetPDF(o){
+function buildCallSheetPDF(o){
   render(); // fresh self-sizing
   const scale = 3;
   const c = document.createElement('canvas');
@@ -536,8 +536,13 @@ function exportCallSheetPDF(o){
   pdf += 'trailer\n<< /Size ' + (objs.length+1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF';
   const bytes = new Uint8Array(pdf.length);
   for(let i=0;i<pdf.length;i++) bytes[i] = pdf.charCodeAt(i) & 0xFF;
+  const name = ((project.shootName || 'production').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') || 'production') + '_callsheet.pdf';
+  return {bytes, name};
+}
+function exportCallSheetPDF(o){
+  const {bytes, name} = buildCallSheetPDF(o);
   const a = document.createElement('a');
-  a.download = ((project.shootName || 'production').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') || 'production') + '_callsheet.pdf';
+  a.download = name;
   a.href = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
