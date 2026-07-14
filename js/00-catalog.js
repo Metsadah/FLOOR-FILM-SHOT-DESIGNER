@@ -976,13 +976,32 @@ const FIELD_CARDS = {
   ]},
   location: {title:'LOCATION', color:'#3E9B6E', rows:[
     {key:'name',     label:'Name',     ph:'Location name'},
-    {key:'address',  label:'Address',  ph:'Street, city'},
+    {key:'street',   label:'Street',   ph:'Street + number'},
+    {key:'town',     label:'Town',     ph:'Town / city'},
+    {key:'country',  label:'Country',  ph:'Country'},
     {key:'parking',  label:'Parking',  ph:'Where to park'},
     {key:'power',    label:'Power',    ph:'Available power'},
     {key:'hospital', label:'Hospital', ph:'Nearest hospital'},
     {key:'notes',    label:'Notes',    ph:'Access, keys, quirks…'},
   ]},
 };
+
+// wind for film crews: km/h → Beaufort
+function toBft(kmh){
+  const t = [1, 5, 11, 19, 28, 38, 49, 61, 74, 88, 102, 117];
+  let b = 0;
+  while(b < t.length && kmh >= t[b]) b++;
+  return b;
+}
+// tiny time helpers shared by the day planner, schedule card and call sheet
+function toMinutes(hhmm){
+  const m = /^(\d{1,2})[:.](\d{2})$/.exec((hhmm || '').trim());
+  return m ? (+m[1])*60 + (+m[2]) : null;
+}
+function minToHHMM(m){
+  m = ((m % 1440) + 1440) % 1440;
+  return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m % 60).padStart(2,'0');
+}
 const FIELD_GEO = {titleH:26, rowH:26};
 
 // ---------------------------------------------------------------- AV script card

@@ -274,6 +274,30 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## v0.24 — the production loop closes
+- **schedule card** (cat 'schedule'): LIVE — calls from the day header,
+  a checkbox per scene ("shooting today?"), times chain from the shooting
+  call via scene.duration + travelMin/setupMin, Est. wrap computed.
+  Selection stored as `o.on[sceneId] === false` (default = included).
+- **call sheet** gained a SCHEDULE section mirroring the schedule card's
+  selection (first schedule obj on the prodboard; all scenes if none) and
+  is the LAST tile in the production library. selBar: "Mail crew ✉"
+  (mailto: with all registry emails in BCC + plain-text sheet body via
+  `callSheetText`, capped ~1600 chars for URL limits) and "Copy emails".
+- Location card address is now street/town/country (old single `address`
+  splits on first comma at normalize); geocoding queries the TOWN.
+- Wind renders in Beaufort (`toBft` in 00). Crew card drop seeds
+  Director/DoP/AC/Gaffer/Sound when the crew registry is empty.
+- Internal clipboard: Cmd/Ctrl+C copies the selection (objects AND walls),
+  Cmd/Ctrl+V pastes into the ACTIVE scene (+40,+40, new ids, mounts
+  stripped) — only consumed when FLOOR_CLIP is non-empty so OS image paste
+  still works. Marquee now includes walls (both endpoints in the box);
+  moveMulti/delete/duplicate handle wallIds. Scene rows have a ⌂ button:
+  copy the SET (walls+props, no cast/cameras) into a new scene.
+- Share popover no longer requires a read-only link to exist before the
+  co-editor section shows (early-return bug).
+- `toMinutes`/`minToHHMM` are global (00) — reuse them, don't re-declare.
+
 ## v0.23 odds & ends
 Openings (door/window/gap) hit-test like walls now: thin band along the
 wall line, only within the opening span — the old `max(op.w/2, thr)`

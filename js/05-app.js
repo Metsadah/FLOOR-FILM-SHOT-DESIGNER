@@ -10,7 +10,7 @@ function buildShotList(){
     const el = document.createElement('div');
     el.className = 'shot-item' + (s.id === project.activeSceneId ? ' active' : '');
     el.innerHTML = `<span class="num">${i+1}</span><span class="nm">${esc(s.name)}</span>
-      <button class="mini" title="Duplicate shot">⧉</button><button class="mini" title="Delete shot">×</button>`;
+      <button class="mini" title="Duplicate scene">⧉</button><button class="mini" title="Copy the SET (no cast, no cameras) to a new scene">⌂</button><button class="mini" title="Delete shot">×</button>`;
     el.addEventListener('click', e => {
       if(e.target.classList.contains('mini')) return;
       switchShot(s.id);
@@ -25,7 +25,7 @@ function buildShotList(){
       inp.addEventListener('blur', done);
       inp.addEventListener('keydown', ev => { if(ev.key==='Enter') inp.blur(); ev.stopPropagation(); });
     });
-    const [dupB, delB] = el.querySelectorAll('.mini');
+    const [dupB, setB, delB] = el.querySelectorAll('.mini');
     dupB.addEventListener('click', e => {
       e.stopPropagation();
       const n = JSON.parse(JSON.stringify(s));
@@ -34,6 +34,21 @@ function buildShotList(){
       n.objects.forEach(o=>o.id=uid());
       project.scenes.splice(i+1, 0, n);
       markDirty(); buildShotList();
+    });
+    setB.addEventListener('click', e => {
+      // the SET travels, the blocking doesn't: walls + props, no cast/cameras
+      e.stopPropagation();
+      const n = newShot(project.scenes.length + 1);
+      n.name = s.name + ' set';
+      n.walls = JSON.parse(JSON.stringify(s.walls || []));
+      n.walls.forEach(w=>{ w.id = uid(); (w.openings||[]).forEach(op=>op.id = uid()); });
+      n.objects = JSON.parse(JSON.stringify(
+        (s.objects || []).filter(ob=>ob.cat !== 'camera' && ob.cat !== 'actor')));
+      n.objects.forEach(ob=>{ ob.id = uid(); ob.shotId = null; ob.mount = null; ob.rail = null; });
+      n.sun = s.sun ? JSON.parse(JSON.stringify(s.sun)) : null;
+      project.scenes.splice(i+1, 0, n);
+      markDirty(); buildShotList();
+      toast('Set copied — cast & cameras stayed behind');
     });
     delB.addEventListener('click', async e => {
       e.stopPropagation();

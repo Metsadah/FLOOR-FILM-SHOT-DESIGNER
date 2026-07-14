@@ -83,7 +83,9 @@ function refreshSelBar(){
   if(sel.type === 'multi'){
     const lab = document.createElement('span');
     lab.style.cssText = 'font-size:11.5px;color:var(--ink2);padding:0 6px;font-weight:600;';
-    lab.textContent = sel.ids.length + ' objects — drag any one to move the group';
+    const nW = (sel.wallIds || []).length;
+    lab.textContent = (sel.ids.length + nW) + ' selected' + (nW ? ' (incl. ' + nW + ' walls)' : '') +
+      ' — drag to move, ⌘C to copy';
     selBar.appendChild(lab);
     sbtn('Duplicate', duplicateSelection);
     sbtn('Delete all', deleteSelection, true);
@@ -275,19 +277,23 @@ function refreshSelBar(){
       selBar.appendChild(hint);
     }
     if(o.cat === 'callsheet'){
-      if(!o.inc) o.inc = {location:true, crew:true, cast:true, client:true, weather:true};
+      if(!o.inc) o.inc = {location:true, schedule:true, crew:true, cast:true, client:true, weather:true};
       sbtn('Export PDF ↓', ()=>exportCallSheetPDF(o));
-      for(const [key, lab] of [['location','Location'],['crew','Crew'],['cast','Cast'],
-                               ['client','Client'],['weather','Weather']]){
+      sbtn('Mail crew ✉', ()=>mailCallSheet(o));
+      sbtn('Copy emails', ()=>copySheetEmails(o));
+      for(const [key, lab] of [['location','Location'],['schedule','Schedule'],['crew','Crew'],
+                               ['cast','Cast'],['client','Client'],['weather','Weather']]){
         sbtn((o.inc[key] ? '✓ ' : '') + lab, ()=>{
           o.inc[key] = !o.inc[key];
           markDirty(); render(); refreshSelBar();
         });
       }
       sbtn('Weather ↻', ()=>{ o.wx = null; markDirty(); render(); });
+    }
+    if(o.cat === 'schedule'){
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
-      hint.textContent = 'Fills itself from the day header, registry & location';
+      hint.textContent = 'Tick the scenes for this day — times chain from the shooting call';
       selBar.appendChild(hint);
     }
     if(o.cat === 'avscript'){
@@ -500,7 +506,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','callsheet','file','colorcard','audio'].includes(o.cat)){
+    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','callsheet','schedule','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -635,6 +641,11 @@ function updateSelBarPos(){
       const o = shot.objects.find(x=>x.id===id); if(!o) continue;
       mnx = Math.min(mnx, o.x-(o.w||20)/2); mxx = Math.max(mxx, o.x+(o.w||20)/2);
       mny = Math.min(mny, o.y-(o.h||20)/2); mxy = Math.max(mxy, o.y+(o.h||20)/2);
+    }
+    for(const id of (sel.wallIds || [])){
+      const w = shot.walls.find(x=>x.id===id); if(!w) continue;
+      mnx = Math.min(mnx, w.x1, w.x2); mxx = Math.max(mxx, w.x1, w.x2);
+      mny = Math.min(mny, w.y1, w.y2); mxy = Math.max(mxy, w.y1, w.y2);
     }
     if(mnx === Infinity) return;
     wx = (mnx+mxx)/2; wy = (mny+mxy)/2; r = (mxy-mny)/2;
@@ -889,9 +900,10 @@ function openDayCell(o, key){
 // cache lat/lon on the day header; sunrise/sunset then computes client-side
 async function dayheaderSunFetch(o){
   normalizeProduction();
-  const loc = project.production.locations.find(l=>l.name || l.address);
-  const q = loc ? (loc.address || loc.name) : '';
-  if(!q){ toast('Fill a Location card first — the sun needs a place'); return; }
+  const loc = project.production.locations.find(l=>l.town || l.name || l.street);
+  // the TOWN is what geocoders want; street or name only as fallback
+  const q = loc ? (loc.town || loc.name || loc.street) : '';
+  if(!q){ toast('Fill a Location card first (town works best) — the sun needs a place'); return; }
   toast('Looking up ' + q + '…');
   try{
     const g = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=nl&name=' +
@@ -1335,7 +1347,7 @@ function startLibDrag(e, spec){
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
   };
-  else if(['listcard','fieldcard','dayheader','avscript','colcard','callsheet'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
+  else if(['listcard','fieldcard','dayheader','avscript','colcard','callsheet','schedule'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.globalAlpha=.3; tc.fillRect(-w2/2,-h2/2,w2,h2*.24); tc.globalAlpha=1;
@@ -1382,6 +1394,11 @@ function dropLib(e){
     } else if(libDrag.cat === 'listcard'){
       o = {id:uid(), cat:'listcard', kind:libDrag.kind, x, y, rot:0, w:360, h:74,
            color:(LIST_CARDS[libDrag.kind] || LIST_CARDS.crew).color, label:'', path:[]};
+      // a fresh crew starts from the standard call-sheet roles
+      if(libDrag.kind === 'crew' && !peopleReg().some(p=>p.tag === 'crew')){
+        for(const role of ['Director','DoP','AC','Gaffer','Sound'])
+          peopleReg().push({id:uid(), name:'', role, phone:'', email:'', tag:'crew', call:''});
+      }
     } else if(libDrag.cat === 'avscript'){
       o = {id:uid(), cat:'avscript', kind:'avscript', x, y, rot:0, w:560, h:150,
            rows:[1,2,3].map(()=>({id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgId:null})),
@@ -1393,8 +1410,11 @@ function dropLib(e){
            color:libDrag.color || '#4B6BFB', label:'', path:[]};
     } else if(libDrag.cat === 'callsheet'){
       o = {id:uid(), cat:'callsheet', kind:'callsheet', x, y, rot:0, w:380, h:300,
-           inc:{location:true, crew:true, cast:true, client:true, weather:true},
+           inc:{location:true, schedule:true, crew:true, cast:true, client:true, weather:true},
            color:libDrag.color || '#4B6BFB', label:'', path:[]};
+    } else if(libDrag.cat === 'schedule'){
+      o = {id:uid(), cat:'schedule', kind:'schedule', x, y, rot:0, w:320, h:200,
+           on:{}, color:libDrag.color || '#E8934C', label:'', path:[]};
     } else if(libDrag.cat === 'dayheader'){
       o = {id:uid(), cat:'dayheader', kind:'dayheader', x, y, rot:0, w:DAYH.w, h:140,
            date:new Date().toISOString().slice(0,10), call:'', shootCall:'', wrap:'',

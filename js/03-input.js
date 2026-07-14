@@ -404,17 +404,24 @@ cv.addEventListener('pointerdown', e => {
   }
 
   // ---- select tool ----
-  // group move: with a multi selection, grabbing any selected object drags them all
+  // group move: with a multi selection, grabbing any selected object or wall drags them all
   if(sel && sel.type === 'multi'){
     const hitO = hitObject(shot, wx, wy) || hitTrack(shot, wx, wy);
-    if(hitO && sel.ids.includes(hitO.id)){
-      drag = {kind:'moveMulti', wx, wy, items: sel.ids
-        .map(id=>shot.objects.find(x=>x.id===id))
-        .filter(ob=>ob && !ob.locked)
-        .map(ob=>({o:ob, x:ob.x, y:ob.y,
-          p1:ob.p1?{...ob.p1}:null, p2:ob.p2?{...ob.p2}:null, mid:ob.mid?{...ob.mid}:null,
-          pts:ob.pts?ob.pts.map(p=>({...p})):null,
-          path:(ob.path&&ob.path.length)?ob.path.map(p=>({...p})):null}))};
+    const hitW = !hitO && hitWall(shot, wx, wy);
+    if((hitO && sel.ids.includes(hitO.id)) ||
+       (hitW && (sel.wallIds||[]).includes(hitW.wall.id))){
+      drag = {kind:'moveMulti', wx, wy,
+        items: sel.ids
+          .map(id=>shot.objects.find(x=>x.id===id))
+          .filter(ob=>ob && !ob.locked)
+          .map(ob=>({o:ob, x:ob.x, y:ob.y,
+            p1:ob.p1?{...ob.p1}:null, p2:ob.p2?{...ob.p2}:null, mid:ob.mid?{...ob.mid}:null,
+            pts:ob.pts?ob.pts.map(p=>({...p})):null,
+            path:(ob.path&&ob.path.length)?ob.path.map(p=>({...p})):null})),
+        wallItems: (sel.wallIds||[])
+          .map(id=>shot.walls.find(x=>x.id===id))
+          .filter(w=>w && !w.locked)
+          .map(w=>({w, x1:w.x1, y1:w.y1, x2:w.x2, y2:w.y2, mid:w.mid?{...w.mid}:null}))};
       return;
     }
     sel = null; refreshSelBar(); render(); // clicked outside the group — fall through
@@ -538,7 +545,7 @@ cv.addEventListener('pointerdown', e => {
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
-    if(['link','todo','audio','table','listcard','fieldcard','dayheader','avscript','colcard'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
+    if(['link','todo','audio','table','listcard','fieldcard','dayheader','avscript','colcard','schedule'].includes(obj.cat)){ drag.tapX0=obj.x; drag.tapY0=obj.y; }
     if(obj.cat === 'link'){ drag.linkX0=obj.x; drag.linkY0=obj.y; }
     refreshSelBar(); render();
     return;
@@ -676,6 +683,11 @@ cv.addEventListener('pointermove', e => {
         if(it.mid){ ob.mid = {x:it.mid.x+dx, y:it.mid.y+dy}; }
         if(it.pts){ ob.pts = it.pts.map(p=>({...p, x:p.x+dx, y:p.y+dy})); }
         if(it.path){ ob.path = it.path.map(p=>({...p, x:p.x+dx, y:p.y+dy})); }
+      }
+      for(const it of (drag.wallItems || [])){
+        it.w.x1 = it.x1 + dx; it.w.y1 = it.y1 + dy;
+        it.w.x2 = it.x2 + dx; it.w.y2 = it.y2 + dy;
+        if(it.mid) it.w.mid = {x:it.mid.x + dx, y:it.mid.y + dy};
       }
       markDirty();
       break;
@@ -1002,13 +1014,19 @@ cv.addEventListener('pointerup', e => {
       const hw = (o.w||20)/2, hh = (o.h||20)/2; // bbox test — rotation ignored, fine for grouping
       return o.x+hw >= x1 && o.x-hw <= x2 && o.y+hh >= y1 && o.y-hh <= y2;
     }).map(o=>o.id);
-    sel = ids.length > 1 ? {type:'multi', ids}
-        : ids.length === 1 ? {type:'object', id:ids[0]} : null;
+    // walls count as structure: both endpoints inside the box
+    const wallIds = shot.walls.filter(w=>!w.locked &&
+      w.x1 >= x1 && w.x1 <= x2 && w.y1 >= y1 && w.y1 <= y2 &&
+      w.x2 >= x1 && w.x2 <= x2 && w.y2 >= y1 && w.y2 <= y2).map(w=>w.id);
+    const total = ids.length + wallIds.length;
+    sel = total > 1 ? {type:'multi', ids, wallIds}
+        : ids.length === 1 ? {type:'object', id:ids[0]}
+        : wallIds.length === 1 ? {type:'wall', id:wallIds[0]} : null;
     setTool('select');
     drag = null;
     if(histPushed) histSettle();
     refreshSelBar(); render();
-    if(ids.length > 1) toast(ids.length + ' objects selected — drag any one to move them all');
+    if(total > 1) toast(total + ' selected — drag to move all · Cmd/Ctrl+C copies');
     return;
   }
   if(drag.kind === 'ink'){
@@ -1091,6 +1109,14 @@ cv.addEventListener('pointerup', e => {
       if(typeof colCellAt === 'function'){
         const key = colCellAt(o, up.x, up.y);
         if(key) openColCell(o, key);
+      }
+    } else if(o.cat === 'schedule'){
+      const cr = (o._checkRects||[]).find(z=> up.x >= z.x && up.x <= z.x + z.w &&
+                                              up.y >= z.y && up.y <= z.y + z.h);
+      if(cr){
+        if(!o.on) o.on = {};
+        o.on[cr.sceneId] = o.on[cr.sceneId] === false; // toggle include
+        markDirty(); render();
       }
     }
   }
@@ -1327,6 +1353,17 @@ document.addEventListener('keydown', e => {
   }
   if((e.key === 'y' || e.key === 'Y') && (e.metaKey||e.ctrlKey)){ e.preventDefault(); redo(); return; }
   if((e.key === 'd' || e.key === 'D') && (e.metaKey||e.ctrlKey)){ e.preventDefault(); duplicateSelection(); return; }
+  if((e.key === 'c' || e.key === 'C') && (e.metaKey||e.ctrlKey)){
+    if(sel){ e.preventDefault(); copySelection(); }
+    return;
+  }
+  if((e.key === 'v' || e.key === 'V') && (e.metaKey||e.ctrlKey)){
+    // only consume when our clipboard has content — OS image paste stays intact
+    if(FLOOR_CLIP && (FLOOR_CLIP.objs.length || FLOOR_CLIP.walls.length)){
+      e.preventDefault(); pasteClipboard();
+    }
+    return;
+  }
   if(e.key === ' '){ spaceDown = true; e.preventDefault(); }
   if(e.key === 'Enter' && tool === 'poly'){ finishPoly(); return; }
   if(e.key === 'Escape'){
@@ -1347,6 +1384,54 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('keyup', e => { if(e.key === ' ') spaceDown = false; });
 
+// ---------------------------------------------------------------- copy / paste
+// An internal clipboard: Cmd/Ctrl+C copies the selection (objects AND walls),
+// Cmd/Ctrl+V pastes into WHATEVER scene is active — so sets travel between
+// scenes. Survives scene switches; separate from the OS image-paste.
+let FLOOR_CLIP = null;
+function copySelection(){
+  if(!sel) return;
+  const shot = activeShot();
+  const objs = [], walls = [];
+  if(sel.type === 'object'){
+    const o = shot.objects.find(x=>x.id===sel.id); if(o) objs.push(o);
+  } else if(sel.type === 'wall'){
+    const w = shot.walls.find(x=>x.id===sel.id); if(w) walls.push(w);
+  } else if(sel.type === 'multi'){
+    sel.ids.forEach(id=>{ const o = shot.objects.find(x=>x.id===id); if(o) objs.push(o); });
+    (sel.wallIds||[]).forEach(id=>{ const w = shot.walls.find(x=>x.id===id); if(w) walls.push(w); });
+  }
+  if(!objs.length && !walls.length) return;
+  FLOOR_CLIP = JSON.parse(JSON.stringify({objs, walls}));
+  toast((objs.length + walls.length) + ' copied — Cmd/Ctrl+V pastes here or in another scene');
+}
+function pasteClipboard(){
+  if(!FLOOR_CLIP || (!FLOOR_CLIP.objs.length && !FLOOR_CLIP.walls.length)) return;
+  const shot = activeShot();
+  const c = JSON.parse(JSON.stringify(FLOOR_CLIP));
+  const dx = 40, dy = 40;
+  const ids = [], wallIds = [];
+  for(const o of c.objs){
+    o.id = uid(); o.x += dx; o.y += dy;
+    if(o.p1){ o.p1.x += dx; o.p1.y += dy; }
+    if(o.p2){ o.p2.x += dx; o.p2.y += dy; }
+    if(o.mid){ o.mid.x += dx; o.mid.y += dy; }
+    if(o.pts) o.pts.forEach(p=>{ p.x += dx; p.y += dy; });
+    if(o.path) o.path.forEach(p=>{ p.x += dx; p.y += dy; });
+    o.mount = null; o.rail = null; o.shotId = null;
+    shot.objects.push(o); ids.push(o.id);
+  }
+  for(const w of c.walls){
+    w.id = uid(); w.x1 += dx; w.y1 += dy; w.x2 += dx; w.y2 += dy;
+    if(w.mid){ w.mid.x += dx; w.mid.y += dy; }
+    (w.openings||[]).forEach(op=>op.id = uid());
+    shot.walls.push(w); wallIds.push(w.id);
+  }
+  sel = (ids.length + wallIds.length) > 1 ? {type:'multi', ids, wallIds}
+      : ids.length ? {type:'object', id:ids[0]} : {type:'wall', id:wallIds[0]};
+  markDirty(); render(); refreshSelBar();
+}
+
 function deleteSelection(){
   if(!sel) return;
   const shot = activeShot();
@@ -1360,6 +1445,11 @@ function deleteSelection(){
       if(c.mount && gone.has(c.mount.id)) c.mount = null;
       if(c.rail && gone.has(c.rail.id)){ c.rail = null; c.path = []; }
     });
+    const goneW = new Set((sel.wallIds||[]).filter(id=>{
+      const w = shot.walls.find(x=>x.id===id);
+      return w && !w.locked;
+    }));
+    shot.walls = shot.walls.filter(w=>!goneW.has(w.id));
     if(noteEditor && gone.has(noteEditor.id)) closeNoteEditor(false);
     sel = null; markDirty(); render(); refreshSelBar();
     return;
@@ -1410,9 +1500,20 @@ function duplicateSelection(){
       .map(id=>shot.objects.find(x=>x.id===id))
       .filter(o=>o && !o.locked)
       .map(copyOf);
-    if(!copies.length) return;
+    const wallCopies = (sel.wallIds||[])
+      .map(id=>shot.walls.find(x=>x.id===id))
+      .filter(w=>w && !w.locked)
+      .map(w=>{
+        const n = JSON.parse(JSON.stringify(w));
+        n.id = uid(); n.x1 += 40; n.y1 += 40; n.x2 += 40; n.y2 += 40;
+        if(n.mid){ n.mid.x += 40; n.mid.y += 40; }
+        (n.openings||[]).forEach(op=>op.id = uid());
+        return n;
+      });
+    if(!copies.length && !wallCopies.length) return;
     shot.objects.push(...copies);
-    sel = {type:'multi', ids:copies.map(c=>c.id)};
+    shot.walls.push(...wallCopies);
+    sel = {type:'multi', ids:copies.map(c=>c.id), wallIds:wallCopies.map(w=>w.id)};
     markDirty(); render(); refreshSelBar();
     return;
   }

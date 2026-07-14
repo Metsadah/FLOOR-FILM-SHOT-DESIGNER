@@ -258,7 +258,44 @@ function buildProdLibSection(lib){
       {cat:'todo', kind:'todo', w:230, h:120, color:'#8B5CF6', checklist:true}));
     grid.appendChild(el);
   }
-  // the call sheet — a live composite of everything above
+  // day schedule — live: calls from the day header + scene picker
+  {
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
+      tc.fillStyle='#fff'; tc.fill();
+      tc.strokeStyle='#E8934C'; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle='#E8934C'; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2,-h2*.4,w2,h2*.16); tc.globalAlpha=1;
+      tc.globalAlpha=.5;
+      for(const y2 of [-h2*.1, h2*.04, h2*.18]){
+        tc.strokeRect(-w2*.36, y2-1, 5, 5);
+        tc.fillRect(-w2*.24, y2, w2*.6, 2.5);
+      }
+      tc.globalAlpha=1;
+    }, 100, 100, '#E8934C'));
+    el.insertAdjacentHTML('beforeend', '<span>Day schedule</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e,
+      {cat:'schedule', kind:'schedule', w:320, h:200, color:'#E8934C'}));
+    grid.appendChild(el);
+  }
+  // live weather card (Open-Meteo: free GFS/ICON model data, no key)
+  const wEl = document.createElement('div');
+  wEl.className = 'lib-item';
+  wEl.appendChild(tileCanvas((tc,w2,h2)=>{
+    tc.strokeStyle='#4CA6E8'; tc.lineWidth=3; tc.fillStyle='#4CA6E8';
+    tc.beginPath(); tc.arc(-w2*.1,-h2*.14,h2*.16,0,7); tc.stroke();
+    tc.beginPath();
+    tc.moveTo(-w2*.3,h2*.12); tc.quadraticCurveTo(-w2*.34,-h2*.06,-w2*.12,0);
+    tc.quadraticCurveTo(0,-h2*.2,w2*.14,0);
+    tc.quadraticCurveTo(w2*.36,-h2*.02,w2*.28,h2*.12);
+    tc.closePath(); tc.globalAlpha=.35; tc.fill(); tc.globalAlpha=1; tc.stroke();
+  }, 100, 100, '#4CA6E8'));
+  wEl.insertAdjacentHTML('beforeend', '<span>Weather (live)</span>');
+  wEl.addEventListener('pointerdown', e => startLibDrag(e, {cat:'weather', kind:'weather', color:'#4CA6E8'}));
+  grid.appendChild(wEl);
+  // the call sheet comes LAST — it's the sum of everything above
   {
     const el = document.createElement('div');
     el.className = 'lib-item';
@@ -278,42 +315,6 @@ function buildProdLibSection(lib){
       {cat:'callsheet', kind:'callsheet', w:380, h:300, color:'#4B6BFB'}));
     grid.appendChild(el);
   }
-  // day schedule — a column card born with the classic timeline
-  {
-    const el = document.createElement('div');
-    el.className = 'lib-item';
-    el.appendChild(tileCanvas((tc,w2,h2)=>{
-      tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
-      tc.fillStyle='#fff'; tc.fill();
-      tc.strokeStyle='#E8934C'; tc.lineWidth=2.5; tc.stroke();
-      tc.fillStyle='#E8934C'; tc.globalAlpha=.28;
-      tc.fillRect(-w2/2,-h2*.4,w2,h2*.16); tc.globalAlpha=1;
-      tc.globalAlpha=.5;
-      for(const y2 of [-h2*.1, h2*.04, h2*.18]) tc.fillRect(-w2*.36, y2, w2*.72, 2.5);
-      tc.globalAlpha=1;
-    }, 100, 100, '#E8934C'));
-    el.insertAdjacentHTML('beforeend', '<span>Day schedule</span>');
-    el.addEventListener('pointerdown', e => startLibDrag(e,
-      {cat:'colcard', kind:'colcard', w:240, h:180, cw:240, color:'#E8934C',
-       title:'Day schedule',
-       text:'07:00  Crew call\n07:30  Build & light\n09:00  Shot 1\n11:00  Shot 2\n13:00  Lunch\n14:00  Shot 3\n17:30  Last looks\n18:00  Wrap'}));
-    grid.appendChild(el);
-  }
-  // live weather card (Open-Meteo: free GFS/ICON model data, no key)
-  const wEl = document.createElement('div');
-  wEl.className = 'lib-item';
-  wEl.appendChild(tileCanvas((tc,w2,h2)=>{
-    tc.strokeStyle='#4CA6E8'; tc.lineWidth=3; tc.fillStyle='#4CA6E8';
-    tc.beginPath(); tc.arc(-w2*.1,-h2*.14,h2*.16,0,7); tc.stroke();
-    tc.beginPath();
-    tc.moveTo(-w2*.3,h2*.12); tc.quadraticCurveTo(-w2*.34,-h2*.06,-w2*.12,0);
-    tc.quadraticCurveTo(0,-h2*.2,w2*.14,0);
-    tc.quadraticCurveTo(w2*.36,-h2*.02,w2*.28,h2*.12);
-    tc.closePath(); tc.globalAlpha=.35; tc.fill(); tc.globalAlpha=1; tc.stroke();
-  }, 100, 100, '#4CA6E8'));
-  wEl.insertAdjacentHTML('beforeend', '<span>Weather (live)</span>');
-  wEl.addEventListener('pointerdown', e => startLibDrag(e, {cat:'weather', kind:'weather', color:'#4CA6E8'}));
-  grid.appendChild(wEl);
   lib.appendChild(grid);
   const tip = document.createElement('div');
   tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 10px;line-height:1.5;';
@@ -351,7 +352,7 @@ async function fetchWeatherFor(o){
       ['Forecast', WMO[d.weather_code[0]] || ('code ' + d.weather_code[0])],
       ['Temp', Math.round(d.temperature_2m_min[0]) + '\u2013' + Math.round(d.temperature_2m_max[0]) + ' \u00b0C'],
       ['Rain chance', (d.precipitation_probability_max[0] ?? '\u2014') + ' %'],
-      ['Wind', Math.round(d.wind_speed_10m_max[0]) + ' km/h'],
+      ['Wind', toBft(d.wind_speed_10m_max[0]) + ' Bft'],
       ['Sun', hhmm(d.sunrise[0]) + ' \u2192 ' + hhmm(d.sunset[0])],
     ];
     markDirty(); render(); refreshSelBar();
@@ -377,7 +378,7 @@ async function fetchDailyForecast(lat, lon, dateStr){
       ['Forecast', WMO[d.weather_code[0]] || ('code ' + d.weather_code[0])],
       ['Temp', Math.round(d.temperature_2m_min[0]) + '–' + Math.round(d.temperature_2m_max[0]) + ' °C'],
       ['Rain chance', (d.precipitation_probability_max[0] ?? '—') + ' %'],
-      ['Wind', Math.round(d.wind_speed_10m_max[0]) + ' km/h'],
+      ['Wind', toBft(d.wind_speed_10m_max[0]) + ' Bft'],
     ];
   }catch(e){ return null; }
 }
@@ -392,6 +393,83 @@ async function callsheetWeather(o, day){
     o.wx = {key, date:day.date, place:day.place || '', data};
     markDirty(); render();
   } finally { o._wxBusy = false; }
+}
+
+// every email address on the call sheet (respecting its section toggles)
+function sheetEmails(o){
+  normalizeProduction();
+  const inc = o.inc || {};
+  const tags = ['crew','cast','client'].filter(t=>inc[t] !== false);
+  return [...new Set(peopleReg()
+    .filter(p=>tags.includes(p.tag) && /\S+@\S+\.\S+/.test(p.email || ''))
+    .map(p=>p.email.trim()))];
+}
+async function copySheetEmails(o){
+  const ems = sheetEmails(o);
+  if(!ems.length){ toast('No email addresses in the registry yet'); return; }
+  try{ await navigator.clipboard.writeText(ems.join(', ')); toast(ems.length + ' addresses copied'); }
+  catch(_){ prompt('Email addresses:', ems.join(', ')); }
+}
+// plain-text call sheet for the mail body (attachments need the PDF export)
+function callSheetText(o){
+  const b = project.prodboard;
+  const day = b && b.objects.find(x=>x.cat==='dayheader');
+  const loc = project.production.locations.find(l=>l.name || l.street || l.town) || null;
+  const L = [];
+  L.push((project.shootName || 'PRODUCTION').toUpperCase() + ' — CALL SHEET');
+  if(day){
+    if(day.date) L.push(new Date(day.date + 'T12:00:00').toLocaleDateString('nl-NL',
+      {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
+    L.push('General call ' + (day.call || '–') + ' · shooting call ' + (day.shootCall || '–') +
+      ' · est. wrap ' + (day.wrap || '–'));
+  }
+  if(loc){
+    L.push('');
+    L.push('LOCATION: ' + [loc.name, loc.street, loc.town, loc.country].filter(Boolean).join(', '));
+    if(loc.parking) L.push('Parking: ' + loc.parking);
+    if(loc.hospital) L.push('Hospital: ' + loc.hospital);
+  }
+  const schd = b && b.objects.find(x=>x.cat==='schedule');
+  const on = s => !schd || !schd.on || schd.on[s.id] !== false;
+  let t = day ? (toMinutes(day.shootCall) ?? toMinutes(day.call) ?? 480) : 480;
+  const rows = [];
+  for(const s of project.scenes){
+    if(!on(s)) continue;
+    t += (s.travelMin || 0) + (s.setupMin || 0);
+    rows.push(minToHHMM(t) + '  ' + (s.scene ? s.scene + ' · ' : '') + (s.sceneDesc || s.name));
+    t += s.duration || 60;
+  }
+  if(rows.length){
+    L.push(''); L.push('SCHEDULE:'); L.push(...rows);
+    L.push('Est. wrap ' + ((day && day.wrap) || minToHHMM(t)));
+  }
+  const ppl = tag => peopleReg().filter(p=>p.tag === tag);
+  for(const [tag, name] of [['crew','CREW'],['cast','CAST'],['client','CLIENT']]){
+    if(o.inc && o.inc[tag] === false) continue;
+    const list = ppl(tag);
+    if(!list.length) continue;
+    L.push(''); L.push(name + ':');
+    for(const p of list)
+      L.push('  ' + [p.call, p.role, p.name, p.phone].filter(Boolean).join(' · '));
+  }
+  if(o.wx && o.wx.data){
+    L.push(''); L.push('WEATHER (' + (o.wx.place || '') + '):');
+    for(const [k, v] of o.wx.data) L.push('  ' + k + ': ' + v);
+  }
+  L.push(''); L.push('— sent from FLOOR Studio');
+  return L.join('\n');
+}
+function mailCallSheet(o){
+  const ems = sheetEmails(o);
+  if(!ems.length){ toast('No email addresses in the registry — add them on the Crew/Cast/Client cards'); return; }
+  const day = project.prodboard && project.prodboard.objects.find(x=>x.cat==='dayheader');
+  const subject = 'Call sheet — ' + (project.shootName || 'production') +
+    (day && day.date ? ' — ' + day.date : '');
+  let body = callSheetText(o);
+  if(body.length > 1600) body = body.slice(0, 1600) + '\n…'; // mailto URL limits
+  location.href = 'mailto:?bcc=' + encodeURIComponent(ems.join(',')) +
+    '&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  toast('Opening your mail app (' + ems.length + ' in BCC) — attach the exported PDF');
 }
 
 // one-page call-sheet PDF: the card rendered alone, A4 portrait

@@ -87,7 +87,11 @@ async function buildSharePop(){
   const sb = shareClient();
   const {data, error} = await sb.from('shares').select('*')
     .eq('owner', window.FLOOR_USER.id).order('created_at', {ascending:false});
-  if(error || !data || !data.length) return;
+  if(error || !data || !data.length){
+    // no read-only links yet — co-editing must still be reachable
+    await buildCoEditorSection(pop);
+    return;
+  }
   pop.insertAdjacentHTML('beforeend', '<div class="xp-title" style="margin-top:10px">Active links</div>');
   for(const s of data){
     const row = document.createElement('div');

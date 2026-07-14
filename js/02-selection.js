@@ -29,7 +29,7 @@ function handleList(){
       hs.push({id:'lm', x:m.x, y:m.y});
       return hs;
     }
-    if(['ink','listcard','fieldcard','dayheader','avscript','callsheet'].includes(o.cat)) return hs; // self-sizing — no resize/rotate
+    if(['ink','listcard','fieldcard','dayheader','avscript','callsheet','schedule'].includes(o.cat)) return hs; // self-sizing — no resize/rotate
     if(o.cat === 'table'){
       // spreadsheet-style: drag the corner to add/remove rows and columns
       hs.push({id:'tgrow', x:o.x + o.w/2 + 10/s, y:o.y + o.h/2 + 10/s});
@@ -119,6 +119,17 @@ function drawSelection(shot){
       ctx.restore();
     }
     ctx.setLineDash([]);
+    // walls in the group glow like a single selected wall
+    ctx.lineWidth = 3/s; ctx.globalAlpha = .8;
+    for(const id of (sel.wallIds || [])){
+      const w = shot.walls.find(x=>x.id===id);
+      if(!w) continue;
+      const smp = wallSamples(w);
+      ctx.beginPath();
+      smp.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     ctx.restore();
     return;
   }

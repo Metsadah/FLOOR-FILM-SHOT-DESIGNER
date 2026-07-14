@@ -113,8 +113,15 @@ function normalizeProduction(){
   if(!Array.isArray(p.locations)) p.locations = [];
   p.locations.forEach(l=>{
     if(!l.id) l.id = uid();
-    for(const k of ['name','address','parking','power','hospital','notes'])
+    for(const k of ['name','address','street','town','country','parking','power','hospital','notes'])
       if(l[k] === undefined) l[k] = '';
+    // pre-v0.24 single address line becomes the street (best effort)
+    if(l.address && !l.street && !l.town){
+      const parts = l.address.split(',').map(s=>s.trim());
+      l.street = parts[0] || '';
+      l.town = parts[1] || '';
+      l.address = '';
+    }
   });
 }
 // field-card value routing: prodinfo ↔ production/shootName, location ↔ locations[locId]
@@ -1316,11 +1323,98 @@ function drawObjectShape(o, ghost){
     ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
     ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'schedule'){
+    // live day schedule: calls from the day header, scenes chained from the
+    // shooting call using each scene's duration + travel/setup minutes.
+    // Checkbox per scene = "are we shooting this today"; times follow.
+    const titleH = 26, rowH = 24, pad = 10;
+    const day = project.prodboard && project.prodboard.objects.find(x=>x.cat==='dayheader');
+    if(!o.on) o.on = {};
+    const included = s => o.on[s.id] !== false;
+    const scenes = project.scenes;
+    o.w = 320;
+    const headLines = 2;
+    o.h = titleH + pad + headLines*20 + 6 + scenes.length*rowH + 26 + pad;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.clip();
+    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillRect(-o.w/2, -o.h/2, o.w, titleH);
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#33322E';
+    ctx.fillText('DAY SCHEDULE', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+    if(day && day.date){
+      const d = new Date(day.date + 'T12:00:00');
+      ctx.textAlign = 'right';
+      ctx.font = '600 10.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillText(isNaN(d) ? day.date :
+        d.toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short'}),
+        o.w/2 - 8, -o.h/2 + titleH/2 + .5);
+      ctx.textAlign = 'left';
+    }
+    // calls from the day header
+    let y = -o.h/2 + titleH + pad + 9;
+    ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = day ? '#33322E' : 'rgba(74,70,54,.35)';
+    ctx.fillText(day
+      ? 'General call ' + (day.call || '–') + '   ·   shooting call ' + (day.shootCall || '–')
+      : 'Drop a Day header for the call times…', -o.w/2 + pad, y);
+    y += 20;
+    // chained scene rows
+    let t = day ? (toMinutes(day.shootCall) ?? toMinutes(day.call) ?? 480) : 480;
+    ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+    o._checkRects = [];
+    y += 6;
+    scenes.forEach((s)=>{
+      const on = included(s);
+      const cy = y + rowH/2 - 9;
+      // checkbox
+      ctx.strokeStyle = on ? o.color : '#B9B6AE'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.roundRect(-o.w/2 + pad, cy - 8, 16, 16, 2);
+      if(on){
+        ctx.fillStyle = o.color; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(-o.w/2 + pad + 4, cy); ctx.lineTo(-o.w/2 + pad + 7.2, cy + 3.6);
+        ctx.lineTo(-o.w/2 + pad + 12.4, cy - 3.8);
+        ctx.stroke();
+      } else ctx.stroke();
+      o._checkRects.push({sceneId:s.id, x:o.x - o.w/2 + pad - 4, y:o.y + cy - 12, w:24, h:24});
+      // time + label
+      let start = '—';
+      if(on){
+        t += (s.travelMin || 0) + (s.setupMin || 0);
+        start = minToHHMM(t);
+        t += s.duration || 60;
+      }
+      ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = on ? '#33322E' : 'rgba(74,70,54,.3)';
+      ctx.fillText(start, -o.w/2 + pad + 24, cy);
+      ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = on ? '#4A4636' : 'rgba(74,70,54,.3)';
+      const label = (s.scene ? s.scene + ' · ' : '') + (s.sceneDesc || s.name);
+      ctx.fillText(trimText(ctx, label, o.w - pad*2 - 66), -o.w/2 + pad + 62, cy);
+      y += rowH;
+    });
+    // wrap line
+    ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-o.w/2 + pad, y - 4); ctx.lineTo(o.w/2 - pad, y - 4); ctx.stroke();
+    ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#33322E';
+    ctx.fillText('Est. wrap ' + ((day && day.wrap) || minToHHMM(t)), -o.w/2 + pad, y + 9);
+    ctx.restore();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'callsheet'){
     // THE call sheet — a live composite of the other cards. Nothing here is
     // edited directly: day header, registry, location and weather feed it.
     normalizeProduction();
-    if(!o.inc) o.inc = {location:true, crew:true, cast:true, client:true, weather:true};
+    if(!o.inc) o.inc = {location:true, schedule:true, crew:true, cast:true, client:true, weather:true};
+    if(o.inc.schedule === undefined) o.inc.schedule = true;
     const inc = o.inc;
     const b = project.prodboard;
     const day = b && b.objects.find(x=>x.cat==='dayheader');
@@ -1338,11 +1432,28 @@ function drawObjectShape(o, ghost){
       const L = [];
       if(loc){
         if(loc.name) L.push(['b', loc.name]);
-        if(loc.address) L.push(['n', loc.address]);
+        const addr = [loc.street, loc.town, loc.country].filter(Boolean).join(', ') || loc.address;
+        if(addr) L.push(['n', addr]);
         for(const [k, lab] of [['parking','Parking'],['power','Power'],['hospital','Hospital'],['notes','Notes']])
           if(loc[k]) L.push(['n', lab + ': ' + loc[k]]);
       }
       secs.push(['LOCATION', L.length ? L : [['p','fill a Location card…']]]);
+    }
+    if(inc.schedule){
+      // mirrors the Day schedule card: its scene selection, chained times
+      const schd = b && b.objects.find(x=>x.cat==='schedule');
+      const on = s => !schd || !schd.on || schd.on[s.id] !== false;
+      const L = [];
+      let t = day ? (toMinutes(day.shootCall) ?? toMinutes(day.call) ?? 480) : 480;
+      for(const s of project.scenes){
+        if(!on(s)) continue;
+        t += (s.travelMin || 0) + (s.setupMin || 0);
+        L.push(['n', minToHHMM(t) + '  ' + trimText(ctx,
+          (s.scene ? s.scene + ' · ' : '') + (s.sceneDesc || s.name), o.w - pad*2 - 44)]);
+        t += s.duration || 60;
+      }
+      if(L.length) L.push(['b', 'Est. wrap ' + ((day && day.wrap) || minToHHMM(t))]);
+      secs.push(['SCHEDULE', L.length ? L : [['p','no scenes selected on the Day schedule card…']]]);
     }
     if(inc.crew){
       const c = ppl('crew');
