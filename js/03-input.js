@@ -438,6 +438,7 @@ cv.addEventListener('pointerdown', e => {
       if(h.id === 'rotate') drag = {kind:'rotate', o, craneBase: isCrane(o) ? jibBasePos(o) : null};
       else if(h.id === 'resize') drag = {kind:'resize', o, ratio:o.h/o.w};
       else if(h.id === 'jibHead') drag = {kind:'jibHead', o, B:jibBasePos(o)};
+      else if(h.id === 'cardW') drag = {kind:'cardW', o, left:o.x - o.w/2};
       else if(h.id === 'tgrow') drag = {kind:'tgrow', o,
         left:o.x - o.w/2, top:o.y - o.h/2,
         avgW: Math.max(60, o.w / o.cells[0].length)};
@@ -848,6 +849,14 @@ cv.addEventListener('pointermove', e => {
       o.fov = clamp(Math.abs(deg(norm(a - o.rot)))*2, 4, 175);
       o.range = clamp(dist(wx,wy,o.x,o.y), 40, 8000);
       o.lens = null;
+      markDirty();
+      break;
+    }
+    case 'cardW': {
+      // widen the card from its right edge; left edge stays anchored
+      const o = drag.o;
+      o.userW = clamp(wx - drag.left, 344, 900);
+      o.x = drag.left + o.w/2;
       markDirty();
       break;
     }

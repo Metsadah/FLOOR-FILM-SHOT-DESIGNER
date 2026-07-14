@@ -1380,7 +1380,17 @@ function drawObjectShape(o, ghost){
     const day = project.prodboard && project.prodboard.objects.find(x=>x.cat==='dayheader');
     const {rows, wrap} = computeSchedule(o, day);
     const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
-    o.w = 344;
+    // width: longest row label (and the calls line) sets it; the right-edge
+    // handle lets the user widen further (o.userW)
+    ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
+    let labMax = 130;
+    for(const r of rows) labMax = Math.max(labMax, ctx.measureText(r.label).width);
+    ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+    const callsW = ctx.measureText(day
+      ? 'General call ' + (day.call || '–') + '   ·   shooting call ' + (day.shootCall || '–')
+      : 'Drop a Day header for the call times…').width;
+    const needW = Math.max(86 + labMax + 66, pad*2 + callsW + 4);
+    o.w = clamp(Math.max(needW, o.userW || 344), 344, 900);
     o.h = titleH + pad + 20 + 6 + rows.length*rowH + 26 + pad;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
     ctx.fillStyle = '#fff'; ctx.fill();
@@ -1503,11 +1513,10 @@ function drawObjectShape(o, ghost){
     const loc = project.production.locations.find(l=>l.name || l.address) || null;
     const ppl = t => peopleReg().filter(p=>p.tag===t);
     const titleH = 26, rowH = 17, secHead = 16, gap = 8, pad = 10;
-    o.w = 380;
-    ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
-    // build sections as [header, [lines...]]
-    const line1 = p => trimText(ctx, [p.call, p.role && p.role + ' —', p.name, p.phone && '· ' + p.phone]
-      .filter(Boolean).join(' '), o.w - pad*2);
+    // width resolves AFTER the lines are built (auto-fit + manual handle)
+    // build sections as [header, [lines...]] — untrimmed; drawLine trims later
+    const line1 = p => [p.call, p.role && p.role + ' —', p.name, p.phone && '· ' + p.phone]
+      .filter(Boolean).join(' ');
     const secs = [];
     if(inc.location){
       const L = [];
@@ -1528,7 +1537,7 @@ function drawObjectShape(o, ghost){
       for(const r of cs2.rows){
         if(r.it.on === false || r.start == null) continue;
         L.push([r.it.type === 'scene' ? 'n' : 'p',
-          minToHHMM(r.start) + '  ' + trimText(ctx, r.label, o.w - pad*2 - 44) +
+          minToHHMM(r.start) + '  ' + r.label +
           (r.it.type !== 'scene' ? ' (' + r.dur + 'm)' : '')]);
       }
       if(L.length) L.push(['b', 'Est. wrap ' + ((day && day.wrap) || cs2.wrap)]);
@@ -1540,13 +1549,13 @@ function drawObjectShape(o, ghost){
     }
     if(inc.cast){
       const c = ppl('cast');
-      secs.push(['CAST', c.length ? c.map(p=>['n', trimText(ctx,
-        [p.call, p.name, p.role && '(' + p.role + ')', p.phone && '· ' + p.phone].filter(Boolean).join(' '), o.w - pad*2)]) : [['p','—']]]);
+      secs.push(['CAST', c.length ? c.map(p=>['n',
+        [p.call, p.name, p.role && '(' + p.role + ')', p.phone && '· ' + p.phone].filter(Boolean).join(' ')]) : [['p','—']]]);
     }
     if(inc.client){
       const c = ppl('client');
-      secs.push(['CLIENT', c.length ? c.map(p=>['n', trimText(ctx,
-        [p.name, p.role && '— ' + p.role, p.phone && '· ' + p.phone, p.email && '· ' + p.email].filter(Boolean).join(' '), o.w - pad*2)]) : [['p','—']]]);
+      secs.push(['CLIENT', c.length ? c.map(p=>['n',
+        [p.name, p.role && '— ' + p.role, p.phone && '· ' + p.phone, p.email && '· ' + p.email].filter(Boolean).join(' ')]) : [['p','—']]]);
     }
     if(inc.weather){
       const L = [];
@@ -1578,6 +1587,17 @@ function drawObjectShape(o, ghost){
       if(ds) head.push(['b', ds]);
       if(calls) head.push(['b', calls]);
     } else head.push(['p', 'drop a Day header card for date & calls…']);
+    // width: fit the longest line, or the user's own width — whichever wins
+    const fontFor = k => k === 't' ? '800 13px -apple-system,Segoe UI,sans-serif'
+      : k === 'b' ? '600 11.5px -apple-system,Segoe UI,sans-serif'
+      : k === 'p' ? 'italic 11px -apple-system,Segoe UI,sans-serif'
+      : '11.5px -apple-system,Segoe UI,sans-serif';
+    let needW = 380 - pad*2;
+    for(const [k, txt] of head.concat(...secs.map(s2=>s2[1]))){
+      ctx.font = fontFor(k);
+      needW = Math.max(needW, ctx.measureText(txt).width);
+    }
+    o.w = clamp(Math.max(needW + pad*2 + 4, o.userW || 380), 380, 900);
     o.h = titleH + pad + head.length*rowH + gap +
       secs.reduce((a, s)=>a + secHead + s[1].length*rowH + gap, 0) + pad - gap + 6;
     // draw

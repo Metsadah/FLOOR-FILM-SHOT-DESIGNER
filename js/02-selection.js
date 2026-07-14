@@ -29,7 +29,12 @@ function handleList(){
       hs.push({id:'lm', x:m.x, y:m.y});
       return hs;
     }
-    if(['ink','listcard','fieldcard','dayheader','avscript','callsheet','schedule'].includes(o.cat)) return hs; // self-sizing — no resize/rotate
+    if(['ink','listcard','fieldcard','dayheader','avscript'].includes(o.cat)) return hs; // self-sizing — no resize/rotate
+    if(o.cat === 'callsheet' || o.cat === 'schedule'){
+      // width-only handle: give the cells more room (height stays automatic)
+      hs.push({id:'cardW', x:o.x + o.w/2 + 10/s, y:o.y});
+      return hs;
+    }
     if(o.cat === 'table'){
       // spreadsheet-style: drag the corner to add/remove rows and columns
       hs.push({id:'tgrow', x:o.x + o.w/2 + 10/s, y:o.y + o.h/2 + 10/s});
