@@ -395,11 +395,11 @@ async function callsheetWeather(o, day){
   } finally { o._wxBusy = false; }
 }
 
-// every email address on the call sheet (respecting its section toggles)
-function sheetEmails(o){
+// email addresses on the call sheet — all groups, or one tag
+function sheetEmails(o, tag){
   normalizeProduction();
   const inc = o.inc || {};
-  const tags = ['crew','cast','client'].filter(t=>inc[t] !== false);
+  const tags = tag ? [tag] : ['crew','cast','client'].filter(t=>inc[t] !== false);
   return [...new Set(peopleReg()
     .filter(p=>tags.includes(p.tag) && /\S+@\S+\.\S+/.test(p.email || ''))
     .map(p=>p.email.trim()))];
@@ -430,18 +430,15 @@ function callSheetText(o){
     if(loc.hospital) L.push('Hospital: ' + loc.hospital);
   }
   const schd = b && b.objects.find(x=>x.cat==='schedule');
-  const on = s => !schd || !schd.on || schd.on[s.id] !== false;
-  let t = day ? (toMinutes(day.shootCall) ?? toMinutes(day.call) ?? 480) : 480;
+  const cs2 = computeSchedule(schd || {}, day);
   const rows = [];
-  for(const s of project.scenes){
-    if(!on(s)) continue;
-    t += (s.travelMin || 0) + (s.setupMin || 0);
-    rows.push(minToHHMM(t) + '  ' + (s.scene ? s.scene + ' · ' : '') + (s.sceneDesc || s.name));
-    t += s.duration || 60;
+  for(const r of cs2.rows){
+    if(r.it.on === false || r.start == null) continue;
+    rows.push(minToHHMM(r.start) + '  ' + r.label + (r.it.type !== 'scene' ? ' (' + r.dur + 'm)' : ''));
   }
   if(rows.length){
     L.push(''); L.push('SCHEDULE:'); L.push(...rows);
-    L.push('Est. wrap ' + ((day && day.wrap) || minToHHMM(t)));
+    L.push('Est. wrap ' + ((day && day.wrap) || cs2.wrap));
   }
   const ppl = tag => peopleReg().filter(p=>p.tag === tag);
   for(const [tag, name] of [['crew','CREW'],['cast','CAST'],['client','CLIENT']]){
@@ -459,17 +456,40 @@ function callSheetText(o){
   L.push(''); L.push('— sent from FLOOR Studio');
   return L.join('\n');
 }
-function mailCallSheet(o){
-  const ems = sheetEmails(o);
-  if(!ems.length){ toast('No email addresses in the registry — add them on the Crew/Cast/Client cards'); return; }
+function mailCallSheet(o, tag){
+  const ems = sheetEmails(o, tag);
+  const who = tag || 'everyone';
+  if(!ems.length){
+    toast('No ' + who + ' email addresses yet — add them on the registry cards');
+    return;
+  }
+  // the PDF downloads alongside the draft — newest file, ready to drag in
+  // (browsers cannot attach files to mailto:; "Share PDF…" attaches for real)
+  try{ exportCallSheetPDF(o); }catch(e){ console.warn('pdf for mail failed', e); }
   const day = project.prodboard && project.prodboard.objects.find(x=>x.cat==='dayheader');
   const subject = 'Call sheet — ' + (project.shootName || 'production') +
     (day && day.date ? ' — ' + day.date : '');
   let body = callSheetText(o);
   if(body.length > 1600) body = body.slice(0, 1600) + '\n…'; // mailto URL limits
-  location.href = 'mailto:?bcc=' + encodeURIComponent(ems.join(',')) +
-    '&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-  toast('Opening your mail app (' + ems.length + ' in BCC) — attach the exported PDF');
+  setTimeout(()=>{
+    location.href = 'mailto:?bcc=' + encodeURIComponent(ems.join(',')) +
+      '&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    toast('Mail to ' + who + ' (' + ems.length + ' BCC) — the PDF just downloaded, drag it into the draft');
+  }, 350);
+}
+// real attachment via the OS share sheet (Mail on macOS/iPadOS) where supported
+async function shareCallSheetPDF(o){
+  const {bytes, name} = buildCallSheetPDF(o);
+  const file = new File([bytes], name, {type:'application/pdf'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file], title:name});
+      return;
+    }catch(e){ if(e.name === 'AbortError') return; }
+  }
+  // no share sheet on this browser — fall back to a download
+  exportCallSheetPDF(o);
+  toast('Sharing not supported here — PDF downloaded instead');
 }
 
 // one-page call-sheet PDF: the card rendered alone, A4 portrait

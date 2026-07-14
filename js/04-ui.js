@@ -291,9 +291,12 @@ function refreshSelBar(){
       sbtn('Weather ↻', ()=>{ o.wx = null; markDirty(); render(); });
     }
     if(o.cat === 'schedule'){
+      sbtn('+ Break', ()=>addSchedBlock(o, 'break'));
+      sbtn('+ Location change', ()=>addSchedBlock(o, 'move'));
+      sbtn('+ Prep', ()=>addSchedBlock(o, 'prep'));
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
-      hint.textContent = 'Tick the scenes for this day — times chain from the shooting call';
+      hint.textContent = 'Drag rows to reorder · click a time to pin it · click a name to rename';
       selBar.appendChild(hint);
     }
     if(o.cat === 'avscript'){
@@ -704,6 +707,13 @@ function editorGetValue(o, field){
     return (r && r[key]) || '';
   }
   if(field && field.startsWith('cc:')) return o[field.slice(3)] || '';
+  if(field && field.startsWith('sch:')){
+    const [,iid,key] = field.split(':');
+    const it = (o.items||[]).find(x=>x.id===iid);
+    if(!it) return '';
+    if(key === 'dur') return String(it.dur || 30);
+    return it[key] || '';
+  }
   return o[field || 'text'] || '';
 }
 function editorSetValue(o, field, v){
@@ -749,6 +759,20 @@ function editorSetValue(o, field, v){
   }
   if(field && field.startsWith('cc:')){
     o[field.slice(3)] = field === 'cc:title' ? v.replace(/\n/g,' ') : v;
+    return;
+  }
+  if(field && field.startsWith('sch:')){
+    const [,iid,key] = field.split(':');
+    const it = (o.items||[]).find(x=>x.id===iid);
+    if(!it) return;
+    const clean = v.replace(/\n/g,' ').trim();
+    if(key === 'dur'){
+      // "45", "45m" or "1:30" all work
+      it.dur = clean.includes(':') ? (toMinutes(clean) || 30)
+             : Math.max(5, parseInt(clean, 10) || 30);
+    } else if(key === 'time'){
+      it.time = clean; // empty = back to auto-chaining
+    } else it.label = clean; // empty = back to the scene's own tag line
     return;
   }
   o[field || 'text'] = v;
@@ -876,6 +900,28 @@ function openColCell(o, key){
     openNoteEditor(o, 'cc:title', {x:-o.w/2+4, y:-o.h/2+2, w:o.w-8, h:22}, 11);
   else
     openNoteEditor(o, 'cc:text', {x:-o.w/2+4, y:-o.h/2+30, w:o.w-8, h:o.h-36}, 12.5);
+}
+
+// ---- day schedule (the flexible strip) ----
+function openSchedCell(o, itemId, key){
+  const items = schedItems(o);
+  const i = items.findIndex(x=>x.id === itemId);
+  if(i < 0) return;
+  if(key === 'dur' && items[i].type === 'scene') return; // scene length lives on the scene
+  const rowH = 24, grip = 14, pad = 10;
+  const headH = 26 + pad + 26; // title + calls line
+  const cy = -o.h/2 + headH + i*rowH;
+  const cbX = -o.w/2 + grip + 2, tX = cbX + 24, lX = tX + 46, dX = o.w/2 - 52;
+  const rect = key === 'time' ? {x:tX - 2, y:cy + 1, w:46, h:rowH - 4}
+             : key === 'dur'  ? {x:dX, y:cy + 1, w:44, h:rowH - 4}
+             : {x:lX - 2, y:cy + 1, w:dX - lX, h:rowH - 4};
+  openNoteEditor(o, 'sch:' + itemId + ':' + key, rect, 11.5);
+}
+function addSchedBlock(o, type){
+  const items = schedItems(o);
+  items.push({id:uid(), type, sceneId:null, on:true, label:'', time:'',
+    dur: type === 'break' ? 45 : 30});
+  markDirty(); render();
 }
 
 // ---- day header (the call-time block) ----
@@ -1032,6 +1078,19 @@ function openNoteEditor(o, field, rect, fs){
       closeNoteEditor(true);
       render();
       setTimeout(()=>openColCell(o, 'text'), 0);
+      return;
+    }
+    if(fld.startsWith('sch:') && (e.key === 'Enter' || e.key === 'Tab')){
+      e.preventDefault();
+      const [,iid,key] = fld.split(':');
+      closeNoteEditor(true);
+      render();
+      if(e.key === 'Tab'){ // time → label → (dur for blocks), then done
+        const it = (o.items||[]).find(x=>x.id===iid);
+        const next = key === 'time' ? 'label'
+                   : (key === 'label' && it && it.type !== 'scene') ? 'dur' : null;
+        if(next) setTimeout(()=>openSchedCell(o, iid, next), 0);
+      }
       return;
     }
     if(fld.startsWith('item:')){

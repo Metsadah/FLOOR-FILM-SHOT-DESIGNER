@@ -171,6 +171,51 @@ function moveListRow(o, personId, targetIdx){
   return true;
 }
 
+// ---------------------------------------------------------------- day schedule model
+// The schedule card owns an ORDERED item list: scene rows (auto-synced with
+// project.scenes) plus free blocks (break / location change / prep). Times
+// chain from the shooting call; a row's manual time PINS the chain there.
+function schedItems(o){
+  if(!o.items){
+    // migrate the v0.24 shape (o.on include-map) into ordered rows
+    o.items = project.scenes.map(s=>({id:uid(), type:'scene', sceneId:s.id,
+      on: !(o.on && o.on[s.id] === false), label:'', time:'', dur:null}));
+  }
+  for(const s of project.scenes)
+    if(!o.items.some(it=>it.sceneId === s.id))
+      o.items.push({id:uid(), type:'scene', sceneId:s.id, on:true, label:'', time:'', dur:null});
+  o.items = o.items.filter(it=>it.type !== 'scene' || project.scenes.some(s=>s.id === it.sceneId));
+  return o.items;
+}
+function computeSchedule(o, day){
+  const items = schedItems(o);
+  let t = day ? (toMinutes(day.shootCall) ?? toMinutes(day.call) ?? 480) : 480;
+  const rows = [];
+  for(const it of items){
+    const s = it.type === 'scene' ? project.scenes.find(x=>x.id === it.sceneId) : null;
+    const pin = toMinutes(it.time);
+    let start = null, dur, label = it.label;
+    if(it.type === 'scene'){
+      dur = (s && s.duration) || 60;
+      if(!label) label = s ? ((s.scene ? s.scene + ' · ' : '') + (s.sceneDesc || s.name)) : '?';
+      if(it.on !== false){
+        t += s ? (s.travelMin || 0) + (s.setupMin || 0) : 0;
+        if(pin != null) t = pin;
+        start = t; t += dur;
+      }
+    } else {
+      dur = it.dur || 30;
+      if(!label) label = it.type === 'break' ? 'Break' : it.type === 'move' ? 'Location change' : 'Prep / build';
+      if(it.on !== false){
+        if(pin != null) t = pin;
+        start = t; t += dur;
+      }
+    }
+    rows.push({it, s, start, dur, label});
+  }
+  return {rows, wrap: minToHHMM(t)};
+}
+
 let activeTab = 'design'; // design | mood | script | story | org
 const BOARD_TABS = new Set(['mood','org','write']);
 function activeScene(){
@@ -1328,17 +1373,15 @@ function drawObjectShape(o, ghost){
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'schedule'){
-    // live day schedule: calls from the day header, scenes chained from the
-    // shooting call using each scene's duration + travel/setup minutes.
-    // Checkbox per scene = "are we shooting this today"; times follow.
-    const titleH = 26, rowH = 24, pad = 10;
+    // the flexible day strip: scene rows + break/move/prep blocks, draggable
+    // order, checkboxes, pinnable times, renamable rows. computeSchedule
+    // owns the chaining; this draws it and lays out the edit zones.
+    const titleH = 26, rowH = 24, pad = 10, grip = 14;
     const day = project.prodboard && project.prodboard.objects.find(x=>x.cat==='dayheader');
-    if(!o.on) o.on = {};
-    const included = s => o.on[s.id] !== false;
-    const scenes = project.scenes;
-    o.w = 320;
-    const headLines = 2;
-    o.h = titleH + pad + headLines*20 + 6 + scenes.length*rowH + 26 + pad;
+    const {rows, wrap} = computeSchedule(o, day);
+    const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
+    o.w = 344;
+    o.h = titleH + pad + 20 + 6 + rows.length*rowH + 26 + pad;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
     ctx.fillStyle = '#fff'; ctx.fill();
     ctx.save();
@@ -1359,48 +1402,66 @@ function drawObjectShape(o, ghost){
         o.w/2 - 8, -o.h/2 + titleH/2 + .5);
       ctx.textAlign = 'left';
     }
-    // calls from the day header
     let y = -o.h/2 + titleH + pad + 9;
     ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = day ? '#33322E' : 'rgba(74,70,54,.35)';
     ctx.fillText(day
       ? 'General call ' + (day.call || '–') + '   ·   shooting call ' + (day.shootCall || '–')
       : 'Drop a Day header for the call times…', -o.w/2 + pad, y);
-    y += 20;
-    // chained scene rows
-    let t = day ? (toMinutes(day.shootCall) ?? toMinutes(day.call) ?? 480) : 480;
-    ctx.font = '12px -apple-system,Segoe UI,sans-serif';
-    o._checkRects = [];
-    y += 6;
-    scenes.forEach((s)=>{
-      const on = included(s);
+    y += 26;
+    // column x layout (local): grip | checkbox | time | label | dur
+    const cbX = -o.w/2 + grip + 2, tX = cbX + 24, lX = tX + 46, dX = o.w/2 - 52;
+    o._checkRects = []; o._rowRects = []; o._timeRects = []; o._labelRects = [];
+    o._durRects = []; o._delRects = [];
+    rows.forEach((r)=>{
+      const it = r.it;
+      const on = it.on !== false;
       const cy = y + rowH/2 - 9;
+      if(drag && drag.kind === 'schrow' && drag.itemId === it.id){
+        ctx.fillStyle = 'rgba(75,107,251,.08)';
+        ctx.fillRect(-o.w/2, cy - rowH/2, o.w, rowH);
+      }
+      // grip
+      ctx.fillStyle = selMe ? '#B9B6AE' : '#E5E3DE';
+      for(const dy of [-4, 0, 4]) for(const dx of [-2, 2]){
+        ctx.beginPath(); ctx.arc(-o.w/2 + grip/2 + dx, cy + dy, 1.1, 0, 7); ctx.fill();
+      }
+      o._rowRects.push({itemId:it.id, x:o.x - o.w/2, y:o.y + cy - rowH/2, w:grip, h:rowH});
       // checkbox
       ctx.strokeStyle = on ? o.color : '#B9B6AE'; ctx.lineWidth = 1.6;
-      ctx.beginPath(); ctx.roundRect(-o.w/2 + pad, cy - 8, 16, 16, 2);
+      ctx.beginPath(); ctx.roundRect(cbX, cy - 8, 16, 16, 2);
       if(on){
         ctx.fillStyle = o.color; ctx.fill();
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.2;
         ctx.beginPath();
-        ctx.moveTo(-o.w/2 + pad + 4, cy); ctx.lineTo(-o.w/2 + pad + 7.2, cy + 3.6);
-        ctx.lineTo(-o.w/2 + pad + 12.4, cy - 3.8);
+        ctx.moveTo(cbX + 4, cy); ctx.lineTo(cbX + 7.2, cy + 3.6); ctx.lineTo(cbX + 12.4, cy - 3.8);
         ctx.stroke();
       } else ctx.stroke();
-      o._checkRects.push({sceneId:s.id, x:o.x - o.w/2 + pad - 4, y:o.y + cy - 12, w:24, h:24});
-      // time + label
-      let start = '—';
-      if(on){
-        t += (s.travelMin || 0) + (s.setupMin || 0);
-        start = minToHHMM(t);
-        t += s.duration || 60;
+      o._checkRects.push({itemId:it.id, x:o.x + cbX - 4, y:o.y + cy - 12, w:24, h:24});
+      // time (click to pin; pinned times show in the card color)
+      if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='sch:'+it.id+':time')){
+        ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+        ctx.fillStyle = !on ? 'rgba(74,70,54,.3)' : (toMinutes(it.time) != null ? shade(o.color,.75) : '#33322E');
+        ctx.fillText(on && r.start != null ? minToHHMM(r.start) : '—', tX, cy);
       }
-      ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
-      ctx.fillStyle = on ? '#33322E' : 'rgba(74,70,54,.3)';
-      ctx.fillText(start, -o.w/2 + pad + 24, cy);
-      ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
-      ctx.fillStyle = on ? '#4A4636' : 'rgba(74,70,54,.3)';
-      const label = (s.scene ? s.scene + ' · ' : '') + (s.sceneDesc || s.name);
-      ctx.fillText(trimText(ctx, label, o.w - pad*2 - 66), -o.w/2 + pad + 62, cy);
+      o._timeRects.push({itemId:it.id, x:o.x + tX - 4, y:o.y + cy - 11, w:46, h:22});
+      // label (click to rename — scenes keep their board name, this is display-only)
+      if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='sch:'+it.id+':label')){
+        ctx.font = (it.type === 'scene' ? '' : 'italic ') + '11.5px -apple-system,Segoe UI,sans-serif';
+        ctx.fillStyle = on ? '#4A4636' : 'rgba(74,70,54,.3)';
+        ctx.fillText(trimText(ctx, r.label, dX - lX - 8), lX, cy);
+      }
+      o._labelRects.push({itemId:it.id, x:o.x + lX - 4, y:o.y + cy - 11, w:dX - lX, h:22});
+      // duration — editable for blocks, informative for scenes
+      if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='sch:'+it.id+':dur')){
+        ctx.font = '10.5px -apple-system,Segoe UI,sans-serif';
+        ctx.fillStyle = on ? '#8A877F' : 'rgba(74,70,54,.25)';
+        ctx.textAlign = 'right';
+        ctx.fillText(r.dur + 'm', o.w/2 - pad, cy);
+        ctx.textAlign = 'left';
+      }
+      if(it.type !== 'scene')
+        o._durRects.push({itemId:it.id, x:o.x + dX, y:o.y + cy - 11, w:52 - pad, h:22});
       y += rowH;
     });
     // wrap line
@@ -1408,10 +1469,26 @@ function drawObjectShape(o, ghost){
     ctx.beginPath(); ctx.moveTo(-o.w/2 + pad, y - 4); ctx.lineTo(o.w/2 - pad, y - 4); ctx.stroke();
     ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = '#33322E';
-    ctx.fillText('Est. wrap ' + ((day && day.wrap) || minToHHMM(t)), -o.w/2 + pad, y + 9);
+    ctx.fillText('Est. wrap ' + ((day && day.wrap) || wrap), -o.w/2 + pad, y + 9);
     ctx.restore();
     ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
+    // × chips remove BLOCK rows (scenes only untick) when selected
+    if(selMe){
+      ctx.textAlign = 'center'; ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+      let cy2 = -o.h/2 + titleH + pad + 35 + rowH/2 - 9;
+      rows.forEach((r)=>{
+        if(r.it.type !== 'scene'){
+          ctx.beginPath(); ctx.arc(o.w/2 + 14, cy2, 8, 0, 7);
+          ctx.fillStyle = '#fff'; ctx.fill();
+          ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1.2; ctx.stroke();
+          ctx.fillStyle = '#8A877F'; ctx.fillText('×', o.w/2 + 14, cy2 + 1);
+          o._delRects.push({itemId:r.it.id, x:o.x + o.w/2 + 14, y:o.y + cy2, r:11});
+        }
+        cy2 += rowH;
+      });
+      ctx.textAlign = 'left';
+    }
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'callsheet'){
     // THE call sheet — a live composite of the other cards. Nothing here is
@@ -1444,20 +1521,18 @@ function drawObjectShape(o, ghost){
       secs.push(['LOCATION', L.length ? L : [['p','fill a Location card…']]]);
     }
     if(inc.schedule){
-      // mirrors the Day schedule card: its scene selection, chained times
+      // mirrors the Day schedule card: its order, blocks, pins and selection
       const schd = b && b.objects.find(x=>x.cat==='schedule');
-      const on = s => !schd || !schd.on || schd.on[s.id] !== false;
+      const cs2 = computeSchedule(schd || {}, day);
       const L = [];
-      let t = day ? (toMinutes(day.shootCall) ?? toMinutes(day.call) ?? 480) : 480;
-      for(const s of project.scenes){
-        if(!on(s)) continue;
-        t += (s.travelMin || 0) + (s.setupMin || 0);
-        L.push(['n', minToHHMM(t) + '  ' + trimText(ctx,
-          (s.scene ? s.scene + ' · ' : '') + (s.sceneDesc || s.name), o.w - pad*2 - 44)]);
-        t += s.duration || 60;
+      for(const r of cs2.rows){
+        if(r.it.on === false || r.start == null) continue;
+        L.push([r.it.type === 'scene' ? 'n' : 'p',
+          minToHHMM(r.start) + '  ' + trimText(ctx, r.label, o.w - pad*2 - 44) +
+          (r.it.type !== 'scene' ? ' (' + r.dur + 'm)' : '')]);
       }
-      if(L.length) L.push(['b', 'Est. wrap ' + ((day && day.wrap) || minToHHMM(t))]);
-      secs.push(['SCHEDULE', L.length ? L : [['p','no scenes selected on the Day schedule card…']]]);
+      if(L.length) L.push(['b', 'Est. wrap ' + ((day && day.wrap) || cs2.wrap)]);
+      secs.push(['SCHEDULE', L.length ? L : [['p','tick scenes on the Day schedule card…']]]);
     }
     if(inc.crew){
       const c = ppl('crew');

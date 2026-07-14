@@ -274,6 +274,18 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## v0.26 — the schedule becomes a strip(board)
+Schedule card data model changed: `o.items` = ORDERED rows
+`{id, type:'scene'|'break'|'move'|'prep', sceneId, on, label, time, dur}`.
+`schedItems(o)` migrates the v0.24 `o.on` map, auto-appends new scenes and
+drops deleted ones; `computeSchedule(o, day)` (01) owns the time chain —
+a row's manual `time` PINS the chain from there; label overrides are
+display-only (scene names untouched). Interactions: grip drag reorders
+(`schrow`), checkbox toggles, click time/label/dur to edit (`sch:` editor
+fields, Tab hops time→label→dur), × chips remove BLOCK rows, selBar adds
++Break/+Location change/+Prep. Call sheet + callSheetText both render
+through computeSchedule — one source of truth for the day.
+
 ## v0.25 — bathroom + door hinge
 New Bathroom category (bath, shower, toilet, sink + mirror shortcut), bin
 in Set dressing. Doors: `op.flip` = which SIDE of the wall the swing goes,

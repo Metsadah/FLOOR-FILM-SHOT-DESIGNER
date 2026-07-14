@@ -515,6 +515,17 @@ cv.addEventListener('pointerdown', e => {
                                              wy >= r.y && wy <= r.y + r.h);
       if(rr){ drag = {kind:'avrow', o:so, rowId:rr.rowId}; return; }
     }
+    if(so && so.cat === 'schedule' && !so.locked){
+      const del = (so._delRects||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
+      if(del){
+        so.items = schedItems(so).filter(it=>it.id !== del.itemId);
+        markDirty(); render();
+        return;
+      }
+      const rr = (so._rowRects||[]).find(r=> wx >= r.x && wx <= r.x + r.w &&
+                                             wy >= r.y && wy <= r.y + r.h);
+      if(rr){ drag = {kind:'schrow', o:so, itemId:rr.itemId}; return; }
+    }
     if(so && so.cat === 'listcard' && !so.locked){
       // list-card chips live outside the frame, so catch them here (before hitObject)
       if(so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
@@ -697,6 +708,19 @@ cv.addEventListener('pointermove', e => {
       const o = drag.o;
       const idx = Math.floor((wy - (o.y - o.h/2) - LIST_GEO.titleH - LIST_GEO.headH) / LIST_GEO.rowH);
       if(moveListRow(o, drag.personId, idx)) markDirty();
+      break;
+    }
+    case 'schrow': {
+      // schedule rows reorder live while the grip drags (fixed row height)
+      const o = drag.o;
+      const rowH = 24, headH = 26 + 10 + 26; // title + pad + calls line
+      const idx = clamp(Math.floor((wy - (o.y - o.h/2) - headH) / rowH), 0, o.items.length - 1);
+      const from = o.items.findIndex(it=>it.id === drag.itemId);
+      if(from > -1 && from !== idx){
+        const [row] = o.items.splice(from, 1);
+        o.items.splice(idx, 0, row);
+        markDirty();
+      }
       break;
     }
     case 'avrow': {
@@ -1111,13 +1135,18 @@ cv.addEventListener('pointerup', e => {
         if(key) openColCell(o, key);
       }
     } else if(o.cat === 'schedule'){
-      const cr = (o._checkRects||[]).find(z=> up.x >= z.x && up.x <= z.x + z.w &&
-                                              up.y >= z.y && up.y <= z.y + z.h);
+      const hitZ = zones => (zones||[]).find(z=> up.x >= z.x && up.x <= z.x + z.w &&
+                                                 up.y >= z.y && up.y <= z.y + z.h);
+      const cr = hitZ(o._checkRects);
+      const tr = !cr && hitZ(o._timeRects);
+      const lr = !cr && !tr && hitZ(o._labelRects);
+      const dr = !cr && !tr && !lr && hitZ(o._durRects);
       if(cr){
-        if(!o.on) o.on = {};
-        o.on[cr.sceneId] = o.on[cr.sceneId] === false; // toggle include
-        markDirty(); render();
-      }
+        const it = schedItems(o).find(x=>x.id === cr.itemId);
+        if(it){ it.on = it.on === false; markDirty(); render(); }
+      } else if(tr){ openSchedCell(o, tr.itemId, 'time'); }
+      else if(lr){ openSchedCell(o, lr.itemId, 'label'); }
+      else if(dr){ openSchedCell(o, dr.itemId, 'dur'); }
     }
   }
   if(drag.kind === 'drawWall'){
