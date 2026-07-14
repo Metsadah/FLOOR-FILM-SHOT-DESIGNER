@@ -274,6 +274,17 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## v0.27 — mail routes + wall lengths
+Call sheet selBar: ✉ Crew / ✉ Cast / ✉ Client / ✉ All (`mailCallSheet(o,
+tag)`, `sheetEmails(o, tag)`). Every mail action downloads the PDF first
+(mailto: cannot attach — browser limit), then opens the draft with that
+group in BCC + the plain-text sheet. "Share PDF…" (shown when
+`navigator.share` exists) attaches the real PDF via the OS share sheet →
+Mail on macOS/iPadOS. `buildCallSheetPDF(o)` returns {bytes, name};
+exportCallSheetPDF is now a thin download wrapper. Selected walls show
+their ARC length (curves measured along the curve) floated 16px off the
+midpoint — same formatting as the draw preview.
+
 ## v0.26 — the schedule becomes a strip(board)
 Schedule card data model changed: `o.items` = ORDERED rows
 `{id, type:'scene'|'break'|'move'|'prep', sceneId, on, label, time, dur}`.
