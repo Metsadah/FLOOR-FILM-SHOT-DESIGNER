@@ -274,6 +274,14 @@ the current row is entirely blank (keeps the registry junk-free).
    `navigator.serviceWorker.register`. Confirm the loaded code with
    `someFn.toString().includes('<new snippet>')` before debugging it.
 
+## v0.28 — schedule & call sheet width
+Both cards auto-widen to their longest line (lines are built UNTRIMMED,
+measured with the per-kind font, then `o.w = clamp(max(needed, o.userW ||
+default), default, 900)`; drawLine still trims at the 900 cap). A
+right-edge `cardW` handle sets `o.userW` (drag anchors the LEFT edge via
+the same converging o.x correction as tgrow). Content always wins over a
+too-small userW — cells never clip below what they need.
+
 ## v0.27 — mail routes + wall lengths
 Call sheet selBar: ✉ Crew / ✉ Cast / ✉ Client / ✉ All (`mailCallSheet(o,
 tag)`, `sheetEmails(o, tag)`). Every mail action downloads the PDF first
