@@ -966,7 +966,7 @@ function drawNoteShape(ctx,o,editing){
   }
   ctx.textBaseline='alphabetic';
 }
-// live shot-info card drawn on the canvas (contents come from the Shot info panel)
+// live scene-info card drawn on the canvas (contents come from the Scene info panel)
 function drawInfoCard(ctx, o){
   const s = (typeof drawShot !== 'undefined' && drawShot) ? drawShot : activeShot();
   const w=o.w, h=o.h, pad=14, titleH=26;
@@ -982,7 +982,7 @@ function drawInfoCard(ctx, o){
   ctx.textBaseline='middle';
   ctx.font='700 11px -apple-system,Segoe UI,sans-serif';
   ctx.fillStyle='#33322E';
-  ctx.fillText('SHOT INFO', -w/2+10, -h/2+titleH/2+.5);
+  ctx.fillText('SCENE INFO', -w/2+10, -h/2+titleH/2+.5);
   ctx.textBaseline='top';
   let y=-h/2+titleH+10;
   ctx.font='700 14px -apple-system,Segoe UI,sans-serif';
@@ -1029,7 +1029,7 @@ function drawInfoCard(ctx, o){
   if(!rows.length && !s.script){
     ctx.font='12px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle='#8A877F';
-    ctx.fillText('Fill in the Shot info panel →', -w/2+pad, y);
+    ctx.fillText('Fill in the Scene info panel →', -w/2+pad, y);
   }
   ctx.restore();
   ctx.textBaseline='alphabetic';

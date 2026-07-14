@@ -303,6 +303,17 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.36 — Scene info rename + Recce & mood retired
+"Shot info" → "Scene info" everywhere (right panel tab, card title
+'SCENE INFO', library tile, panelToggle title, placeholder, help text).
+The Recce & mood panel tab is GONE from the UI — reference images go
+straight on the board. IMPORTANT: the stills DOM (`#stillDrop`,
+`#stillsGrid`, `#stillInput`, `#boardImgInput`) stays in index.html,
+hidden — 05-app attaches listeners to them unconditionally at load, and
+`boardImgInput` is the "Image…" tile's file picker. Remove those nodes
+and the app dies at boot. `s.stills` data + buildStills() also stay
+(storyboard rows/exports may reference stills).
+
 ## v0.35 — false conflicts fixed, quiet conflict chip, live presence
 1. THE BUG behind "constant conflict warnings with nobody else online":
    we stored our own `new Date().toISOString()` ('…123Z') as the freshness

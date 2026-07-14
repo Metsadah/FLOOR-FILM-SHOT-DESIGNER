@@ -1342,7 +1342,7 @@ function buildLibrary(){
   }, 90, 90, '#4B6BFB', {cat:'link', kind:'link', w:130, h:34, color:'#4B6BFB'});
   // shot info card mirrors the Shot info panel — only meaningful on the designer
   if(activeTab === 'design'){
-    boardTile('Shot info card', (tc,w2,h2,c)=>{
+    boardTile('Scene info card', (tc,w2,h2,c)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
       tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=c; tc.stroke();
       tc.fillStyle=c; tc.globalAlpha=.28;
