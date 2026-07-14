@@ -303,6 +303,25 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.34 — furniture pack + riders
+1. Sofa variants: `sofa`/`sofa_3`/`sofa_4` (shared `sofaDraw(ctx,w,h,c,
+   seats)`) + `sofa_corner` (L-shape). Kitchen variants: `kitchen`/
+   `kitchen_l` (shared `kitchenDraw` — now a PLAIN counter, sink & hob
+   REMOVED from the block) + `kitchen_corner`. New separate props:
+   `ksink` (kitchen sink), `island` (cooking island, 4-burner hob),
+   `cabinet`, `bookcase`. Variant switching lives in the selBar via
+   `swapPropKind(o, kind)` (04) — keeps the user's scale; the stairs
+   curved toggle now uses it too. Library only shows the base
+   sofa/kitchen tiles; variants are selection-bar options.
+2. Riders: wheelchair + hospital bed are in MOVE_KINDS (they can get
+   movement paths now). Actor↔vehicle coupling is TWO-WAY: dragging
+   either moves both (mount types 'seat'/'bed'; pickup no longer
+   auto-dismounts — the selBar "Out of the chair/bed" button releases,
+   nudging the actor +55x). Drop zone: wheelchair <46px, bed <60px.
+   Play-time: poseOf couples the pair — whichever of the two owns a
+   path drives, the other inherits its pose (guards: only defer when
+   you have no path of your own, so no recursion).
+
 ## v0.33 — save reliability + co-editing sync (fixes the data-loss risk below)
 Confirmed cause of the user's lost scene: a co-editor had the production
 open for hours and their save clobbered everything (last-writer-wins).

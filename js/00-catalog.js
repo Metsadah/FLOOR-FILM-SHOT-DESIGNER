@@ -65,6 +65,13 @@ function baseRect(ctx,w,h,c,r){
   ctx.fillStyle = c; ctx.globalAlpha = .28; ctx.fill(); ctx.globalAlpha = 1;
   ctx.strokeStyle = c; ctx.stroke();
 }
+function kitchenDraw(ctx,w,h,c){ // plain counter run — sink & hob are their own props now
+  baseRect(ctx,w,h,c,4);
+  ctx.strokeStyle=c; ctx.globalAlpha=.35;
+  ctx.beginPath();
+  for(let x=-w/2+60; x<w/2-12; x+=60){ ctx.moveTo(x,-h/2); ctx.lineTo(x,h/2); }
+  ctx.stroke(); ctx.globalAlpha=1;
+}
 function sofaDraw(ctx,w,h,c,seats){ // straight sofa, any seat count
   baseRect(ctx,w,h,c,12);
   ctx.fillStyle=c; ctx.globalAlpha=.5;
@@ -516,6 +523,25 @@ const PROPS = {
     ctx.fillStyle=c; ctx.globalAlpha=.45; ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=c; ctx.stroke();
     ctx.beginPath(); ctx.roundRect(-w*.13,h*0,w*.26,h*.45,2); ctx.stroke();
   }},
+  cabinet:{w:110,h:50,name:'Cabinet',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,4);
+    ctx.strokeStyle=c;
+    ctx.beginPath(); ctx.moveTo(-w/6,-h/2); ctx.lineTo(-w/6,h/2);
+    ctx.moveTo(w/6,-h/2); ctx.lineTo(w/6,h/2); ctx.stroke();
+    ctx.fillStyle=c;
+    ctx.beginPath(); ctx.arc(-w/6-5,0,2.2,0,7); ctx.arc(w/6+5,0,2.2,0,7); ctx.fill();
+  }},
+  bookcase:{w:130,h:34,name:'Bookcase',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,2);
+    ctx.strokeStyle=c; ctx.globalAlpha=.6;
+    const steps=[7,4,9,5,6,8,4,7,5,9,6,4,8,5,7,6]; // book spines
+    let x=-w/2+6;
+    for(let i=0; x<w/2-6; i++){
+      ctx.beginPath(); ctx.moveTo(x,-h/2+4); ctx.lineTo(x,h/2-4); ctx.stroke();
+      x+=steps[i%steps.length];
+    }
+    ctx.globalAlpha=1;
+  }},
   tvunit:{w:160,h:45,name:'TV cabinet',draw(ctx,w,h,c){
     baseRect(ctx,w,h,c,3);
     ctx.strokeStyle=c;
@@ -674,19 +700,40 @@ const PROPS = {
     ctx.fillStyle=c;
     ctx.beginPath(); ctx.arc(-w*.06,h*.3,2.5,0,7); ctx.arc(w*.06,h*.3,2.5,0,7); ctx.fill();
   }},
-  kitchen:{w:240,h:65,name:'Kitchen block',draw(ctx,w,h,c){
+  kitchen:{w:240,h:65,name:'Kitchen block',draw(ctx,w,h,c){ kitchenDraw(ctx,w,h,c); }},
+  kitchen_l:{w:340,h:65,name:'Kitchen block (long)',draw(ctx,w,h,c){ kitchenDraw(ctx,w,h,c); }},
+  kitchen_corner:{w:240,h:180,name:'Kitchen block (corner)',draw(ctx,w,h,c){
+    const d = Math.min(w, h) * .36; // counter depth
+    ctx.strokeStyle=c;
+    for(const [x,y,rw,rh] of [[-w/2,-h/2,w,d],[-w/2,-h/2,d,h]]){
+      ctx.beginPath(); ctx.roundRect(x, y, rw, rh, 4);
+      ctx.fillStyle=c; ctx.globalAlpha=.28; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+    }
+    // cabinet splits on both runs
+    ctx.globalAlpha=.35;
+    ctx.beginPath();
+    for(let x=-w/2+d; x<w/2-12; x+=60){ ctx.moveTo(x,-h/2); ctx.lineTo(x,-h/2+d); }
+    for(let y=-h/2+d; y<h/2-12; y+=60){ ctx.moveTo(-w/2,y); ctx.lineTo(-w/2+d,y); }
+    ctx.stroke(); ctx.globalAlpha=1;
+  }},
+  ksink:{w:70,h:62,name:'Kitchen sink',draw(ctx,w,h,c){
     baseRect(ctx,w,h,c,4);
     ctx.strokeStyle=c;
-    // sink
-    ctx.beginPath(); ctx.roundRect(-w*.4,-h*.3,w*.2,h*.6,5); ctx.stroke();
-    ctx.beginPath(); ctx.arc(-w*.3,-h*.38,2.5,0,7); ctx.fillStyle=c; ctx.fill(); // tap
-    // hob
+    ctx.beginPath(); ctx.roundRect(-w*.32,-h*.28,w*.64,h*.56,5); ctx.stroke();
+    ctx.fillStyle=c;
+    ctx.beginPath(); ctx.arc(0,-h*.38,2.5,0,7); ctx.fill(); // tap
+    ctx.beginPath(); ctx.arc(0,0,2,0,7); ctx.fill();        // drain
+  }},
+  island:{w:160,h:80,name:'Cooking island',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,6);
+    ctx.strokeStyle=c;
     ctx.globalAlpha=.75;
     for(const [dx,dy] of [[-.5,-.5],[.5,-.5],[-.5,.5],[.5,.5]]){
-      ctx.beginPath(); ctx.arc(w*.24+dx*w*.07, dy*h*.22, h*.11, 0, 7); ctx.stroke(); }
+      ctx.beginPath(); ctx.arc(-w*.22+dx*w*.13, dy*h*.3, h*.14, 0, 7); ctx.stroke();
+    }
     ctx.globalAlpha=1;
-    ctx.beginPath(); ctx.moveTo(-w*.08,-h/2); ctx.lineTo(-w*.08,h/2); ctx.moveTo(w*.08,-h/2); ctx.lineTo(w*.08,h/2);
-    ctx.globalAlpha=.35; ctx.stroke(); ctx.globalAlpha=1;
+    ctx.beginPath(); ctx.moveTo(w*.05,-h/2); ctx.lineTo(w*.05,h/2);
+    ctx.globalAlpha=.35; ctx.stroke(); ctx.globalAlpha=1; // worktop split
   }},
   fridge:{w:70,h:70,name:'Fridge',draw(ctx,w,h,c){
     baseRect(ctx,w,h,c,5);
@@ -1014,7 +1061,7 @@ const CATS = [
     'cstand','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','track','jib','technocrane','truss','monitor','camcart'
   ].map(k=>({cat:'prop', kind:k}))},
   {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','neon'].map(k=>({cat:'prop', kind:k}))},
-  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','tvunit','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','tvunit','cabinet','bookcase','kitchen','island','ksink','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
   {name:'Bathroom', open:false, items:['bath','shower','toilet','sink','mirror'].map(k=>({cat:'prop', kind:k}))},
   {name:'Vehicles', open:false, items:['bicycle','motorcycle','car_small','car','car_suv','car_police','minivan','bus','train','tractor'].map(k=>({cat:'prop', kind:k}))},
   {name:'Outdoor', open:false, items:['road','crossing','bikelane','rails'].map(k=>({cat:'prop', kind:k}))},

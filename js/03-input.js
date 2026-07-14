@@ -563,7 +563,8 @@ cv.addEventListener('pointerdown', e => {
     sel = {type:'object', id:obj.id};
     if(obj.locked){ drag = null; refreshSelBar(); render(); return; }
     if(obj.cat === 'camera') obj.mount = null; // picking a camera up releases it from a jib
-    if(obj.cat === 'actor' && obj.mount && obj.mount.type === 'seat') obj.mount = null; // out of the wheelchair
+    // seated / bedded actors stay attached — dragging moves the pair; the
+    // selection bar's "Out of the chair/bed" button is the way out
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
     if(obj.cat === 'line'){ drag.wx=wx; drag.wy=wy; drag.p1o={...obj.p1}; drag.p2o={...obj.p2}; drag.mido=obj.mid?{...obj.mid}:null; }
     if(obj.cat === 'ink'){ drag.wx=wx; drag.wy=wy; drag.ptso=obj.pts.map(p=>({...p})); drag.xc=obj.x; drag.yc=obj.y; }
@@ -799,12 +800,17 @@ cv.addEventListener('pointermove', e => {
       }
       o.x = wx + drag.ox; o.y = wy + drag.oy;
       if(e.shiftKey){ o.x = Math.round(o.x/25)*25; o.y = Math.round(o.y/25)*25; }
-      if(o.kind === 'wheelchair'){
-        // the wheelchair carries whoever is seated in it
+      if(o.kind === 'wheelchair' || o.kind === 'bed_hospital'){
+        // the chair / bed carries whoever is in it
         for(const a of shot.objects)
-          if(a.cat === 'actor' && a.mount && a.mount.type === 'seat' && a.mount.id === o.id){
+          if(a.cat === 'actor' && a.mount && (a.mount.type === 'seat' || a.mount.type === 'bed') && a.mount.id === o.id){
             a.x = o.x; a.y = o.y;
           }
+      }
+      if(o.cat === 'actor' && o.mount && (o.mount.type === 'seat' || o.mount.type === 'bed')){
+        // …and vice versa: moving the actor takes the chair / bed along
+        const v = shot.objects.find(x=>x.id === o.mount.id);
+        if(v && !v.locked){ v.x = o.x; v.y = o.y; }
       }
       markDirty();
       break;
@@ -1204,15 +1210,18 @@ cv.addEventListener('pointerup', e => {
       setTool('select');
     }
   }
-  // actor dropped on a wheelchair → seated (the chair carries them)
+  // actor dropped on a wheelchair / hospital bed → attached (they move as one)
   if(drag.kind === 'move' && drag.o.cat === 'actor' && !drag.o.mount){
     const a = drag.o;
-    for(const wc of shot.objects){
-      if(wc.kind !== 'wheelchair') continue;
-      if(dist(a.x, a.y, wc.x, wc.y) < 46){
-        a.mount = {type:'seat', id:wc.id};
-        a.x = wc.x; a.y = wc.y;
-        toast('Seated — moving the wheelchair takes ' + (a.label || 'the actor') + ' along');
+    for(const v of shot.objects){
+      const isChair = v.kind === 'wheelchair', isBed = v.kind === 'bed_hospital';
+      if(!isChair && !isBed) continue;
+      if(dist(a.x, a.y, v.x, v.y) < (isBed ? 60 : 46)){
+        a.mount = {type: isChair ? 'seat' : 'bed', id: v.id};
+        a.x = v.x; a.y = v.y;
+        toast((isChair ? 'Seated' : 'In the bed') + ' — ' + (a.label || 'the actor') +
+          ' and the ' + (isChair ? 'wheelchair' : 'bed') + ' now move as one · "Out of the ' +
+          (isChair ? 'chair' : 'bed') + '" in the selection bar releases');
         markDirty(); refreshSelBar();
         break;
       }
@@ -1723,6 +1732,23 @@ function poseOf(o, shot, t){
       const pj = poseOf(j, shot, t);
       const hp = jibHeadPos(pj);
       g = {...o, x:hp.x, y:hp.y, rot:norm(pj.rot + (o.mount.relRot||0))};
+    }
+  } else if(o.cat === 'actor' && o.mount && (o.mount.type === 'seat' || o.mount.type === 'bed') &&
+            !(o.path && o.path.length)){
+    // riding: the chair / bed animates, the actor stays in it
+    const v = shot.objects.find(x=>x.id === o.mount.id);
+    if(v){
+      const pv = poseOf(v, shot, t);
+      g = {...o, x:pv.x, y:pv.y};
+    }
+  } else if(o.cat === 'prop' && (o.kind === 'wheelchair' || o.kind === 'bed_hospital') &&
+            !(o.path && o.path.length)){
+    // vice versa: the actor animates, the chair / bed rolls along
+    const rider = shot.objects.find(a=>a.cat === 'actor' && a.mount && a.mount.id === o.id &&
+      a.path && a.path.length);
+    if(rider){
+      const pr = poseOf(rider, shot, t);
+      g = {...o, x:pr.x, y:pr.y, rot:pr.rot};
     }
   } else if(o.path && o.path.length && o.kind !== 'track'){
     if(isCrane(o)){

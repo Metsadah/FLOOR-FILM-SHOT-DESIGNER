@@ -7,9 +7,18 @@ const selBar = document.getElementById('selBar');
 const CAM_TYPES = [['cam_std','Standard'],['cam_steadi','Steadicam'],['cam_gimbal','Gimbal'],['cam_gopro','GoPro / crash'],['cam_drone','Drone']];
 // things that plausibly move during a shot: vehicles + grip & stage lights (not furniture, tech, set dressing, outdoor)
 const MOVE_KINDS = new Set(['bicycle','motorcycle','car','car_small','car_suv','car_police','minivan','bus',
-  'cstand','light','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','dolly','jib','technocrane','monitor','camcart']);
+  'cstand','light','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','dolly','jib','technocrane','monitor','camcart',
+  'wheelchair','bed_hospital']);
 function canMove(o){
   return o.cat === 'camera' || o.cat === 'actor' || (o.cat === 'prop' && MOVE_KINDS.has(o.kind));
+}
+function swapPropKind(o, kind){ // variant switch that keeps the user's scale
+  if(o.kind === kind || !PROPS[kind]) return;
+  const sc = o.w / PROPS[o.kind].w;
+  o.kind = kind;
+  o.w = PROPS[kind].w * sc;
+  o.h = PROPS[kind].h * sc;
+  markDirty(); render(); refreshSelBar();
 }
 
 async function fetchLinkThumb(o){
@@ -238,11 +247,21 @@ function refreshSelBar(){
       selBar.appendChild(hint);
     }
     if(o.cat === 'prop' && (o.kind === 'stairs' || o.kind === 'stairs_curved')){
-      sbtn(o.kind === 'stairs_curved' ? 'Curved: on' : 'Curved: off', ()=>{
-        const sc = o.w / PROPS[o.kind].w; // keep the current scale
-        o.kind = o.kind === 'stairs' ? 'stairs_curved' : 'stairs';
-        o.w = PROPS[o.kind].w * sc;
-        o.h = PROPS[o.kind].h * sc;
+      sbtn(o.kind === 'stairs_curved' ? 'Curved: on' : 'Curved: off', ()=>
+        swapPropKind(o, o.kind === 'stairs' ? 'stairs_curved' : 'stairs'));
+    }
+    if(o.cat === 'prop' && ['sofa','sofa_3','sofa_4','sofa_corner'].includes(o.kind)){
+      for(const [k, lab] of [['sofa','2-seat'],['sofa_3','3-seat'],['sofa_4','4-seat'],['sofa_corner','Corner']])
+        sbtn((o.kind === k ? '✓ ' : '') + lab, ()=>swapPropKind(o, k));
+    }
+    if(o.cat === 'prop' && ['kitchen','kitchen_l','kitchen_corner'].includes(o.kind)){
+      for(const [k, lab] of [['kitchen','Straight'],['kitchen_l','Long'],['kitchen_corner','Corner']])
+        sbtn((o.kind === k ? '✓ ' : '') + lab, ()=>swapPropKind(o, k));
+    }
+    if(o.cat === 'actor' && o.mount && (o.mount.type === 'seat' || o.mount.type === 'bed')){
+      sbtn(o.mount.type === 'bed' ? 'Out of the bed' : 'Out of the chair', ()=>{
+        o.mount = null;
+        o.x += 55; // step aside so the pair reads as separated
         markDirty(); render(); refreshSelBar();
       });
     }
