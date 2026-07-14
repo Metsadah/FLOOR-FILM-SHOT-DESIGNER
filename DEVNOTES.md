@@ -303,6 +303,26 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.38 — call sheet: clickable links, all locations, multi-day
+1. Lines in the call sheet are now [kind, text, segs] where segs mark
+   LINKED substrings ({s,e,u}). drawLine paints them #3B5BDB + underline
+   and pushes card-local rects into `o._csLinks`. buildCallSheetPDF maps
+   those rects through the same scale/offset transform into real PDF
+   /Annot /Link objects (page dict gets /Annots) — tel:, mailto: and
+   maps.google.com links are clickable in the exported PDF even though
+   the page itself is a JPEG. URI parens/backslashes escaped.
+2. Emails now appear on crew/cast/client lines (card, PDF, mail text).
+   Addresses link to Google Maps; phones to tel: (digits + '+' only).
+3. LOCATION → LOCATIONS: every production.location with content renders
+   (name, linked address, parking/power/hospital/notes), blank line
+   between.
+4. Multi-day: `boardDays()` (dayheaders sorted by date) + `dayFor(o)`
+   (o.dayId binding, fallback first). Schedule AND call sheet cards bind
+   via a "Day: 20 jul ▸" selBar chip (only shows with 2+ Day headers).
+   The call sheet picks the schedule card bound to ITS day. One call
+   sheet card per day = multi-day production; PDF filename carries the
+   date. callSheetText / mail subject use the bound day.
+
 ## v0.37 — sink & hob live inside the kitchen block
 v0.34's separate ksink/island props reverted per user: ONE kitchen block
 with `o.sink` / `o.hob` = 0..1 fractions along the counter run (undefined

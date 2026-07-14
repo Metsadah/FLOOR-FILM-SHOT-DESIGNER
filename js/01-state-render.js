@@ -217,6 +217,22 @@ function computeSchedule(o, day){
   return {rows, wrap: minToHHMM(t)};
 }
 
+// ---------------------------------------------------------------- shoot days
+// Multi-day productions: several Day header cards live on the production
+// board. Schedule and call sheet cards BIND to one via o.dayId (selection
+// bar cycles it); unbound cards follow the first day, so single-day
+// productions never notice any of this.
+function boardDays(){
+  const b = project && project.prodboard;
+  if(!b) return [];
+  return b.objects.filter(x=>x.cat === 'dayheader')
+    .sort((a, c)=>String(a.date || '9999').localeCompare(String(c.date || '9999')));
+}
+function dayFor(o){
+  const days = boardDays();
+  return days.find(d=>d.id === o.dayId) || days[0] || null;
+}
+
 // ---------------------------------------------------------------- prop list model
 // The prop list card watches every scene: props PLACED on its board and prop
 // names MENTIONED in its script text (the breakdown fills sc.script) appear by
@@ -1487,7 +1503,7 @@ function drawObjectShape(o, ghost){
     // order, checkboxes, pinnable times, renamable rows. computeSchedule
     // owns the chaining; this draws it and lays out the edit zones.
     const titleH = 26, rowH = 24, pad = 10, grip = 14;
-    const day = project.prodboard && project.prodboard.objects.find(x=>x.cat==='dayheader');
+    const day = dayFor(o); // bound shoot day (first one when unbound)
     const {rows, wrap} = computeSchedule(o, day);
     const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
     // width: longest row label (and the calls line) sets it; the right-edge
@@ -1725,30 +1741,45 @@ function drawObjectShape(o, ghost){
     if(o.inc.props === undefined) o.inc.props = true;
     const inc = o.inc;
     const b = project.prodboard;
-    const day = b && b.objects.find(x=>x.cat==='dayheader');
+    const day = dayFor(o); // bound shoot day — cycle it in the selection bar
     const wea = b && b.objects.find(x=>x.cat==='weather' && x.data && x.data.length);
-    const loc = project.production.locations.find(l=>l.name || l.address) || null;
     const ppl = t => peopleReg().filter(p=>p.tag===t);
     const titleH = 26, rowH = 17, secHead = 16, gap = 8, pad = 10;
     // width resolves AFTER the lines are built (auto-fit + manual handle)
-    // build sections as [header, [lines...]] — untrimmed; drawLine trims later
-    const line1 = p => [p.call, p.role && p.role + ' —', p.name, p.phone && '· ' + p.phone]
-      .filter(Boolean).join(' ');
+    // build sections as [header, [lines, …]] — a line is [kind, text, segs?]
+    // where segs mark LINKED substrings ({s,e,u}) → blue + underline on the
+    // card and real Link annotations in the PDF export
+    const seg = parts => {
+      let txt = '', segs = [];
+      for(const p of parts){
+        if(!p || !p.t) continue;
+        if(txt) txt += '   ';
+        if(p.u) segs.push({s:txt.length, e:txt.length + p.t.length, u:p.u});
+        txt += p.t;
+      }
+      return ['n', txt, segs];
+    };
+    const tel = p => p ? 'tel:' + String(p).replace(/[^\d+]/g, '') : null;
+    const mailto = m => m ? 'mailto:' + m : null;
     const secs = [];
     if(inc.location){
       const L = [];
-      if(loc){
+      const locs = project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
+      locs.forEach((loc, li)=>{
+        if(li) L.push(['p', '']); // breathing room between locations
         if(loc.name) L.push(['b', loc.name]);
         const addr = [loc.street, loc.town, loc.country].filter(Boolean).join(', ') || loc.address;
-        if(addr) L.push(['n', addr]);
+        if(addr) L.push(seg([{t:addr, u:'https://maps.google.com/?q=' + encodeURIComponent(addr)}]));
         for(const [k, lab] of [['parking','Parking'],['power','Power'],['hospital','Hospital'],['notes','Notes']])
           if(loc[k]) L.push(['n', lab + ': ' + loc[k]]);
-      }
-      secs.push(['LOCATION', L.length ? L : [['p','fill a Location card…']]]);
+      });
+      secs.push([locs.length > 1 ? 'LOCATIONS' : 'LOCATION',
+        L.length ? L : [['p','fill a Location card…']]]);
     }
     if(inc.schedule){
-      // mirrors the Day schedule card: its order, blocks, pins and selection
-      const schd = b && b.objects.find(x=>x.cat==='schedule');
+      // mirrors the Day schedule card BOUND TO THE SAME DAY (fallback: first)
+      const scheds = (b ? b.objects.filter(x=>x.cat==='schedule') : []);
+      const schd = scheds.find(x=>dayFor(x) === day) || scheds[0];
       const cs2 = computeSchedule(schd || {}, day);
       const L = [];
       for(const r of cs2.rows){
@@ -1774,17 +1805,24 @@ function drawObjectShape(o, ghost){
     }
     if(inc.crew){
       const c = ppl('crew');
-      secs.push(['CREW', c.length ? c.map(p=>['n', line1(p)]) : [['p','add people on the Crew card…']]]);
+      secs.push(['CREW', c.length ? c.map(p=>seg([
+        {t:p.call}, {t:p.role && p.role + ' —'}, {t:p.name},
+        {t:p.phone, u:tel(p.phone)}, {t:p.email, u:mailto(p.email)},
+      ])) : [['p','add people on the Crew card…']]]);
     }
     if(inc.cast){
       const c = ppl('cast');
-      secs.push(['CAST', c.length ? c.map(p=>['n',
-        [p.call, p.name, p.role && '(' + p.role + ')', p.phone && '· ' + p.phone].filter(Boolean).join(' ')]) : [['p','—']]]);
+      secs.push(['CAST', c.length ? c.map(p=>seg([
+        {t:p.call}, {t:p.name}, {t:p.role && '(' + p.role + ')'},
+        {t:p.phone, u:tel(p.phone)}, {t:p.email, u:mailto(p.email)},
+      ])) : [['p','—']]]);
     }
     if(inc.client){
       const c = ppl('client');
-      secs.push(['CLIENT', c.length ? c.map(p=>['n',
-        [p.name, p.role && '— ' + p.role, p.phone && '· ' + p.phone, p.email && '· ' + p.email].filter(Boolean).join(' ')]) : [['p','—']]]);
+      secs.push(['CLIENT', c.length ? c.map(p=>seg([
+        {t:p.name}, {t:p.role && '— ' + p.role},
+        {t:p.phone, u:tel(p.phone)}, {t:p.email, u:mailto(p.email)},
+      ])) : [['p','—']]]);
     }
     if(inc.weather){
       const L = [];
@@ -1847,15 +1885,30 @@ function drawObjectShape(o, ghost){
     ctx.fillText('live — edits happen on the source cards', o.w/2 - 8, -o.h/2 + titleH/2 + .5);
     ctx.textAlign = 'left';
     let y = -o.h/2 + titleH + pad + rowH/2;
-    const drawLine = (kind, txt)=>{
+    o._csLinks = []; // card-local link rects — the PDF export turns these into annotations
+    const drawLine = (kind, txt, segs)=>{
       if(kind === 't'){ ctx.font = '800 13px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = '#33322E'; }
       else if(kind === 'b'){ ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = '#33322E'; }
       else if(kind === 'p'){ ctx.font = 'italic 11px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = 'rgba(74,70,54,.4)'; }
       else { ctx.font = '11.5px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = '#4A4636'; }
-      ctx.fillText(trimText(ctx, txt, o.w - pad*2), -o.w/2 + pad, y);
+      const shown = trimText(ctx, txt, o.w - pad*2);
+      ctx.fillText(shown, -o.w/2 + pad, y);
+      if(segs) for(const sg of segs){
+        if(sg.s >= shown.length || !sg.u) continue;
+        const sub = shown.slice(sg.s, Math.min(sg.e, shown.length));
+        const x0 = ctx.measureText(shown.slice(0, sg.s)).width;
+        const sw = ctx.measureText(sub).width;
+        ctx.fillStyle = '#3B5BDB';
+        ctx.fillText(sub, -o.w/2 + pad + x0, y);
+        ctx.strokeStyle = 'rgba(59,91,219,.45)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-o.w/2 + pad + x0, y + 6.5);
+        ctx.lineTo(-o.w/2 + pad + x0 + sw, y + 6.5); ctx.stroke();
+        ctx.fillStyle = '#4A4636';
+        o._csLinks.push({u:sg.u, x:-o.w/2 + pad + x0, y:y - rowH/2, w:sw, h:rowH});
+      }
       y += rowH;
     };
-    for(const [k, t] of head) drawLine(k, t);
+    for(const [k, t, sg] of head) drawLine(k, t, sg);
     y += gap - rowH + rowH;
     for(const [name, lines] of secs){
       ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
@@ -1864,7 +1917,7 @@ function drawObjectShape(o, ghost){
       ctx.fillStyle = shade(o.color, .8);
       ctx.fillText(name, -o.w/2 + pad, y + 2);
       y += secHead;
-      for(const [k, t] of lines) drawLine(k, t);
+      for(const [k, t, sg] of lines) drawLine(k, t, sg);
       y += gap;
     }
     ctx.restore();

@@ -325,6 +325,20 @@ function refreshSelBar(){
       }
       sbtn('Weather ↻', ()=>{ o.wx = null; markDirty(); render(); });
     }
+    if(o.cat === 'schedule' || o.cat === 'callsheet'){
+      // multi-day: bind this card to one of the Day header cards
+      const days = boardDays();
+      if(days.length > 1){
+        const cur = dayFor(o);
+        const lab = cur && cur.date
+          ? new Date(cur.date + 'T12:00:00').toLocaleDateString('nl-NL', {day:'numeric', month:'short'})
+          : 'day ' + (days.indexOf(cur) + 1);
+        sbtn('Day: ' + lab + ' ▸', ()=>{
+          o.dayId = days[(days.indexOf(cur) + 1) % days.length].id;
+          markDirty(); render(); refreshSelBar();
+        }).title = 'This card follows this shoot day — click to cycle through the Day headers';
+      }
+    }
     if(o.cat === 'schedule'){
       sbtn('+ Break', ()=>addSchedBlock(o, 'break'));
       sbtn('+ Location change', ()=>addSchedBlock(o, 'move'));

@@ -439,8 +439,7 @@ async function copySheetEmails(o){
 // plain-text call sheet for the mail body (attachments need the PDF export)
 function callSheetText(o){
   const b = project.prodboard;
-  const day = b && b.objects.find(x=>x.cat==='dayheader');
-  const loc = project.production.locations.find(l=>l.name || l.street || l.town) || null;
+  const day = dayFor(o);
   const L = [];
   L.push((project.shootName || 'PRODUCTION').toUpperCase() + ' — CALL SHEET');
   if(day){
@@ -449,13 +448,18 @@ function callSheetText(o){
     L.push('General call ' + (day.call || '–') + ' · shooting call ' + (day.shootCall || '–') +
       ' · est. wrap ' + (day.wrap || '–'));
   }
-  if(loc){
+  const locs = project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
+  if(locs.length){
     L.push('');
-    L.push('LOCATION: ' + [loc.name, loc.street, loc.town, loc.country].filter(Boolean).join(', '));
-    if(loc.parking) L.push('Parking: ' + loc.parking);
-    if(loc.hospital) L.push('Hospital: ' + loc.hospital);
+    L.push(locs.length > 1 ? 'LOCATIONS:' : 'LOCATION:');
+    for(const loc of locs){
+      L.push('  ' + [loc.name, loc.street, loc.town, loc.country].filter(Boolean).join(', '));
+      if(loc.parking) L.push('  Parking: ' + loc.parking);
+      if(loc.hospital) L.push('  Hospital: ' + loc.hospital);
+    }
   }
-  const schd = b && b.objects.find(x=>x.cat==='schedule');
+  const scheds = b ? b.objects.filter(x=>x.cat==='schedule') : [];
+  const schd = scheds.find(x=>dayFor(x) === day) || scheds[0];
   const cs2 = computeSchedule(schd || {}, day);
   const rows = [];
   for(const r of cs2.rows){
@@ -484,7 +488,7 @@ function callSheetText(o){
     if(!list.length) continue;
     L.push(''); L.push(name + ':');
     for(const p of list)
-      L.push('  ' + [p.call, p.role, p.name, p.phone].filter(Boolean).join(' · '));
+      L.push('  ' + [p.call, p.role, p.name, p.phone, p.email].filter(Boolean).join(' · '));
   }
   if(o.wx && o.wx.data){
     L.push(''); L.push('WEATHER (' + (o.wx.place || '') + '):');
@@ -503,7 +507,7 @@ function mailCallSheet(o, tag){
   // the PDF downloads alongside the draft — newest file, ready to drag in
   // (browsers cannot attach files to mailto:; "Share PDF…" attaches for real)
   try{ exportCallSheetPDF(o); }catch(e){ console.warn('pdf for mail failed', e); }
-  const day = project.prodboard && project.prodboard.objects.find(x=>x.cat==='dayheader');
+  const day = dayFor(o);
   const subject = 'Call sheet — ' + (project.shootName || 'production') +
     (day && day.date ? ' — ' + day.date : '');
   let body = callSheetText(o);
@@ -551,15 +555,28 @@ function buildCallSheetPDF(o){
   const ix = (PW - iw)/2, iy = PH - M - ih; // top-aligned under the margin
   const content = 'q ' + iw.toFixed(2) + ' 0 0 ' + ih.toFixed(2) + ' ' + ix.toFixed(2) + ' ' + iy.toFixed(2) +
     ' cm /Im1 Do Q';
+  // clickable phone / mail / maps links: the renderer left card-local rects in
+  // o._csLinks — map them through the same transform into PDF Link annotations
+  const annots = (o._csLinks || []).map(L=>{
+    const px = v => ix + ((v + o.w/2) * scale / c.width) * iw;         // card x → pdf x
+    const py = v => iy + ih - ((v + o.h/2) * scale / c.height) * ih;   // card y → pdf y (flipped)
+    const rect = [px(L.x), py(L.y + L.h), px(L.x + L.w), py(L.y)];
+    const uri = String(L.u).replace(/([\\()])/g, '\\$1');
+    return '<< /Type /Annot /Subtype /Link /Rect [' + rect.map(v=>v.toFixed(2)).join(' ') +
+      '] /Border [0 0 0] /A << /S /URI /URI (' + uri + ') >> >>';
+  });
+  const annotRefs = annots.map((_, i)=>(6 + i) + ' 0 R').join(' ');
   const objs = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
     '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] ' +
-      '/Resources << /XObject << /Im1 5 0 R >> >> /Contents 4 0 R >>',
+      '/Resources << /XObject << /Im1 5 0 R >> >> /Contents 4 0 R' +
+      (annots.length ? ' /Annots [' + annotRefs + ']' : '') + ' >>',
     '<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream',
     '<< /Type /XObject /Subtype /Image /Width ' + c.width + ' /Height ' + c.height +
       ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpeg.length +
       ' >>\nstream\n' + jpeg + '\nendstream',
+    ...annots,
   ];
   let pdf = '%PDF-1.4\n';
   const offsets = [0];
@@ -573,7 +590,9 @@ function buildCallSheetPDF(o){
   pdf += 'trailer\n<< /Size ' + (objs.length+1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF';
   const bytes = new Uint8Array(pdf.length);
   for(let i=0;i<pdf.length;i++) bytes[i] = pdf.charCodeAt(i) & 0xFF;
-  const name = ((project.shootName || 'production').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') || 'production') + '_callsheet.pdf';
+  const csDay = dayFor(o);
+  const name = ((project.shootName || 'production').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') || 'production') +
+    '_callsheet' + (csDay && csDay.date ? '_' + csDay.date : '') + '.pdf';
   return {bytes, name};
 }
 function exportCallSheetPDF(o){
