@@ -852,6 +852,7 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
   if(joinCode) await redeemJoinCode(joinCode);
   await loadProject();
   if(typeof sharedPresenceGuard === 'function') sharedPresenceGuard();
+  if(typeof initPresence === 'function') initPresence(); // green "who's online" chip
   document.getElementById('loading').remove();
   initInfoForm();
   buildShotList();
@@ -888,8 +889,39 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
 //   'conflict'  amber: someone else saved a newer version, user picks a side
 function saveBanner(mode){
   let el = document.getElementById('saveBanner');
-  if(!mode){ if(el) el.remove(); return; }
-  if(el && el.dataset.mode === mode) return; // already showing this state
+  let chip = document.getElementById('conflictChip');
+  if(!mode){ if(el) el.remove(); if(chip) chip.remove(); return; }
+  if(mode === 'conflict'){
+    // quiet topbar chip — a conflict is a choice, not an alarm
+    if(el) el.remove();
+    if(chip) return;
+    chip = document.createElement('span');
+    chip.id = 'conflictChip';
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;white-space:nowrap;' +
+      'font:600 11px -apple-system,Segoe UI,sans-serif;color:#8A5A00;' +
+      'background:rgba(199,129,10,.13);border:1px solid rgba(199,129,10,.4);' +
+      'border-radius:20px;padding:2px 3px 2px 10px;margin-right:6px;';
+    chip.title = 'Someone saved a newer version of this production';
+    chip.append('Newer version');
+    const mk = (lab, fn, tip)=>{
+      const b = document.createElement('button');
+      b.textContent = lab; b.title = tip;
+      b.style.cssText = 'border:none;border-radius:14px;padding:3px 9px;cursor:pointer;' +
+        'font:600 10.5px -apple-system,Segoe UI,sans-serif;background:#C7810A;color:#fff;';
+      b.addEventListener('click', fn);
+      chip.appendChild(b);
+    };
+    mk('Load', ()=>{ saveBanner(null); pullRemoteProject(); },
+      'Load the newest version (drops your unsaved edits)');
+    mk('Keep mine', ()=>forceOverwriteSave(),
+      'Overwrite the cloud with your version');
+    const ss = document.getElementById('saveState');
+    if(ss && ss.parentNode) ss.parentNode.insertBefore(chip, ss);
+    else document.body.appendChild(chip);
+    return;
+  }
+  // save FAILURE stays loud — that one really is an alarm
+  if(el && el.dataset.mode === mode) return;
   if(!el){
     el = document.createElement('div');
     el.id = 'saveBanner';
@@ -899,26 +931,15 @@ function saveBanner(mode){
   el.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:400;' +
     'display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;' +
     'max-width:min(92vw,660px);padding:10px 16px;border-radius:11px;color:#fff;' +
-    'font:600 12.5px -apple-system,Segoe UI,sans-serif;box-shadow:0 10px 34px rgba(0,0,0,.28);';
+    'font:600 12.5px -apple-system,Segoe UI,sans-serif;box-shadow:0 10px 34px rgba(0,0,0,.28);' +
+    'background:#D14B3A;';
   el.innerHTML = '';
-  const btn = (label, fn)=>{
-    const b = document.createElement('button');
-    b.textContent = label;
-    b.style.cssText = 'border:none;border-radius:7px;padding:6px 11px;cursor:pointer;' +
-      'font:600 12px -apple-system,Segoe UI,sans-serif;background:rgba(255,255,255,.94);color:#33322E;';
-    b.addEventListener('click', fn);
-    el.appendChild(b);
-  };
-  if(mode === 'savefail'){
-    el.style.background = '#D14B3A';
-    el.appendChild(document.createTextNode(
-      '⚠ Saving failed — your latest changes are NOT in the cloud yet. Retrying automatically…'));
-    btn('Retry now', ()=>{ saveBanner(null); dirty = true; saveProject(); });
-  } else if(mode === 'conflict'){
-    el.style.background = '#C7810A';
-    el.appendChild(document.createTextNode(
-      'Someone saved a newer version of this production.'));
-    btn('Load newest (drops my unsaved edits)', ()=>{ saveBanner(null); pullRemoteProject(); });
-    btn('Keep mine (overwrites theirs)', ()=>forceOverwriteSave());
-  }
+  el.appendChild(document.createTextNode(
+    '⚠ Saving failed — your latest changes are NOT in the cloud yet. Retrying automatically…'));
+  const b = document.createElement('button');
+  b.textContent = 'Retry now';
+  b.style.cssText = 'border:none;border-radius:7px;padding:6px 11px;cursor:pointer;' +
+    'font:600 12px -apple-system,Segoe UI,sans-serif;background:rgba(255,255,255,.94);color:#33322E;';
+  b.addEventListener('click', ()=>{ saveBanner(null); dirty = true; saveProject(); });
+  el.appendChild(b);
 }

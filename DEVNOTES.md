@@ -303,6 +303,24 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.35 — false conflicts fixed, quiet conflict chip, live presence
+1. THE BUG behind "constant conflict warnings with nobody else online":
+   we stored our own `new Date().toISOString()` ('…123Z') as the freshness
+   stamp, but PostgREST returns timestamptz as '…123456+00:00'. The STRING
+   comparison flagged our own previous save as a conflict — every second
+   save cried wolf. Fix: `stampsDiffer(a,b)` compares `Date.parse` with a
+   1.5s tolerance (defined in BOTH the adapter and 07-share), and the
+   upsert now does `.select('updated_at')` so we store the SERVER's
+   representation. cloudRefreshTick also skips when we have no local
+   stamp. NEVER string-compare timestamps from different serializers.
+2. Conflict UI moved into the topbar: amber `#conflictChip` pill next to
+   saveState ("Newer version · Load / Keep mine"). The RED savefail
+   banner stays a floating banner on purpose — that one is an alarm.
+3. `initPresence` (07): Supabase Realtime presence channel
+   'online-<pid>' on shared productions; green `#presenceChip` in the
+   topbar lists who else is in ("jasper, marie online"). Subscribed once
+   at boot — production switches reload the page anyway.
+
 ## v0.34 — furniture pack + riders
 1. Sofa variants: `sofa`/`sofa_3`/`sofa_4` (shared `sofaDraw(ctx,w,h,c,
    seats)`) + `sofa_corner` (L-shape). Kitchen variants: `kitchen`/

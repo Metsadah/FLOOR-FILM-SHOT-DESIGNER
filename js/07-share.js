@@ -258,18 +258,19 @@ function wrapStorageForShared(){
         if(/^sd:project:/.test(k) && window.FLOOR_STAMPS[k]){
           const {data:cur} = await sb().from('production_docs').select('updated_at')
             .eq('production_id', pid).eq('key', k).maybeSingle();
-          if(cur && cur.updated_at !== window.FLOOR_STAMPS[k]){
+          if(cur && stampsDiffer(cur.updated_at, window.FLOOR_STAMPS[k])){
             const err = new Error('A co-editor saved a newer version');
             err.floorConflict = true;
             throw err;
           }
         }
         const stamp = new Date().toISOString();
-        const {error} = await sb().from('production_docs')
-          .upsert({production_id:pid, key:k, value:v, updated_at:stamp});
+        const {data:wrote, error} = await sb().from('production_docs')
+          .upsert({production_id:pid, key:k, value:v, updated_at:stamp})
+          .select('updated_at');
         if(error) throw error;
         if(/^sd:project:/.test(k)){
-          window.FLOOR_STAMPS[k] = stamp;
+          window.FLOOR_STAMPS[k] = (wrote && wrote[0] && wrote[0].updated_at) || stamp;
           await sb().from('productions').update({updated_at:stamp,
             name:(project && project.shootName) || ''}).eq('id', pid);
         }
@@ -285,6 +286,55 @@ function wrapStorageForShared(){
     async list(prefix){ return base.list(prefix); },
   };
 }
+// ---------------------------------------------------------------- who's here
+// Supabase Realtime presence on shared productions: a green topbar chip
+// shows who ELSE has this production open right now. Page reloads on
+// production switch, so subscribing once at boot is enough.
+let presenceCh = null;
+async function initPresence(){
+  try{
+    const sbc = window.FLOOR_SB;
+    if(!sbc || !window.FLOOR_USER || !currentProjectId) return;
+    if(!window.FLOOR_SHARED || !FLOOR_SHARED.has(currentProjectId)) return;
+    const me = FLOOR_USER.id;
+    presenceCh = sbc.channel('online-' + currentProjectId, {config:{presence:{key:me}}});
+    presenceCh.on('presence', {event:'sync'}, ()=>{
+      const st = presenceCh.presenceState();
+      const others = Object.keys(st).filter(k=>k !== me);
+      const names = [...new Set(others.map(k=>((st[k][0]||{}).who) || 'co-editor'))];
+      setPresenceChip(names);
+    });
+    presenceCh.subscribe(async status=>{
+      if(status === 'SUBSCRIBED')
+        await presenceCh.track({who:(FLOOR_USER.email || 'co-editor').split('@')[0], at:Date.now()});
+    });
+  }catch(e){ console.warn('presence failed', e); }
+}
+function setPresenceChip(names){
+  let el = document.getElementById('presenceChip');
+  if(!names || !names.length){ if(el) el.remove(); return; }
+  if(!el){
+    el = document.createElement('span');
+    el.id = 'presenceChip';
+    const ss = document.getElementById('saveState');
+    if(ss && ss.parentNode) ss.parentNode.insertBefore(el, ss);
+    else return;
+  }
+  el.style.cssText = 'display:inline-flex;align-items:center;gap:6px;white-space:nowrap;' +
+    'font:600 11px -apple-system,Segoe UI,sans-serif;color:#256B3E;' +
+    'background:rgba(46,158,91,.12);border:1px solid rgba(46,158,91,.35);' +
+    'border-radius:20px;padding:2px 10px;margin-right:6px;';
+  el.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:#2E9E5B;display:inline-block"></span>' +
+    esc(names.join(', ')) + ' online';
+  el.title = 'Also in this production right now — saves are conflict-checked, their changes arrive within ~2 minutes';
+}
+
+// instant-based stamp comparison (see the adapter note: Postgres formats
+// timestamps differently than Date.toISOString — never compare the strings)
+function stampsDiffer(a, b){
+  return Math.abs(Date.parse(a) - Date.parse(b)) > 1500;
+}
+
 // ---------------------------------------------------------------- staying in sync
 // Every couple of minutes (and whenever the app returns to the foreground)
 // the cloud copy's stamp is compared with ours. Someone else saved?
@@ -307,8 +357,9 @@ async function cloudRefreshTick(force){
     if(!window.FLOOR_SB || !currentProjectId || !project) return;
     if(document.hidden && !force) return;
     const k = 'sd:project:' + currentProjectId;
+    const mine = (window.FLOOR_STAMPS || {})[k];
     const remote = await cloudDocStamp();
-    if(!remote || remote === (window.FLOOR_STAMPS || {})[k]) return;
+    if(!remote || !mine || !stampsDiffer(remote, mine)) return;
     if(dirty || saveInFlight){
       if(typeof saveBanner === 'function') saveBanner('conflict');
       return;

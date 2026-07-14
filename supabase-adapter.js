@@ -103,6 +103,10 @@
   // (second device / co-editor) saved in between, and silently overwriting
   // it is how work disappears. The save path turns that into a choice.
   window.FLOOR_STAMPS = window.FLOOR_STAMPS || {};
+  // compare stamps by INSTANT, not string — Postgres returns '+00:00' with
+  // microseconds while Date.toISOString() gives 'Z' millis; comparing the raw
+  // strings made every second save cry wolf about a conflict (v0.35 fix)
+  window.FLOOR_STAMP_DIFF = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) > 1500;
   window.FLOOR_STORAGE = {
     async get(key){
       await ready;
@@ -116,18 +120,20 @@
       const {data:{user}} = await sb.auth.getUser();
       if(/^sd:project:/.test(key) && window.FLOOR_STAMPS[key]){
         const {data:cur} = await sb.from('kv').select('updated_at').eq('key', key).maybeSingle();
-        if(cur && cur.updated_at !== window.FLOOR_STAMPS[key]){
+        if(cur && window.FLOOR_STAMP_DIFF(cur.updated_at, window.FLOOR_STAMPS[key])){
           const err = new Error('A newer version of this production exists in the cloud');
           err.floorConflict = true;
           throw err;
         }
       }
       const stamp = new Date().toISOString();
-      const {error} = await sb.from('kv')
+      const {data:wrote, error} = await sb.from('kv')
         .upsert({user_id:user.id, key, value, updated_at:stamp},
-                {onConflict:'user_id,key'});
+                {onConflict:'user_id,key'})
+        .select('updated_at');
       if(error) throw error;
-      if(/^sd:project:/.test(key)) window.FLOOR_STAMPS[key] = stamp;
+      if(/^sd:project:/.test(key))
+        window.FLOOR_STAMPS[key] = (wrote && wrote[0] && wrote[0].updated_at) || stamp;
       return {key, value};
     },
     async delete(key){
