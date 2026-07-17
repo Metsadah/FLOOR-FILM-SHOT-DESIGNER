@@ -303,6 +303,22 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.39 — numbered shoot days own their locations
+1. Day headers are numbered: title reads 'SHOOT DAY N' where N =
+   `dayNumber(day)` = position in `boardDays()` (date-sorted — change a
+   date and the numbering re-sorts itself).
+2. `day.locIds` = ORDERED location ids for that day (`dayLocs(day)`
+   resolves them). SelBar of a selected day header lists every filled
+   location as a toggle: click in VISITING order (chips show ✓1/✓2…),
+   click again to remove; re-add to re-order. Same location on several
+   days is just the same id in several lists. The card grows a bottom
+   row: '⚑ 1 Villa → 2 Bakkerij'.
+3. Call sheet + callSheetText: the bound day's assigned locations (in
+   order, numbered, header 'LOCATIONS · IN ORDER') REPLACE the all-
+   locations fallback; no assignment → previous behavior.
+4. dayheaderSunFetch geocodes the day's FIRST assigned location.
+   Day-cycle chip now reads 'Day 1 · 20 jul ▸'.
+
 ## v0.38 — call sheet: clickable links, all locations, multi-day
 1. Lines in the call sheet are now [kind, text, segs] where segs mark
    LINKED substrings ({s,e,u}). drawLine paints them #3B5BDB + underline

@@ -232,6 +232,15 @@ function dayFor(o){
   const days = boardDays();
   return days.find(d=>d.id === o.dayId) || days[0] || null;
 }
+function dayNumber(day){ // "Shoot day N" — position in the date-sorted list
+  return boardDays().indexOf(day) + 1;
+}
+// each day header owns an ORDERED location list (day.locIds) — first entry is
+// where the day starts; the same location may appear on several days
+function dayLocs(day){
+  if(!day || !day.locIds || !day.locIds.length) return [];
+  return day.locIds.map(id=>project.production.locations.find(l=>l.id === id)).filter(Boolean);
+}
 
 // ---------------------------------------------------------------- prop list model
 // The prop list card watches every scene: props PLACED on its board and prop
@@ -1764,16 +1773,20 @@ function drawObjectShape(o, ghost){
     const secs = [];
     if(inc.location){
       const L = [];
-      const locs = project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
+      // the day's ASSIGNED locations in visiting order beat the full list
+      const assigned = dayLocs(day);
+      const locs = assigned.length ? assigned
+        : project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
+      const numbered = assigned.length > 1;
       locs.forEach((loc, li)=>{
         if(li) L.push(['p', '']); // breathing room between locations
-        if(loc.name) L.push(['b', loc.name]);
+        if(loc.name) L.push(['b', (numbered ? (li+1) + ' · ' : '') + loc.name]);
         const addr = [loc.street, loc.town, loc.country].filter(Boolean).join(', ') || loc.address;
         if(addr) L.push(seg([{t:addr, u:'https://maps.google.com/?q=' + encodeURIComponent(addr)}]));
         for(const [k, lab] of [['parking','Parking'],['power','Power'],['hospital','Hospital'],['notes','Notes']])
           if(loc[k]) L.push(['n', lab + ': ' + loc[k]]);
       });
-      secs.push([locs.length > 1 ? 'LOCATIONS' : 'LOCATION',
+      secs.push([locs.length > 1 ? (numbered ? 'LOCATIONS · IN ORDER' : 'LOCATIONS') : 'LOCATION',
         L.length ? L : [['p','fill a Location card…']]]);
     }
     if(inc.schedule){
@@ -1927,8 +1940,9 @@ function drawObjectShape(o, ghost){
   } else if(o.cat === 'dayheader'){
     // the call-time block — echoes a Dutch call sheet header
     const G = DAYH;
+    const dLocs = dayLocs(o);
     o.w = G.w;
-    o.h = G.titleH + G.bigH + G.rowH*2;
+    o.h = G.titleH + G.bigH + G.rowH*2 + (dLocs.length ? G.rowH : 0);
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
     ctx.fillStyle = '#fff'; ctx.fill();
     ctx.save();
@@ -1939,7 +1953,7 @@ function drawObjectShape(o, ghost){
     ctx.textBaseline = 'middle';
     ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = '#33322E';
-    ctx.fillText('SHOOT DAY', -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    ctx.fillText('SHOOT DAY ' + dayNumber(o), -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
     // date, right-aligned in the strip (Dutch long form)
     ctx.textAlign = 'right';
     ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
@@ -2009,6 +2023,17 @@ function drawObjectShape(o, ghost){
       ctx.font = '11px -apple-system,Segoe UI,sans-serif';
       ctx.fillText('☀ sunrise/sunset — "Sun from location ↻" in the selection bar',
         -o.w/2 + 10, r2 + G.rowH/2 + .5);
+    }
+    // this day's locations, in visiting order (selection bar assigns them)
+    if(dLocs.length){
+      const r3 = r2 + G.rowH;
+      ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-o.w/2, r3); ctx.lineTo(o.w/2, r3); ctx.stroke();
+      ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#4A4636';
+      const chain = dLocs.map((l, i)=>(dLocs.length > 1 ? (i+1) + ' ' : '') +
+        (l.name || l.town || 'location')).join('  →  ');
+      ctx.fillText('⚑ ' + trimText(ctx, chain, o.w - 30), -o.w/2 + 10, r3 + G.rowH/2 + .5);
     }
     ctx.restore();
     ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;

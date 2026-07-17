@@ -330,10 +330,10 @@ function refreshSelBar(){
       const days = boardDays();
       if(days.length > 1){
         const cur = dayFor(o);
-        const lab = cur && cur.date
-          ? new Date(cur.date + 'T12:00:00').toLocaleDateString('nl-NL', {day:'numeric', month:'short'})
-          : 'day ' + (days.indexOf(cur) + 1);
-        sbtn('Day: ' + lab + ' ▸', ()=>{
+        const lab = 'Day ' + (days.indexOf(cur) + 1) + (cur && cur.date
+          ? ' · ' + new Date(cur.date + 'T12:00:00').toLocaleDateString('nl-NL', {day:'numeric', month:'short'})
+          : '');
+        sbtn(lab + ' ▸', ()=>{
           o.dayId = days[(days.indexOf(cur) + 1) % days.length].id;
           markDirty(); render(); refreshSelBar();
         }).title = 'This card follows this shoot day — click to cycle through the Day headers';
@@ -377,9 +377,27 @@ function refreshSelBar(){
       dt.addEventListener('keydown', e=>e.stopPropagation());
       selBar.appendChild(dt);
       sbtn('Sun from location \u21bb', ()=>dayheaderSunFetch(o));
+      // assign THIS day's locations \u2014 click in visiting order, click again to remove
+      normalizeProduction();
+      const dlocs = project.production.locations.filter(l=>l.name || l.town || l.street);
+      if(dlocs.length){
+        vsep();
+        o.locIds = o.locIds || [];
+        for(const l of dlocs){
+          const i = o.locIds.indexOf(l.id);
+          sbtn((i > -1 ? '\u2713' + (i+1) + ' ' : '') + (l.name || l.town || 'location'), ()=>{
+            const j = o.locIds.indexOf(l.id);
+            if(j > -1) o.locIds.splice(j, 1);
+            else o.locIds.push(l.id);
+            markDirty(); render(); refreshSelBar();
+          }).title = 'Toggle for this shoot day \u2014 click locations in the order you visit them';
+        }
+      }
       const hint = document.createElement('span');
       hint.style.cssText='font-size:10.5px;color:var(--ink2);padding:0 4px;';
-      hint.textContent = 'Click the times to edit \u2014 Tab hops call \u2192 wrap';
+      hint.textContent = dlocs.length
+        ? 'Click the times to edit \u00b7 click locations in visiting order'
+        : 'Click the times to edit \u2014 Tab hops call \u2192 wrap';
       selBar.appendChild(hint);
     }
     if(o.cat === 'audio'){
@@ -1036,7 +1054,8 @@ function openDayCell(o, key){
 // cache lat/lon on the day header; sunrise/sunset then computes client-side
 async function dayheaderSunFetch(o){
   normalizeProduction();
-  const loc = project.production.locations.find(l=>l.town || l.name || l.street);
+  // the day's FIRST assigned location wins; any filled location as fallback
+  const loc = dayLocs(o)[0] || project.production.locations.find(l=>l.town || l.name || l.street);
   // the TOWN is what geocoders want; street or name only as fallback
   const q = loc ? (loc.town || loc.name || loc.street) : '';
   if(!q){ toast('Fill a Location card first (town works best) — the sun needs a place'); return; }

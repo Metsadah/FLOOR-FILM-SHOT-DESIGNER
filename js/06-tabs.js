@@ -448,15 +448,18 @@ function callSheetText(o){
     L.push('General call ' + (day.call || '–') + ' · shooting call ' + (day.shootCall || '–') +
       ' · est. wrap ' + (day.wrap || '–'));
   }
-  const locs = project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
+  const assigned = dayLocs(day);
+  const locs = assigned.length ? assigned
+    : project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
   if(locs.length){
     L.push('');
-    L.push(locs.length > 1 ? 'LOCATIONS:' : 'LOCATION:');
-    for(const loc of locs){
-      L.push('  ' + [loc.name, loc.street, loc.town, loc.country].filter(Boolean).join(', '));
+    L.push(locs.length > 1 ? (assigned.length > 1 ? 'LOCATIONS (in order):' : 'LOCATIONS:') : 'LOCATION:');
+    locs.forEach((loc, li)=>{
+      L.push('  ' + (assigned.length > 1 ? (li+1) + '. ' : '') +
+        [loc.name, loc.street, loc.town, loc.country].filter(Boolean).join(', '));
       if(loc.parking) L.push('  Parking: ' + loc.parking);
       if(loc.hospital) L.push('  Hospital: ' + loc.hospital);
-    }
+    });
   }
   const scheds = b ? b.objects.filter(x=>x.cat==='schedule') : [];
   const schd = scheds.find(x=>dayFor(x) === day) || scheds[0];
