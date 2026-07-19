@@ -467,6 +467,27 @@ const PROPS = {
     ctx.beginPath(); ctx.roundRect(-w/2-4,-h/2-4,w+8,h+8,(h+8)/2); ctx.stroke();
     ctx.globalAlpha=1;
   }},
+  astera:{w:110,h:10,name:'Astera tube',draw(ctx,w,h,c){
+    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,h/2);
+    ctx.fillStyle=c; ctx.globalAlpha=.22; ctx.fill(); ctx.globalAlpha=1;
+    ctx.strokeStyle=c; ctx.stroke();
+    // pixel segments — it's an RGB pixel tube
+    ctx.fillStyle=c; ctx.globalAlpha=.6;
+    const n = 8, sw = (w - 12)/n;
+    for(let i=0;i<n;i++) ctx.fillRect(-w/2 + 6 + i*sw, -h/2 + 2.5, sw - 2, h - 5);
+    ctx.globalAlpha=1;
+  }},
+  tl:{w:130,h:12,name:'TL tube',draw(ctx,w,h,c){
+    ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,h/2);
+    ctx.fillStyle=c; ctx.globalAlpha=.25; ctx.fill(); ctx.globalAlpha=1;
+    ctx.strokeStyle=c; ctx.stroke();
+    ctx.fillStyle=c;
+    ctx.fillRect(-w/2 + 2, -h/2, 6, h); // end caps
+    ctx.fillRect(w/2 - 8, -h/2, 6, h);
+    ctx.globalAlpha=.5;
+    ctx.beginPath(); ctx.moveTo(-w/2+12,0); ctx.lineTo(w/2-12,0); ctx.stroke();
+    ctx.globalAlpha=1;
+  }},
   bounce:{w:120,h:15,name:'Bounce board',draw(ctx,w,h,c){
     ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,2);
     ctx.fillStyle='#FFFFFF'; ctx.fill(); ctx.strokeStyle='#B9B6AF'; ctx.stroke();
@@ -1115,9 +1136,9 @@ const CATS = [
     'actor','actor_ant','actor_extra','actor_child','animal_dog','animal_cat','animal_horse','animal_custom'
   ].map(k=>({cat:'actor', kind:k}))},
   {name:'Grip & light', open:true, items:[
-    'cstand','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','track','jib','technocrane','truss','monitor','camcart'
+    'cstand','kino','ledpanel','fresnel','hmi','tube','astera','bounce','negfill','flag','reflector','track','jib','technocrane','truss','monitor','camcart'
   ].map(k=>({cat:'prop', kind:k}))},
-  {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','neon'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','tl','neon'].map(k=>({cat:'prop', kind:k}))},
   {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','tvunit','cabinet','bookcase','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
   {name:'Bathroom', open:false, items:['bath','shower','toilet','sink','mirror'].map(k=>({cat:'prop', kind:k}))},
   {name:'Vehicles', open:false, items:['bicycle','motorcycle','car_small','car','car_suv','car_police','minivan','bus','train','tractor'].map(k=>({cat:'prop', kind:k}))},
@@ -1140,11 +1161,48 @@ const LIGHT_BEAMS = {
   ledpanel:     {spread:78,  range:240, axis:Math.PI/2,   tint:BEAM_TINT},
   tube:         {spread:110, range:150, axis:Math.PI/2,   tint:BEAM_TINT},
   neon:         {spread:115, range:120, axis:Math.PI/2,   tint:'255,122,217'},
+  astera:       {spread:120, range:170, axis:Math.PI/2,   tint:'186,120,255'}, // RGB pixel tube — gel it!
   floorlamp:    {omni:90,  tint:BEAM_TINT},
   tablelamp:    {omni:70,  tint:BEAM_TINT},
   pendant:      {omni:95,  tint:BEAM_TINT},
   ceilinglight: {omni:110, tint:BEAM_TINT},
+  tl:           {omni:130, tint:'223,235,255'}, // fluorescent — cool white by default
 };
+// '#rrggbb' → 'r,g,b' (the beam gradients want raw components)
+function hexRgb(h){
+  const n = parseInt(String(h).replace('#',''), 16);
+  return ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255);
+}
+// color temperature → 'r,g,b' (Tanner Helland approximation, 1000–12000K)
+function kelvinRgb(k){
+  k = clamp(k, 1000, 12000) / 100;
+  let r, g, b;
+  if(k <= 66){
+    r = 255;
+    g = clamp(99.47 * Math.log(k) - 161.12, 0, 255);
+  } else {
+    r = clamp(329.7 * Math.pow(k - 60, -0.1332), 0, 255);
+    g = clamp(288.12 * Math.pow(k - 60, -0.0755), 0, 255);
+  }
+  if(k >= 66) b = 255;
+  else if(k <= 19) b = 0;
+  else b = clamp(138.52 * Math.log(k - 10) - 305.04, 0, 255);
+  return [r, g, b].map(Math.round).join(',');
+}
+// a light's effective beam tint: gel (color) × kelvin (white balance);
+// neither set → the kind's default tint. Returns {tint:'r,g,b', a:alpha}.
+function beamTintFor(o, beam){
+  if(o.gel){
+    let rgb = hexRgb(o.gel).split(',').map(Number);
+    if(o.kelvin != null){
+      const kw = kelvinRgb(o.kelvin).split(',').map(Number);
+      rgb = rgb.map((v, i)=>Math.round(v * kw[i] / 255));
+    }
+    return {tint: rgb.join(','), a: .32};
+  }
+  if(o.kelvin != null) return {tint: kelvinRgb(o.kelvin), a: .3};
+  return {tint: beam.tint, a: .26};
+}
 
 // ---------------------------------------------------------------- list cards
 // Live filtered views of the production People registry — one registry,

@@ -303,6 +303,25 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.41 — color temperature per light
+Second light control: `o.kelvin` (slider 2000–10000K, step 100, shown
+default 5500K = daylight standard; null = untouched). `kelvinRgb(k)`
+(Tanner Helland approx) + `beamTintFor(o, beam)` own the chain:
+gel × kelvin MULTIPLY when both set (a gel over a warm/cool source),
+kelvin alone recolors the beam, neither → the kind's default tint, so
+pre-v0.41 boards render unchanged. Slider lives under the gel row in the
+selBar (pointerdown/keydown stopPropagation or the canvas eats the drag).
+
+## v0.40 — light gels + TL + Astera
+1. Per-light color: `o.gel` ('#rrggbb' or null = the type's default tint).
+   The beam gradient uses `hexRgb(o.gel)` (00) at alpha .32 (defaults stay
+   .26). SelBar for any LIGHT_BEAMS kind shows a 9-swatch gel row (first
+   swatch = reset to default): warm/tungsten/CTO/CTB/red/green/blue/
+   magenta/cyan. Applies to directional AND omni (practical) beams.
+2. New `tl` (Practicals — fluorescent tube, end caps, omni 130 with cool
+   '223,235,255' default tint) and `astera` (Grip & light — RGB pixel
+   tube, wide 120° wash, purple default; gel it per unit).
+
 ## v0.39 — numbered shoot days own their locations
 1. Day headers are numbered: title reads 'SHOOT DAY N' where N =
    `dayNumber(day)` = position in `boardDays()` (date-sorted — change a

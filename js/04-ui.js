@@ -282,6 +282,52 @@ function refreshSelBar(){
         o.beam = o.beam === false;
         markDirty(); render(); refreshSelBar();
       });
+      if(o.beam !== false){
+        // per-light gel — tint THIS light's throw
+        const gels = [
+          [null,      '#E8C46B', 'Default for this light'],
+          ['#FFE2A8', '#FFE2A8', 'Tungsten warm'],
+          ['#FFB45C', '#FFB45C', 'CTO amber'],
+          ['#DCE8FF', '#DCE8FF', 'Daylight / CTB'],
+          ['#FF5A4C', '#FF5A4C', 'Red'],
+          ['#4CD964', '#4CD964', 'Green'],
+          ['#4C7DFF', '#4C7DFF', 'Blue'],
+          ['#E45AFF', '#E45AFF', 'Magenta'],
+          ['#4CD9D9', '#4CD9D9', 'Cyan'],
+        ];
+        const row = document.createElement('span');
+        row.style.cssText = 'display:inline-flex;gap:4px;align-items:center;padding:0 5px;';
+        for(const [val, show, tip] of gels){
+          const b = document.createElement('button');
+          b.title = 'Light color: ' + tip;
+          const on = (o.gel || null) === val;
+          b.style.cssText = 'width:16px;height:16px;border-radius:50%;cursor:pointer;padding:0;' +
+            'background:' + show + ';border:2px solid ' + (on ? '#33322E' : 'rgba(0,0,0,.18)') + ';';
+          b.addEventListener('click', ()=>{ o.gel = val; markDirty(); render(); refreshSelBar(); });
+          row.appendChild(b);
+        }
+        selBar.appendChild(row);
+        // color TEMPERATURE — independent of the gel; 5500K = daylight standard
+        const kRow = document.createElement('span');
+        kRow.style.cssText = 'display:inline-flex;gap:5px;align-items:center;padding:0 5px;';
+        const kIn = document.createElement('input');
+        kIn.type = 'range'; kIn.min = 2000; kIn.max = 10000; kIn.step = 100;
+        kIn.value = o.kelvin ?? 5500;
+        kIn.style.width = '92px';
+        kIn.title = 'Color temperature — 5500K is the daylight standard';
+        const kLab = document.createElement('span');
+        kLab.style.cssText = 'font-size:10.5px;color:var(--ink2);min-width:42px;';
+        kLab.textContent = (o.kelvin ?? 5500) + 'K';
+        kIn.addEventListener('input', ()=>{
+          o.kelvin = +kIn.value;
+          kLab.textContent = kIn.value + 'K';
+          markDirty(); render();
+        });
+        kIn.addEventListener('pointerdown', e=>e.stopPropagation());
+        kIn.addEventListener('keydown', e=>e.stopPropagation());
+        kRow.appendChild(kIn); kRow.appendChild(kLab);
+        selBar.appendChild(kRow);
+      }
       if(o.beam !== false && !LIGHT_BEAMS[o.kind].omni){
         if(o.beamSpread || o.beamRange)
           sbtn('Reset beam', ()=>{ o.beamSpread = null; o.beamRange = null; markDirty(); render(); refreshSelBar(); });
