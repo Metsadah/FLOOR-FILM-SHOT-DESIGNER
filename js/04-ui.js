@@ -278,22 +278,40 @@ function refreshSelBar(){
       });
     }
     if(o.cat === 'prop' && LIGHT_BEAMS[o.kind]){
+      // named fixture presets — fills the label so gear lists read like an order sheet
+      const FIXTURES = ['Aputure LS 600d','Aputure LS 1200d Pro','Aputure MC','Amaran 200x',
+        'ARRI SkyPanel S60-C','ARRI M18','ARRI 650 Fresnel','ARRI Orbiter',
+        'Astera Titan Tube','Astera Helios Tube','Nanlux Evoke 1200','Nanlite PavoTube II',
+        'Kino Flo Diva-Lite','Kino Flo 4Bank','Litepanels Gemini 2x1','Dedolight DLED4','Godox VL300'];
+      const fsel = document.createElement('select');
+      fsel.style.cssText = 'font-size:11px;padding:2px 4px;max-width:150px;border:1px solid var(--line);border-radius:6px;background:#fff;';
+      fsel.title = 'Name this fixture — shows on its label and in gear lists';
+      fsel.innerHTML = '<option value="">Fixture…</option>' +
+        FIXTURES.map(f=>'<option' + (o.label === f ? ' selected' : '') + '>' + f + '</option>').join('');
+      fsel.addEventListener('change', ()=>{
+        if(fsel.value) o.label = fsel.value;
+        markDirty(); render(); refreshSelBar();
+      });
+      fsel.addEventListener('pointerdown', e=>e.stopPropagation());
+      selBar.appendChild(fsel);
       sbtn(o.beam === false ? 'Beam: off' : 'Beam: on', ()=>{
         o.beam = o.beam === false;
         markDirty(); render(); refreshSelBar();
       });
       if(o.beam !== false){
-        // per-light gel — tint THIS light's throw
+        // per-light gel — the swatches are COMMON GELS by name; the color well
+        // at the end is free RGB for anything else
         const gels = [
           [null,      '#E8C46B', 'Default for this light'],
-          ['#FFE2A8', '#FFE2A8', 'Tungsten warm'],
-          ['#FFB45C', '#FFB45C', 'CTO amber'],
-          ['#DCE8FF', '#DCE8FF', 'Daylight / CTB'],
-          ['#FF5A4C', '#FF5A4C', 'Red'],
-          ['#4CD964', '#4CD964', 'Green'],
-          ['#4C7DFF', '#4C7DFF', 'Blue'],
+          ['#FFB45C', '#FFB45C', 'Full CTO'],
+          ['#FFD08A', '#FFD08A', '1/2 CTO'],
+          ['#A8C8FF', '#A8C8FF', 'Full CTB'],
+          ['#CFE0FF', '#CFE0FF', '1/2 CTB'],
+          ['#CDF07A', '#CDF07A', 'Plus Green'],
+          ['#FFC9A3', '#FFC9A3', 'Bastard Amber'],
+          ['#FF3B2F', '#FF3B2F', 'Primary Red'],
+          ['#4A3AFF', '#4A3AFF', 'Congo Blue'],
           ['#E45AFF', '#E45AFF', 'Magenta'],
-          ['#4CD9D9', '#4CD9D9', 'Cyan'],
         ];
         const row = document.createElement('span');
         row.style.cssText = 'display:inline-flex;gap:4px;align-items:center;padding:0 5px;';
@@ -306,6 +324,16 @@ function refreshSelBar(){
           b.addEventListener('click', ()=>{ o.gel = val; markDirty(); render(); refreshSelBar(); });
           row.appendChild(b);
         }
+        // free RGB — any color the swatches don't cover
+        const cw = document.createElement('input');
+        cw.type = 'color';
+        cw.value = o.gel || '#E8C46B';
+        cw.title = 'Any RGB color for this light';
+        cw.style.cssText = 'width:22px;height:20px;padding:0;border:none;background:none;cursor:pointer;';
+        cw.addEventListener('input', ()=>{ o.gel = cw.value; markDirty(); render(); });
+        cw.addEventListener('change', ()=>refreshSelBar());
+        cw.addEventListener('pointerdown', e=>e.stopPropagation());
+        row.appendChild(cw);
         selBar.appendChild(row);
         // color TEMPERATURE — independent of the gel; 5500K = daylight standard
         const kRow = document.createElement('span');
@@ -362,7 +390,7 @@ function refreshSelBar(){
       sbtn('✉ Client', ()=>mailCallSheet(o, 'client'));
       sbtn('✉ All', ()=>mailCallSheet(o));
       sbtn('Copy emails', ()=>copySheetEmails(o));
-      for(const [key, lab] of [['location','Location'],['schedule','Schedule'],['props','Props'],['crew','Crew'],
+      for(const [key, lab] of [['location','Location'],['schedule','Schedule'],['props','Props'],['gear','Gear'],['crew','Crew'],
                                ['cast','Cast'],['client','Client'],['weather','Weather']]){
         sbtn((o.inc[key] ? '✓ ' : '') + lab, ()=>{
           o.inc[key] = !o.inc[key];
@@ -376,13 +404,17 @@ function refreshSelBar(){
       const days = boardDays();
       if(days.length > 1){
         const cur = dayFor(o);
-        const lab = 'Day ' + (days.indexOf(cur) + 1) + (cur && cur.date
+        const isAll = o.cat === 'callsheet' && o.allDays;
+        const lab = isAll ? 'All days' : 'Day ' + (days.indexOf(cur) + 1) + (cur && cur.date
           ? ' · ' + new Date(cur.date + 'T12:00:00').toLocaleDateString('nl-NL', {day:'numeric', month:'short'})
           : '');
         sbtn(lab + ' ▸', ()=>{
-          o.dayId = days[(days.indexOf(cur) + 1) % days.length].id;
+          const i = days.indexOf(cur);
+          if(isAll){ o.allDays = false; o.dayId = days[0].id; }
+          else if(o.cat === 'callsheet' && i === days.length - 1){ o.allDays = true; }
+          else o.dayId = days[(i + 1) % days.length].id;
           markDirty(); render(); refreshSelBar();
-        }).title = 'This card follows this shoot day — click to cycle through the Day headers';
+        }).title = 'Which shoot day this card follows — click to cycle (call sheets can also cover all days)';
       }
     }
     if(o.cat === 'schedule'){
@@ -398,6 +430,12 @@ function refreshSelBar(){
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
       hint.textContent = 'Auto-filled from each scene’s board + script — tick the box, + prop to add, × to dismiss';
+      selBar.appendChild(hint);
+    }
+    if(o.cat === 'gearlist'){
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = 'Cameras & lights from each scene board (fixture names when set) — + prop adds your own rows';
       selBar.appendChild(hint);
     }
     if(o.cat === 'avscript'){
@@ -628,7 +666,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','callsheet','schedule','proplist','file','colorcard','audio'].includes(o.cat)){
+    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','callsheet','schedule','proplist','gearlist','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -713,6 +751,15 @@ function refreshSelBar(){
         info.textContent='\ud83d\udd12 Locked';
         selBar.appendChild(info);
       }
+      if(!w.locked){
+        sbtn('+ Outlet', ()=>{
+          // a power socket ON the wall — select it and drag to place
+          w.openings = w.openings || [];
+          w.openings.push({id:uid(), t:.5, w:18, type:'outlet'});
+          sel = {type:'opening', wallId:w.id, index:w.openings.length-1};
+          markDirty(); render(); refreshSelBar();
+        }).title = 'Add a power socket marker to this wall (visual)';
+      }
       sbtn(w.locked ? 'Unlock' : 'Lock', ()=>{ w.locked=!w.locked; markDirty(); render(); refreshSelBar(); });
       if(!w.locked && w.mid)
         sbtn('Straighten', ()=>{ w.mid = null; markDirty(); render(); refreshSelBar(); });
@@ -745,8 +792,10 @@ function refreshSelBar(){
       if(op.curtain)
         sbtn('Flip side', ()=>{ op.flip=!op.flip; markDirty(); render(); });
     }
-    sbtn('Wider', ()=>{ op.w=clamp(op.w+15,40,400); markDirty(); render(); });
-    sbtn('Narrower', ()=>{ op.w=clamp(op.w-15,40,400); markDirty(); render(); });
+    if(op.type !== 'outlet'){ // outlets have no width — just a spot on the wall
+      sbtn('Wider', ()=>{ op.w=clamp(op.w+15,40,400); markDirty(); render(); });
+      sbtn('Narrower', ()=>{ op.w=clamp(op.w-15,40,400); markDirty(); render(); });
+    }
     sbtn('Delete', deleteSelection, true);
   }
   selBar.classList.add('show');
@@ -1426,6 +1475,12 @@ function buildLibrary(){
     tc.beginPath(); tc.moveTo(-w2/2,h2/2); tc.lineTo(w2*.3,-h2*.3); tc.stroke();
     tc.beginPath(); tc.moveTo(w2*.3,-h2*.3); tc.lineTo(w2*.05,-h2*.32); tc.moveTo(w2*.3,-h2*.3); tc.lineTo(w2*.33,-h2*.05); tc.stroke();
   }, 90, 90, '#E8604C', {cat:'line', kind:'line', w:220, h:14, color:'#E8604C'});
+  boardTile('Measure', (tc,w2,h2,c)=>{
+    tc.strokeStyle=c; tc.lineWidth=4; tc.lineCap='round';
+    tc.beginPath(); tc.moveTo(-w2/2+6,0); tc.lineTo(w2/2-6,0); tc.stroke();
+    tc.beginPath(); tc.moveTo(-w2/2+6,-h2*.18); tc.lineTo(-w2/2+6,h2*.18);
+    tc.moveTo(w2/2-6,-h2*.18); tc.lineTo(w2/2-6,h2*.18); tc.stroke();
+  }, 90, 90, '#5B6472', {cat:'line', kind:'dim', w:220, h:14, color:'#5B6472'});
   boardTile('Link', (tc,w2,h2,c)=>{
     tc.strokeStyle=c; tc.lineWidth=6; tc.lineCap='round';
     tc.beginPath(); tc.ellipse(-w2*.14,h2*.14,w2*.24,h2*.15,-Math.PI/4,0,7); tc.stroke();
@@ -1573,7 +1628,7 @@ function startLibDrag(e, spec){
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
   };
-  else if(['listcard','fieldcard','dayheader','avscript','colcard','callsheet','schedule','proplist'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
+  else if(['listcard','fieldcard','dayheader','avscript','colcard','callsheet','schedule','proplist','gearlist'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
     tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.globalAlpha=.3; tc.fillRect(-w2/2,-h2/2,w2,h2*.24); tc.globalAlpha=1;
@@ -1638,12 +1693,17 @@ function dropLib(e){
       o = {id:uid(), cat:'callsheet', kind:'callsheet', x, y, rot:0, w:380, h:300,
            inc:{location:true, schedule:true, props:true, crew:true, cast:true, client:true, weather:true},
            color:libDrag.color || '#4B6BFB', label:'', path:[]};
+      // multi-day production → ask which day this sheet covers
+      if(boardDays().length > 1) setTimeout(()=>showCallsheetDayPicker(o, e.clientX, e.clientY), 60);
     } else if(libDrag.cat === 'schedule'){
       o = {id:uid(), cat:'schedule', kind:'schedule', x, y, rot:0, w:320, h:200,
            on:{}, color:libDrag.color || '#E8934C', label:'', path:[]};
     } else if(libDrag.cat === 'proplist'){
       o = {id:uid(), cat:'proplist', kind:'proplist', x, y, rot:0, w:280, h:160,
            props:{}, hide:{}, done:{}, color:libDrag.color || '#7FA05A', label:'', path:[]};
+    } else if(libDrag.cat === 'gearlist'){
+      o = {id:uid(), cat:'gearlist', kind:'gearlist', x, y, rot:0, w:280, h:160,
+           props:{}, hide:{}, done:{}, color:libDrag.color || '#4C8AD9', label:'', path:[]};
     } else if(libDrag.cat === 'dayheader'){
       o = {id:uid(), cat:'dayheader', kind:'dayheader', x, y, rot:0, w:DAYH.w, h:140,
            date:new Date().toISOString().slice(0,10), call:'', shootCall:'', wrap:'',
@@ -1685,9 +1745,11 @@ function dropLib(e){
       o = {id:uid(), cat:'text', kind:'text', x, y, rot:0, w:240, h:40,
            fontSize:18, bold:false, italic:false, text:'', color:'#5B6472', label:'', path:[]};
     } else if(libDrag.cat === 'line'){
-      o = {id:uid(), cat:'line', kind:'line', x, y, rot:0, w:220, h:14,
+      const isDim = libDrag.kind === 'dim';
+      o = {id:uid(), cat:'line', kind:isDim ? 'dim' : 'line', x, y, rot:0, w:220, h:14,
            p1:{x:x-110, y}, p2:{x:x+110, y},
-           weight:2.5, dashed:false, arrow:true, color:libDrag.color||'#E8604C', label:'', path:[]};
+           weight:isDim ? 2 : 2.5, dashed:false, arrow:!isDim,
+           color:libDrag.color||(isDim ? '#5B6472' : '#E8604C'), label:'', path:[]};
     } else if(libDrag.cat === 'link'){
       o = {id:uid(), cat:'link', kind:'link', x, y, rot:0, w:180, h:218,
            label:'', url:'', color:libDrag.color||'#4B6BFB', path:[]};
@@ -1724,6 +1786,36 @@ function dropLib(e){
 }
 
 // ---------------------------------------------------------------- Checklist 2.0 template picker
+// which shoot day does a fresh call sheet cover? (only asked with 2+ days)
+function showCallsheetDayPicker(o, cx, cy){
+  const old = document.getElementById('csDayPop');
+  if(old) old.remove();
+  const pop = document.createElement('div');
+  pop.id = 'csDayPop';
+  pop.style.cssText = 'position:fixed;z-index:130;background:#fff;border:1px solid var(--line);' +
+    'border-radius:3px;box-shadow:0 16px 50px rgba(40,38,32,.18);padding:10px;min-width:190px;';
+  pop.style.left = Math.min(cx, window.innerWidth - 220) + 'px';
+  pop.style.top = Math.min(cy, window.innerHeight - 260) + 'px';
+  pop.insertAdjacentHTML('beforeend',
+    '<div style="font-weight:600;font-size:12px;margin-bottom:6px">Call sheet for…</div>');
+  const pick = (label, fn)=>{
+    const b = document.createElement('button');
+    b.className = 'proj-row';
+    b.textContent = label;
+    b.addEventListener('click', ()=>{ fn(); markDirty(); render(); refreshSelBar(); pop.remove(); });
+    pop.appendChild(b);
+  };
+  for(const d of boardDays()){
+    const dl = d.date ? ' · ' + new Date(d.date + 'T12:00:00')
+      .toLocaleDateString('nl-NL', {day:'numeric', month:'short'}) : '';
+    pick('Shoot day ' + dayNumber(d) + dl, ()=>{ o.dayId = d.id; o.allDays = false; });
+  }
+  pick('All days on one sheet', ()=>{ o.allDays = true; });
+  document.body.appendChild(pop);
+  setTimeout(()=>document.addEventListener('pointerdown', function h(ev){
+    if(!pop.contains(ev.target)){ pop.remove(); document.removeEventListener('pointerdown', h); }
+  }), 50);
+}
 function showChecklistPicker(o, cx, cy){
   const old = document.getElementById('chkPop');
   if(old) old.remove();

@@ -303,6 +303,38 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.42 — the Blush-response batch (tier 1 + extras)
+Competitive review vs blushtools.com (2026-07-23) → seven features:
+1. Gel swatches renamed to REAL gels (Full/half CTO+CTB, Plus Green,
+   Bastard Amber, Primary Red, Congo Blue, Magenta) + a free RGB
+   <input type=color> at the end of the row (sets o.gel too).
+2. Wall OUTLETS: opening type 'outlet' — excluded from the wall-carve
+   loop (no hole), schuko glyph, added via wall selBar "+ Outlet",
+   dragged/deleted through the normal opening machinery, no width chips.
+3. Fixture preset <select> on any LIGHT_BEAMS light → fills o.label
+   (Aputure/ARRI/Astera/Nanlux/Nanlite/Kino/Litepanels/Dedo/Godox).
+4. Dimension lines: line kind 'dim' (Board tile "Measure") — tick ends,
+   auto cm/m readout kept upright, endpoints drag like any line.
+5. GEAR LIST card (cat 'gearlist'): shares the ENTIRE proplist pipeline
+   (renderer branch, _pl* zones, pl: editor fields, o.props/hide/done) —
+   only the detector differs: cameras + GEAR_KINDS, o.label beats the
+   catalog name. Call sheet gained inc.gear (default OFF).
+6. Call sheet day flow: drop with 2+ day headers → showCallsheetDayPicker
+   (day N / all days). o.allDays stacks per-day blocks (banner with
+   number/date/calls/sun + that day's locations + ITS schedule — no
+   cross-day schedule fallback) with shared crew/cast/etc; weather
+   section only in single-day mode. SelBar day chip cycles …→All days.
+   PDF name '_all-days'.
+7. SETUPS A/B: s.setups[{id,name,objects}] + s.setupId, lazily
+   materialized on the 2nd setup. Active setup SHARES the s.objects
+   array; migrateShot re-links after every JSON round-trip (save/load,
+   undo) — without that, edits silently stop reaching the stored setup.
+   addSetup deep-copies with id remap (mounts/rails re-pointed).
+   Topbar chips A/B/×/+ (syncTitle renders; switchTab syncs). Scene
+   duplicate takes the ACTIVE setup only (setups stripped).
+Skipped by decision: power routing/breakers, light meter, photometric
+data, themes.
+
 ## v0.41 — color temperature per light
 Second light control: `o.kelvin` (slider 2000–10000K, step 100, shown
 default 5500K = daylight standard; null = untouched). `kelvinRgb(k)`

@@ -33,6 +33,7 @@ function switchTab(t){
     refreshSelBar();
     ensureShotImages(activeScene(), false).then(()=>{ zoomFitIfEmptyView(); render(); });
   }
+  if(typeof syncTitle === 'function') syncTitle(); // setup chips follow the tab
   render();
 }
 let _fitOnceDone = {};
@@ -306,6 +307,28 @@ function buildProdLibSection(lib){
       {cat:'proplist', kind:'proplist', w:280, h:160, color:'#7FA05A'}));
     grid.appendChild(el);
   }
+  // gear list — live: cameras & lights per scene, fixture names included
+  {
+    const el = document.createElement('div');
+    el.className = 'lib-item';
+    el.appendChild(tileCanvas((tc,w2,h2)=>{
+      tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
+      tc.fillStyle='#fff'; tc.fill();
+      tc.strokeStyle='#4C8AD9'; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle='#4C8AD9'; tc.globalAlpha=.28;
+      tc.fillRect(-w2/2,-h2*.4,w2,h2*.16); tc.globalAlpha=1;
+      tc.globalAlpha=.55;
+      for(const y2 of [-h2*.1, h2*.04, h2*.18]){
+        tc.strokeRect(-w2*.36, y2-1, 6, 6);
+        tc.fillRect(-w2*.22, y2+1, w2*.55, 2.5);
+      }
+      tc.globalAlpha=1;
+    }, 100, 100, '#4C8AD9'));
+    el.insertAdjacentHTML('beforeend', '<span>Gear list</span>');
+    el.addEventListener('pointerdown', e => startLibDrag(e,
+      {cat:'gearlist', kind:'gearlist', w:280, h:160, color:'#4C8AD9'}));
+    grid.appendChild(el);
+  }
   // live weather card (Open-Meteo: free GFS/ICON model data, no key)
   const wEl = document.createElement('div');
   wEl.className = 'lib-item';
@@ -439,40 +462,52 @@ async function copySheetEmails(o){
 // plain-text call sheet for the mail body (attachments need the PDF export)
 function callSheetText(o){
   const b = project.prodboard;
-  const day = dayFor(o);
+  const allD = boardDays();
+  const multi = !!o.allDays && allD.length > 1;
+  const dayList = multi ? allD : [dayFor(o)];
   const L = [];
-  L.push((project.shootName || 'PRODUCTION').toUpperCase() + ' — CALL SHEET');
-  if(day){
-    if(day.date) L.push(new Date(day.date + 'T12:00:00').toLocaleDateString('nl-NL',
-      {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
+  L.push((project.shootName || 'PRODUCTION').toUpperCase() + ' — CALL SHEET' +
+    (multi ? ' — ALL DAYS' : ''));
+  for(const day of dayList){
+    if(!day) continue;
+    if(multi){
+      L.push('');
+      L.push('══ SHOOT DAY ' + dayNumber(day) +
+        (day.date ? ' — ' + new Date(day.date + 'T12:00:00').toLocaleDateString('nl-NL',
+          {weekday:'long', day:'numeric', month:'long'}) : '') + ' ══');
+    } else if(day.date){
+      L.push(new Date(day.date + 'T12:00:00').toLocaleDateString('nl-NL',
+        {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
+    }
     L.push('General call ' + (day.call || '–') + ' · shooting call ' + (day.shootCall || '–') +
       ' · est. wrap ' + (day.wrap || '–'));
+    const assigned = dayLocs(day);
+    const locs = assigned.length ? assigned
+      : project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
+    if(locs.length){
+      L.push('');
+      L.push(locs.length > 1 ? (assigned.length > 1 ? 'LOCATIONS (in order):' : 'LOCATIONS:') : 'LOCATION:');
+      locs.forEach((loc, li)=>{
+        L.push('  ' + (assigned.length > 1 ? (li+1) + '. ' : '') +
+          [loc.name, loc.street, loc.town, loc.country].filter(Boolean).join(', '));
+        if(loc.parking) L.push('  Parking: ' + loc.parking);
+        if(loc.hospital) L.push('  Hospital: ' + loc.hospital);
+      });
+    }
+    const scheds = b ? b.objects.filter(x=>x.cat==='schedule') : [];
+    const schd = scheds.find(x=>dayFor(x) === day) || (multi ? null : scheds[0]);
+    const cs2 = computeSchedule(schd || {}, day);
+    const rows = [];
+    if(schd) for(const r of cs2.rows){
+      if(r.it.on === false || r.start == null) continue;
+      rows.push(minToHHMM(r.start) + '  ' + r.label + (r.it.type !== 'scene' ? ' (' + r.dur + 'm)' : ''));
+    }
+    if(rows.length){
+      L.push(''); L.push('SCHEDULE:'); L.push(...rows);
+      L.push('Est. wrap ' + ((day && day.wrap) || cs2.wrap));
+    }
   }
-  const assigned = dayLocs(day);
-  const locs = assigned.length ? assigned
-    : project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
-  if(locs.length){
-    L.push('');
-    L.push(locs.length > 1 ? (assigned.length > 1 ? 'LOCATIONS (in order):' : 'LOCATIONS:') : 'LOCATION:');
-    locs.forEach((loc, li)=>{
-      L.push('  ' + (assigned.length > 1 ? (li+1) + '. ' : '') +
-        [loc.name, loc.street, loc.town, loc.country].filter(Boolean).join(', '));
-      if(loc.parking) L.push('  Parking: ' + loc.parking);
-      if(loc.hospital) L.push('  Hospital: ' + loc.hospital);
-    });
-  }
-  const scheds = b ? b.objects.filter(x=>x.cat==='schedule') : [];
-  const schd = scheds.find(x=>dayFor(x) === day) || scheds[0];
-  const cs2 = computeSchedule(schd || {}, day);
-  const rows = [];
-  for(const r of cs2.rows){
-    if(r.it.on === false || r.start == null) continue;
-    rows.push(minToHHMM(r.start) + '  ' + r.label + (r.it.type !== 'scene' ? ' (' + r.dur + 'm)' : ''));
-  }
-  if(rows.length){
-    L.push(''); L.push('SCHEDULE:'); L.push(...rows);
-    L.push('Est. wrap ' + ((day && day.wrap) || cs2.wrap));
-  }
+  const day = dayList[0]; // props/people/weather below are day-independent
   if(!(o.inc && o.inc.props === false)){
     const plc = b && b.objects.find(x=>x.cat==='proplist');
     const gs = propListGroups(plc || {props:{}, hide:{}, done:{}}).filter(g=>g.rows.length);
@@ -595,7 +630,7 @@ function buildCallSheetPDF(o){
   for(let i=0;i<pdf.length;i++) bytes[i] = pdf.charCodeAt(i) & 0xFF;
   const csDay = dayFor(o);
   const name = ((project.shootName || 'production').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') || 'production') +
-    '_callsheet' + (csDay && csDay.date ? '_' + csDay.date : '') + '.pdf';
+    '_callsheet' + (o.allDays ? '_all-days' : (csDay && csDay.date ? '_' + csDay.date : '')) + '.pdf';
   return {bytes, name};
 }
 function exportCallSheetPDF(o){

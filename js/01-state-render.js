@@ -90,6 +90,49 @@ function migrateShot(s){
       });
     }
   });
+  // setups: after any JSON round-trip the active setup must SHARE the
+  // s.objects reference again, or edits silently stop reaching the setup
+  if(s.setups && s.setupId){
+    const su = s.setups.find(x=>x.id === s.setupId);
+    if(su) su.objects = s.objects;
+  }
+}
+// ---------------------------------------------------------------- scene setups
+// Lighting/blocking VARIANTS inside one scene (Setup A/B/…). Each setup owns
+// an objects array; walls, stills, script and shots stay scene-level. Nothing
+// materializes until a second setup is added, so old scenes stay untouched.
+function activeSetupOf(s){
+  return s.setups ? (s.setups.find(x=>x.id === s.setupId) || s.setups[0]) : null;
+}
+function addSetup(s){
+  if(!s.setups){
+    s.setups = [{id:uid(), name:'Setup A', objects:s.objects}];
+    s.setupId = s.setups[0].id;
+  }
+  // the new setup starts as a copy of the CURRENT one — tweak from there
+  const src = activeSetupOf(s);
+  const copy = JSON.parse(JSON.stringify(s.objects));
+  const map = {};
+  copy.forEach(ob=>{ const nid = uid(); map[ob.id] = nid; ob.id = nid; });
+  copy.forEach(ob=>{
+    if(ob.mount && map[ob.mount.id]) ob.mount.id = map[ob.mount.id];
+    if(ob.rail && map[ob.rail.id]) ob.rail.id = map[ob.rail.id];
+  });
+  const su = {id:uid(), name:'Setup ' + String.fromCharCode(65 + s.setups.length), objects:copy};
+  s.setups.push(su);
+  switchSetup(s, su.id);
+}
+function switchSetup(s, id){
+  if(!s.setups) return;
+  const su = s.setups.find(x=>x.id === id);
+  if(!su || id === s.setupId) return;
+  const cur = activeSetupOf(s);
+  if(cur) cur.objects = s.objects; // store the working array back
+  s.objects = su.objects;
+  s.setupId = id;
+  sel = null; drag = null;
+  closeNoteEditor(true);
+  markDirty(); render();
 }
 // ---------------------------------------------------------------- People registry
 // One list per production; the Crew / Cast / Client cards on the production
@@ -298,6 +341,35 @@ function propListGroups(o){
       if(!o.hide[key]) rows.push({key, sceneId:s.id, name:nm, count:0, auto:true, script:true, done:!!o.done[key]});
     }
     // 3 · manual rows (closeNoteEditor prunes the ones left nameless)
+    for(const r of o.props[s.id] || [])
+      rows.push({key:r.id, sceneId:s.id, rowId:r.id, name:r.name, count:0, auto:false, done:!!r.done});
+    groups.push({s, rows});
+  }
+  return groups;
+}
+// ---------------------------------------------------------------- gear list model
+// same card mechanics as the prop list, different detector: cameras + grip &
+// light kinds, honoring fixture labels ("Aputure LS 600d ×2" beats "Fresnel ×2")
+const GEAR_KINDS = new Set(['cstand','kino','ledpanel','fresnel','hmi','tube','astera',
+  'bounce','negfill','flag','reflector','dolly','track','jib','technocrane','truss','monitor','camcart']);
+function gearListGroups(o){
+  if(!o.props) o.props = {};
+  if(!o.hide) o.hide = {};
+  if(!o.done) o.done = {};
+  const groups = [];
+  for(const s of project.scenes){
+    const rows = [], counts = {};
+    for(const ob of s.objects || []){
+      let nm = null;
+      if(ob.cat === 'camera') nm = ob.label || (CAMS[ob.kind] && CAMS[ob.kind].name) || 'Camera';
+      else if(ob.cat === 'prop' && GEAR_KINDS.has(ob.kind))
+        nm = ob.label || (PROPS[ob.kind] && PROPS[ob.kind].name) || ob.kind;
+      if(nm) counts[nm] = (counts[nm] || 0) + 1;
+    }
+    for(const nm in counts){
+      const key = s.id + '|' + nm.toLowerCase();
+      if(!o.hide[key]) rows.push({key, sceneId:s.id, name:nm, count:counts[nm], auto:true, done:!!o.done[key]});
+    }
     for(const r of o.props[s.id] || [])
       rows.push({key:r.id, sceneId:s.id, rowId:r.id, name:r.name, count:0, auto:false, done:!!r.done});
     groups.push({s, rows});
@@ -676,6 +748,7 @@ function drawWalls(shot){
     ctx.lineWidth = T;
     const segs = [];
     for(const o of ops){
+      if(o.type === 'outlet') continue; // outlets sit ON the wall — no hole
       const a = clamp(o.c-o.w/2, 0, L), b = clamp(o.c+o.w/2, 0, L);
       if(a > cur) segs.push([cur, a]);
       cur = Math.max(cur, b);
@@ -695,7 +768,14 @@ function drawWalls(shot){
       const cx = pc.x, cy = pc.y;
       const ang = pc.ang;
       ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
-      if(o.type === 'gap'){
+      if(o.type === 'outlet'){
+        // power socket marker — visual only (schuko-style symbol)
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#E8934C'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, 6.5, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#E8934C';
+        ctx.beginPath(); ctx.arc(-2.4, 0, 1.2, 0, 7); ctx.arc(2.4, 0, 1.2, 0, 7); ctx.fill();
+      } else if(o.type === 'gap'){
         ctx.strokeStyle = WALL_COLOR; ctx.lineWidth = 2;
         ctx.globalAlpha = .45;
         ctx.beginPath();
@@ -888,6 +968,34 @@ function drawObjectShape(o, ghost){
       ctx.save(); ctx.translate(p2.x,p2.y); ctx.rotate(endAng);
       ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-sA,-sA*.5); ctx.lineTo(-sA,sA*.5); ctx.closePath();
       ctx.fillStyle=o.color; ctx.fill(); ctx.restore();
+    }
+    if(o.kind === 'dim'){
+      // dimension line: tick ends + live length readout at the middle
+      const ang = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+      const tick = 7;
+      ctx.strokeStyle = o.color; ctx.lineWidth = o.weight || 2;
+      for(const p of [p1, p2]){
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang);
+        ctx.beginPath(); ctx.moveTo(0, -tick); ctx.lineTo(0, tick); ctx.stroke();
+        ctx.restore();
+      }
+      const L = Math.round(dist(o.p1.x, o.p1.y, o.p2.x, o.p2.y));
+      const txt = L >= 100 ? (L/100).toFixed(2).replace(/\.?0+$/,'') + ' m' : L + ' cm';
+      const mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
+      ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
+      const tw = ctx.measureText(txt).width;
+      ctx.save(); ctx.translate(mx, my);
+      let ta = ang;
+      if(ta > Math.PI/2 || ta < -Math.PI/2) ta += Math.PI; // keep the number upright
+      ctx.rotate(ta);
+      ctx.fillStyle = '#fff'; ctx.globalAlpha = .85;
+      ctx.fillRect(-tw/2 - 4, -16, tw + 8, 14);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = o.color;
+      ctx.textAlign = 'center';
+      ctx.fillText(txt, 0, -5);
+      ctx.textAlign = 'left';
+      ctx.restore();
     }
   } else if(o.cat === 'link'){
     // bookmark card: square preview on top, title + domain strip below
@@ -1635,11 +1743,11 @@ function drawObjectShape(o, ghost){
       ctx.textAlign = 'left';
     }
     ctx.textBaseline = 'alphabetic';
-  } else if(o.cat === 'proplist'){
-    // the prop master's list — auto-filled per scene (board objects + script
-    // mentions), tick boxes, dismissable auto rows, free manual rows.
+  } else if(o.cat === 'proplist' || o.cat === 'gearlist'){
+    // the prop master's / gaffer's list — auto-filled per scene, tick boxes,
+    // dismissable auto rows, free manual rows. Same card, two detectors.
     const titleH = 26, rowH = 21, headH = 22, addH = 17, pad = 10;
-    const groups = propListGroups(o);
+    const groups = (o.cat === 'gearlist' ? gearListGroups : propListGroups)(o);
     const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
     // width: longest scene header / prop name sets it; the right-edge handle widens
     let labMax = 120;
@@ -1662,7 +1770,7 @@ function drawObjectShape(o, ghost){
     ctx.textBaseline = 'middle';
     ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = '#33322E';
-    ctx.fillText('PROP LIST', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+    ctx.fillText(o.cat === 'gearlist' ? 'GEAR LIST' : 'PROP LIST', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
     const total = groups.reduce((n,g)=>n + g.rows.length, 0);
     const got = groups.reduce((n,g)=>n + g.rows.filter(r=>r.done).length, 0);
     ctx.textAlign = 'right';
@@ -1748,9 +1856,14 @@ function drawObjectShape(o, ghost){
     if(!o.inc) o.inc = {location:true, schedule:true, props:true, crew:true, cast:true, client:true, weather:true};
     if(o.inc.schedule === undefined) o.inc.schedule = true;
     if(o.inc.props === undefined) o.inc.props = true;
+    if(o.inc.gear === undefined) o.inc.gear = false; // opt-in — most sheets don't list gear
     const inc = o.inc;
     const b = project.prodboard;
-    const day = dayFor(o); // bound shoot day — cycle it in the selection bar
+    // one bound day (selection bar cycles) OR all days stacked on one sheet
+    const allD = boardDays();
+    const multi = !!o.allDays && allD.length > 1;
+    const day = multi ? allD[0] : dayFor(o);
+    const dayList = multi ? allD : [day];
     const wea = b && b.objects.find(x=>x.cat==='weather' && x.data && x.data.length);
     const ppl = t => peopleReg().filter(p=>p.tag===t);
     const titleH = 26, rowH = 17, secHead = 16, gap = 8, pad = 10;
@@ -1771,38 +1884,53 @@ function drawObjectShape(o, ghost){
     const tel = p => p ? 'tel:' + String(p).replace(/[^\d+]/g, '') : null;
     const mailto = m => m ? 'mailto:' + m : null;
     const secs = [];
-    if(inc.location){
-      const L = [];
-      // the day's ASSIGNED locations in visiting order beat the full list
-      const assigned = dayLocs(day);
-      const locs = assigned.length ? assigned
-        : project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
-      const numbered = assigned.length > 1;
-      locs.forEach((loc, li)=>{
-        if(li) L.push(['p', '']); // breathing room between locations
-        if(loc.name) L.push(['b', (numbered ? (li+1) + ' · ' : '') + loc.name]);
-        const addr = [loc.street, loc.town, loc.country].filter(Boolean).join(', ') || loc.address;
-        if(addr) L.push(seg([{t:addr, u:'https://maps.google.com/?q=' + encodeURIComponent(addr)}]));
-        for(const [k, lab] of [['parking','Parking'],['power','Power'],['hospital','Hospital'],['notes','Notes']])
-          if(loc[k]) L.push(['n', lab + ': ' + loc[k]]);
-      });
-      secs.push([locs.length > 1 ? (numbered ? 'LOCATIONS · IN ORDER' : 'LOCATIONS') : 'LOCATION',
-        L.length ? L : [['p','fill a Location card…']]]);
-    }
-    if(inc.schedule){
-      // mirrors the Day schedule card BOUND TO THE SAME DAY (fallback: first)
-      const scheds = (b ? b.objects.filter(x=>x.cat==='schedule') : []);
-      const schd = scheds.find(x=>dayFor(x) === day) || scheds[0];
-      const cs2 = computeSchedule(schd || {}, day);
-      const L = [];
-      for(const r of cs2.rows){
-        if(r.it.on === false || r.start == null) continue;
-        L.push([r.it.type === 'scene' ? 'n' : 'p',
-          minToHHMM(r.start) + '  ' + r.label +
-          (r.it.type !== 'scene' ? ' (' + r.dur + 'm)' : '')]);
+    for(const d of dayList){
+      if(multi && d){
+        // day banner: number, date, calls, sun
+        const dl = d.date ? new Date(d.date + 'T12:00:00')
+          .toLocaleDateString('nl-NL', {weekday:'long', day:'numeric', month:'long'}) : '';
+        const banner = [['t', 'SHOOT DAY ' + dayNumber(d) + (dl ? ' — ' + dl.toUpperCase() : '')]];
+        const calls = [d.call && 'CALL ' + d.call, d.shootCall && 'shoot ' + d.shootCall,
+          d.wrap && 'wrap ' + d.wrap].filter(Boolean).join('  ·  ');
+        if(calls) banner.push(['b', calls]);
+        const dsun = d.date && d.lat != null ? sunTimes(d.date, d.lat, d.lon) : null;
+        if(dsun && dsun.rise) banner.push(['n', 'Sunrise ' + dsun.rise + ' · sunset ' + dsun.set]);
+        secs.push(['', banner]);
       }
-      if(L.length) L.push(['b', 'Est. wrap ' + ((day && day.wrap) || cs2.wrap)]);
-      secs.push(['SCHEDULE', L.length ? L : [['p','tick scenes on the Day schedule card…']]]);
+      if(inc.location){
+        const L = [];
+        // the day's ASSIGNED locations in visiting order beat the full list
+        const assigned = dayLocs(d);
+        const locs = assigned.length ? assigned
+          : project.production.locations.filter(l=>l.name || l.street || l.town || l.address);
+        const numbered = assigned.length > 1;
+        locs.forEach((loc, li)=>{
+          if(li) L.push(['p', '']); // breathing room between locations
+          if(loc.name) L.push(['b', (numbered ? (li+1) + ' · ' : '') + loc.name]);
+          const addr = [loc.street, loc.town, loc.country].filter(Boolean).join(', ') || loc.address;
+          if(addr) L.push(seg([{t:addr, u:'https://maps.google.com/?q=' + encodeURIComponent(addr)}]));
+          for(const [k, lab] of [['parking','Parking'],['power','Power'],['hospital','Hospital'],['notes','Notes']])
+            if(loc[k]) L.push(['n', lab + ': ' + loc[k]]);
+        });
+        secs.push([locs.length > 1 ? (numbered ? 'LOCATIONS · IN ORDER' : 'LOCATIONS') : 'LOCATION',
+          L.length ? L : [['p','fill a Location card…']]]);
+      }
+      if(inc.schedule){
+        // mirrors the Day schedule card BOUND TO THE SAME DAY (fallback: first)
+        const scheds = (b ? b.objects.filter(x=>x.cat==='schedule') : []);
+        const schd = scheds.find(x=>dayFor(x) === d) || (multi ? null : scheds[0]);
+        const cs2 = computeSchedule(schd || {}, d);
+        const L = [];
+        if(schd) for(const r of cs2.rows){
+          if(r.it.on === false || r.start == null) continue;
+          L.push([r.it.type === 'scene' ? 'n' : 'p',
+            minToHHMM(r.start) + '  ' + r.label +
+            (r.it.type !== 'scene' ? ' (' + r.dur + 'm)' : '')]);
+        }
+        if(L.length) L.push(['b', 'Est. wrap ' + ((d && d.wrap) || cs2.wrap)]);
+        if(L.length || !multi)
+          secs.push(['SCHEDULE', L.length ? L : [['p','tick scenes on the Day schedule card…']]]);
+      }
     }
     if(inc.props){
       // mirrors the Prop list card: its dismissals and manual rows travel along
@@ -1815,6 +1943,18 @@ function drawObjectShape(o, ghost){
           L.push(['n', '·  ' + r.name + (r.count > 1 ? '  ×' + r.count : '')]);
       }
       secs.push(['PROPS', L.length ? L : [['p','place props on the boards / drop a Prop list card…']]]);
+    }
+    if(inc.gear){
+      // mirrors the Gear list card (fixture names, dismissals, manual rows)
+      const glc = b && b.objects.find(x=>x.cat==='gearlist');
+      const L = [];
+      for(const g of gearListGroups(glc || {props:{}, hide:{}, done:{}})){
+        if(!g.rows.length) continue;
+        L.push(['b', plSceneHead(g.s)]);
+        for(const r of g.rows)
+          L.push(['n', '·  ' + r.name + (r.count > 1 ? '  ×' + r.count : '')]);
+      }
+      secs.push(['GEAR', L.length ? L : [['p','place cameras & lights on the scene boards…']]]);
     }
     if(inc.crew){
       const c = ppl('crew');
@@ -1837,7 +1977,7 @@ function drawObjectShape(o, ghost){
         {t:p.phone, u:tel(p.phone)}, {t:p.email, u:mailto(p.email)},
       ])) : [['p','—']]]);
     }
-    if(inc.weather){
+    if(inc.weather && !multi){ // per-day sun lives in the day banners on an all-days sheet
       const L = [];
       // auto forecast from the day header's place + date beats the manual card
       if(day && day.date && day.lat != null && typeof callsheetWeather === 'function')
@@ -1859,7 +1999,11 @@ function drawObjectShape(o, ghost){
     // header block: production + day/calls
     const head = [];
     head.push(['t', (project.shootName || 'Production').toUpperCase()]);
-    if(day){
+    if(multi){
+      head.push(['b', dayList.length + ' shoot days' +
+        (dayList[0].date && dayList[dayList.length-1].date
+          ? '  ·  ' + dayList[0].date + ' → ' + dayList[dayList.length-1].date : '')]);
+    } else if(day){
       const d = day.date ? new Date(day.date + 'T12:00:00') : null;
       const ds = d && !isNaN(d) ? d.toLocaleDateString('nl-NL', {weekday:'long', day:'numeric', month:'long', year:'numeric'}) : '';
       const calls = [day.call && 'CALL ' + day.call, day.shootCall && 'shoot ' + day.shootCall,

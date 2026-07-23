@@ -73,6 +73,7 @@ function buildShotList(){
       e.stopPropagation();
       const n = JSON.parse(JSON.stringify(s));
       n.id = uid(); n.name = s.name + ' copy';
+      n.setups = null; n.setupId = null; // the duplicate takes the ACTIVE setup only
       n.walls.forEach(w=>{ w.id=uid(); (w.openings||[]).forEach(o=>o.id=uid()); });
       n.objects.forEach(o=>o.id=uid());
       project.scenes.splice(i+1, 0, n);
@@ -135,7 +136,48 @@ document.getElementById('addShot').addEventListener('click', ()=>{
   sel = null; closeNoteEditor(false); markDirty();
   buildShotList(); syncTitle(); render(); buildStills(); buildInfo(); refreshSelBar(); syncSunBtn();
 });
-function syncTitle(){ document.getElementById('shotTitle').value = activeShot().name; }
+function syncTitle(){
+  document.getElementById('shotTitle').value = activeShot().name;
+  // setup chips (A · B · + ) — lighting/blocking variants of the active scene
+  const wrapEl = document.getElementById('setupChips');
+  if(!wrapEl) return;
+  wrapEl.innerHTML = '';
+  const s = activeScene();
+  const isScene = activeTab === 'design' && project.scenes.includes(s);
+  if(!isScene){ wrapEl.style.display = 'none'; return; }
+  wrapEl.style.display = 'inline-flex';
+  const mk = (txt, on, fn, tip)=>{
+    const b = document.createElement('button');
+    b.textContent = txt; b.title = tip || '';
+    b.style.cssText = 'font:600 10.5px -apple-system,Segoe UI,sans-serif;padding:3px 8px;' +
+      'border-radius:12px;cursor:pointer;border:1px solid ' + (on ? '#4B6BFB' : 'var(--line)') +
+      ';background:' + (on ? 'rgba(75,107,251,.12)' : '#fff') +
+      ';color:' + (on ? '#4B6BFB' : 'var(--ink2)') + ';';
+    b.addEventListener('click', fn);
+    wrapEl.appendChild(b);
+    return b;
+  };
+  if(s.setups && s.setups.length > 1){
+    for(const su of s.setups)
+      mk(su.name.replace('Setup ', ''), su.id === s.setupId,
+        ()=>{ switchSetup(s, su.id); syncTitle(); refreshSelBar(); }, su.name);
+    mk('×', false, ()=>{
+      const cur = activeSetupOf(s);
+      if(!confirm('Delete ' + cur.name + '? Its objects are lost.')) return;
+      s.setups = s.setups.filter(x=>x !== cur);
+      const nxt = s.setups[0];
+      s.objects = nxt.objects;
+      s.setupId = nxt.id;
+      if(s.setups.length === 1){ s.setups = null; s.setupId = null; } // back to a plain scene
+      sel = null;
+      markDirty(); render(); syncTitle(); refreshSelBar();
+    }, 'Delete the active setup');
+  }
+  mk('+', false, ()=>{
+    addSetup(s); syncTitle(); refreshSelBar();
+    toast('New setup — starts as a copy; changes stay in this setup');
+  }, 'Add a lighting/blocking setup (variant of this scene)');
+}
 document.getElementById('shotTitle').addEventListener('input', e => {
   activeShot().name = e.target.value;
   markDirty(); buildShotList();

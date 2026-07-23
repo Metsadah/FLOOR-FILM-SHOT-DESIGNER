@@ -41,7 +41,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
   <button class="btn" id="projBtn" title="Switch or create productions">Production ▾</button>
   <div id="projPop"></div>
   <div id="planPop"></div>
-    <span id="sceneLbl">SCENE</span><input id="shotTitle" title="Rename scene" spellcheck="false">
+    <span id="sceneLbl">SCENE</span><input id="shotTitle" title="Rename scene" spellcheck="false"><span id="setupChips" style="display:none;gap:4px;align-items:center;margin-left:6px"></span>
     <div class="topbar-right">
       <button class="btn drawer-btn" id="panelToggle" title="Scene info">☷</button>
       <button class="btn" id="installBtn" title="Install FLOOR as an app" style="display:none">Install app</button>
@@ -52,7 +52,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="sharePop"></div>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <span id="verChip" title="FLOOR Studio version">v0.41</span><button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="FLOOR Studio version">v0.42</span><button id="helpBtn" title="How to use">?</button>
     </div>
   </div>
 
@@ -132,7 +132,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="tabs">
         <button data-tab="info" class="on">Scene info</button>
       </div>
-      <!-- the Recce & mood tab retired in v0.41 — reference images live on the
+      <!-- the Recce & mood tab retired in v0.42 — reference images live on the
            board itself now; the hidden stills elements below stay because the
            image plumbing (stillInput / boardImgInput) still routes through them -->
       <div class="tabPage on" data-page="info">
