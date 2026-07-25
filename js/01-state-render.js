@@ -2379,8 +2379,10 @@ function drawObjectShape(o, ghost){
     if(beam && !ghost){
       const selMe = sel && sel.type==='object' && sel.id===o.id;
       ctx.save();
-      // per-light gel (color) × kelvin (temperature) — see beamTintFor
-      const {tint, a: a0} = beamTintFor(o, beam);
+      // per-light color (RGB wins over kelvin — see beamTintFor) + diffusion softening
+      const df = DIFF_F[o.diff] || null;
+      let {tint, a: a0} = beamTintFor(o, beam);
+      if(df) a0 *= df.a;
       if(beam.omni){
         const rg = o.beamRange || beam.omni;
         const g = ctx.createRadialGradient(0,0,6, 0,0,rg);
@@ -2390,7 +2392,7 @@ function drawObjectShape(o, ghost){
         ctx.beginPath(); ctx.arc(0,0,rg,0,7); ctx.fill();
       } else {
         ctx.rotate(beam.axis || 0);
-        const sp = o.beamSpread || beam.spread;
+        const sp = (o.beamSpread || beam.spread) * (df ? df.sp : 1);
         const rg = o.beamRange || beam.range;
         const a = rad(sp/2);
         const g = ctx.createRadialGradient(0,0,8, 0,0,rg);

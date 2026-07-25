@@ -8,7 +8,7 @@ const CAM_TYPES = [['cam_std','Standard'],['cam_steadi','Steadicam'],['cam_gimba
 // things that plausibly move during a shot: vehicles + grip & stage lights (not furniture, tech, set dressing, outdoor)
 const MOVE_KINDS = new Set(['bicycle','motorcycle','car','car_small','car_suv','car_police','minivan','bus',
   'cstand','light','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','dolly','jib','technocrane','monitor','camcart',
-  'wheelchair','bed_hospital']);
+  'wheelchair','bed_hospital','dollycart']);
 function canMove(o){
   return o.cat === 'camera' || o.cat === 'actor' || (o.cat === 'prop' && MOVE_KINDS.has(o.kind));
 }
@@ -278,71 +278,79 @@ function refreshSelBar(){
       });
     }
     if(o.cat === 'prop' && LIGHT_BEAMS[o.kind]){
-      // named fixture presets — fills the label so gear lists read like an order sheet
-      const FIXTURES = ['Aputure LS 600d','Aputure LS 1200d Pro','Aputure MC','Amaran 200x',
-        'ARRI SkyPanel S60-C','ARRI M18','ARRI 650 Fresnel','ARRI Orbiter',
-        'Astera Titan Tube','Astera Helios Tube','Nanlux Evoke 1200','Nanlite PavoTube II',
-        'Kino Flo Diva-Lite','Kino Flo 4Bank','Litepanels Gemini 2x1','Dedolight DLED4','Godox VL300'];
-      const fsel = document.createElement('select');
-      fsel.style.cssText = 'font-size:11px;padding:2px 4px;max-width:150px;border:1px solid var(--line);border-radius:6px;background:#fff;';
-      fsel.title = 'Name this fixture — shows on its label and in gear lists';
-      fsel.innerHTML = '<option value="">Fixture…</option>' +
-        FIXTURES.map(f=>'<option' + (o.label === f ? ' selected' : '') + '>' + f + '</option>').join('');
-      fsel.addEventListener('change', ()=>{
-        if(fsel.value) o.label = fsel.value;
-        markDirty(); render(); refreshSelBar();
-      });
-      fsel.addEventListener('pointerdown', e=>e.stopPropagation());
-      selBar.appendChild(fsel);
-      sbtn(o.beam === false ? 'Beam: off' : 'Beam: on', ()=>{
+      if(!LIGHT_BEAMS[o.kind].haze){
+        // named fixture presets — fills the label so gear lists read like an order sheet
+        const FIXTURES = ['Aputure LS 600d','Aputure LS 1200d Pro','Aputure MC','Amaran 200x',
+          'ARRI SkyPanel S60-C','ARRI M18','ARRI 650 Fresnel','ARRI Orbiter',
+          'Astera Titan Tube','Astera Helios Tube','Nanlux Evoke 1200','Nanlite PavoTube II',
+          'Kino Flo Diva-Lite','Kino Flo 4Bank','Litepanels Gemini 2x1','Dedolight DLED4','Godox VL300'];
+        const fsel = document.createElement('select');
+        fsel.style.cssText = 'font-size:11px;padding:2px 4px;max-width:150px;border:1px solid var(--line);border-radius:6px;background:#fff;';
+        fsel.title = 'Name this fixture — shows on its label and in gear lists';
+        fsel.innerHTML = '<option value="">Fixture…</option>' +
+          FIXTURES.map(f=>'<option' + (o.label === f ? ' selected' : '') + '>' + f + '</option>').join('');
+        fsel.addEventListener('change', ()=>{
+          if(fsel.value) o.label = fsel.value;
+          markDirty(); render(); refreshSelBar();
+        });
+        fsel.addEventListener('pointerdown', e=>e.stopPropagation());
+        selBar.appendChild(fsel);
+      }
+      sbtn(o.beam === false ? (LIGHT_BEAMS[o.kind].haze ? 'Haze: off' : 'Beam: off')
+                            : (LIGHT_BEAMS[o.kind].haze ? 'Haze: on' : 'Beam: on'), ()=>{
         o.beam = o.beam === false;
         markDirty(); render(); refreshSelBar();
       });
-      if(o.beam !== false){
-        // per-light gel — the swatches are COMMON GELS by name; the color well
-        // at the end is free RGB for anything else
-        const gels = [
-          [null,      '#E8C46B', 'Default for this light'],
-          ['#FFB45C', '#FFB45C', 'Full CTO'],
-          ['#FFD08A', '#FFD08A', '1/2 CTO'],
-          ['#A8C8FF', '#A8C8FF', 'Full CTB'],
-          ['#CFE0FF', '#CFE0FF', '1/2 CTB'],
-          ['#CDF07A', '#CDF07A', 'Plus Green'],
-          ['#FFC9A3', '#FFC9A3', 'Bastard Amber'],
-          ['#FF3B2F', '#FF3B2F', 'Primary Red'],
-          ['#4A3AFF', '#4A3AFF', 'Congo Blue'],
-          ['#E45AFF', '#E45AFF', 'Magenta'],
+      if(o.beam !== false && !LIGHT_BEAMS[o.kind].haze){
+        const selCss = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:#fff;';
+        // NAMED gels — picking one (or any RGB that isn't white) overrides the temperature
+        const GELS = [
+          ['', 'Gel: none (white)'],
+          ['#FFB45C', 'Full CTO'], ['#FFCE8A', '1/2 CTO'], ['#FFE0B0', '1/4 CTO'],
+          ['#A8C8FF', 'Full CTB'], ['#C6DBFF', '1/2 CTB'], ['#DCE8FF', '1/4 CTB'],
+          ['#CDF07A', 'Plus Green'], ['#EFA9D8', 'Minus Green'],
+          ['#FFC9A3', 'Bastard Amber'], ['#9CC1E8', 'Steel Blue'],
+          ['#4A3AFF', 'Congo Blue'], ['#FF3B2F', 'Primary Red'], ['#E45AFF', 'Magenta'],
         ];
-        const row = document.createElement('span');
-        row.style.cssText = 'display:inline-flex;gap:4px;align-items:center;padding:0 5px;';
-        for(const [val, show, tip] of gels){
-          const b = document.createElement('button');
-          b.title = 'Light color: ' + tip;
-          const on = (o.gel || null) === val;
-          b.style.cssText = 'width:16px;height:16px;border-radius:50%;cursor:pointer;padding:0;' +
-            'background:' + show + ';border:2px solid ' + (on ? '#33322E' : 'rgba(0,0,0,.18)') + ';';
-          b.addEventListener('click', ()=>{ o.gel = val; markDirty(); render(); refreshSelBar(); });
-          row.appendChild(b);
-        }
-        // free RGB — any color the swatches don't cover
+        const cur = o.gel || '';
+        const isPreset = GELS.some(g=>g[0].toLowerCase() === cur.toLowerCase());
+        const gs = document.createElement('select');
+        gs.style.cssText = selCss + 'max-width:130px;';
+        gs.title = 'Gel — choosing a color makes the temperature slider irrelevant';
+        gs.innerHTML = GELS.map(([v, n])=>
+          '<option value="' + v + '"' + (v.toLowerCase() === cur.toLowerCase() ? ' selected' : '') + '>' + n + '</option>').join('') +
+          (!isPreset && cur ? '<option value="__c" selected>Custom RGB</option>' : '');
+        gs.addEventListener('change', ()=>{
+          if(gs.value === '__c') return;
+          o.gel = gs.value || null;
+          markDirty(); render(); refreshSelBar();
+        });
+        gs.addEventListener('pointerdown', e=>e.stopPropagation());
+        selBar.appendChild(gs);
+        // RGB — standard WHITE; white = no color, temperature rules
         const cw = document.createElement('input');
         cw.type = 'color';
-        cw.value = o.gel || '#E8C46B';
-        cw.title = 'Any RGB color for this light';
+        cw.value = o.gel || '#FFFFFF';
+        cw.title = 'Light color (RGB) — white = no color, the temperature applies';
         cw.style.cssText = 'width:22px;height:20px;padding:0;border:none;background:none;cursor:pointer;';
-        cw.addEventListener('input', ()=>{ o.gel = cw.value; markDirty(); render(); });
+        cw.addEventListener('input', ()=>{
+          o.gel = cw.value.toLowerCase() === '#ffffff' ? null : cw.value;
+          markDirty(); render();
+        });
         cw.addEventListener('change', ()=>refreshSelBar());
         cw.addEventListener('pointerdown', e=>e.stopPropagation());
-        row.appendChild(cw);
-        selBar.appendChild(row);
-        // color TEMPERATURE — independent of the gel; 5500K = daylight standard
+        selBar.appendChild(cw);
+        // color TEMPERATURE — greyed out while a color is chosen
         const kRow = document.createElement('span');
-        kRow.style.cssText = 'display:inline-flex;gap:5px;align-items:center;padding:0 5px;';
+        kRow.style.cssText = 'display:inline-flex;gap:5px;align-items:center;padding:0 5px;' +
+          (o.gel ? 'opacity:.35;' : '');
         const kIn = document.createElement('input');
         kIn.type = 'range'; kIn.min = 2000; kIn.max = 10000; kIn.step = 100;
         kIn.value = o.kelvin ?? 5500;
         kIn.style.width = '92px';
-        kIn.title = 'Color temperature — 5500K is the daylight standard';
+        kIn.disabled = !!o.gel;
+        kIn.title = o.gel ? 'Temperature is overridden while a color is chosen'
+                          : 'Color temperature — 5500K is the daylight standard';
         const kLab = document.createElement('span');
         kLab.style.cssText = 'font-size:10.5px;color:var(--ink2);min-width:42px;';
         kLab.textContent = (o.kelvin ?? 5500) + 'K';
@@ -355,6 +363,19 @@ function refreshSelBar(){
         kIn.addEventListener('keydown', e=>e.stopPropagation());
         kRow.appendChild(kIn); kRow.appendChild(kLab);
         selBar.appendChild(kRow);
+        // DIFFUSION — softens and widens the beam
+        const DIFFS = [['', 'No diffusion'], ['opal', 'Opal'], ['half', '½ Grid Cloth'], ['full', 'Full Grid Cloth']];
+        const ds = document.createElement('select');
+        ds.style.cssText = selCss + 'max-width:118px;';
+        ds.title = 'Diffusion in front of this light — softer and wider';
+        ds.innerHTML = DIFFS.map(([v, n])=>
+          '<option value="' + v + '"' + ((o.diff || '') === v ? ' selected' : '') + '>' + n + '</option>').join('');
+        ds.addEventListener('change', ()=>{
+          o.diff = ds.value || null;
+          markDirty(); render(); refreshSelBar();
+        });
+        ds.addEventListener('pointerdown', e=>e.stopPropagation());
+        selBar.appendChild(ds);
       }
       if(o.beam !== false && !LIGHT_BEAMS[o.kind].omni){
         if(o.beamSpread || o.beamRange)

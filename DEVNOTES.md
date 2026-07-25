@@ -303,6 +303,21 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.43 — RGB-first light color, named gels, diffusion, dolly cart, hazer
+1. Color model SIMPLIFIED per user: o.gel (RGB) wins OUTRIGHT — no more
+   gel×kelvin multiply. White in the RGB well = gel null (temperature
+   rules). Kelvin slider disables + fades while a color is chosen.
+2. Swatch row replaced by a NAMED gel <select> (Full/½/¼ CTO + CTB,
+   Plus/Minus Green, Bastard Amber, Steel Blue, Congo Blue, Primary Red,
+   Magenta; non-preset o.gel shows as 'Custom RGB') + the RGB well
+   (default #FFFFFF).
+3. Diffusion per light: o.diff ∈ opal/half/full → DIFF_F (00) widens
+   spread ×1.08/1.16/1.25 and drops alpha ×.85/.7/.55 in the beam draw.
+4. New props: 'dollycart' (Grip & light, in MOVE_KINDS — takes movement
+   paths) and 'hazer' (LIGHT_BEAMS entry {omni:190, haze:true} → faint
+   ambient cloud at alpha .13; haze flag SUPPRESSES fixture/gel/kelvin/
+   diffusion UI and relabels the toggle 'Haze: on/off').
+
 ## v0.42 — the Blush-response batch (tier 1 + extras)
 Competitive review vs blushtools.com (2026-07-23) → seven features:
 1. Gel swatches renamed to REAL gels (Full/half CTO+CTB, Plus Green,

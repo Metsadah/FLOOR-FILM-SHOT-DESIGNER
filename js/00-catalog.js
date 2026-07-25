@@ -822,6 +822,40 @@ const PROPS = {
     ctx.moveTo(0,-h/2+5); ctx.lineTo(0,-h/2+h*.3); ctx.stroke();
     ctx.lineWidth=2;
   }},
+  dollycart:{w:70,h:100,name:'Dolly cart',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,6);
+    ctx.strokeStyle=c;
+    ctx.globalAlpha=.7;
+    for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+      ctx.beginPath(); ctx.arc(sx*(w/2-8), sy*(h/2-9), 4, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    // push bar
+    ctx.lineWidth=2.5;
+    ctx.beginPath();
+    ctx.moveTo(-w*.3,-h/2); ctx.lineTo(-w*.3,-h/2-10);
+    ctx.moveTo(w*.3,-h/2); ctx.lineTo(w*.3,-h/2-10);
+    ctx.moveTo(-w*.3,-h/2-10); ctx.lineTo(w*.3,-h/2-10);
+    ctx.stroke();
+    ctx.lineWidth=2;
+    ctx.globalAlpha=.35;
+    ctx.beginPath(); ctx.moveTo(-w/2+6,0); ctx.lineTo(w/2-6,0); ctx.stroke();
+    ctx.globalAlpha=1;
+  }},
+  hazer:{w:46,h:34,name:'Hazer',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,5);
+    ctx.strokeStyle=c;
+    ctx.beginPath(); ctx.roundRect(w/2-4, -5, 8, 10, 2); ctx.stroke(); // nozzle
+    ctx.globalAlpha=.55;
+    for(let i=1;i<=3;i++){
+      ctx.beginPath(); ctx.arc(w/2 + 4 + i*9, 0, 2.5 + i*2.2, 0, 7); ctx.stroke(); // haze puffs
+    }
+    ctx.globalAlpha=.4;
+    for(let i=0;i<3;i++){
+      ctx.beginPath(); ctx.moveTo(-w/2+6, -h/2+9+i*7); ctx.lineTo(-4, -h/2+9+i*7); ctx.stroke(); // vents
+    }
+    ctx.globalAlpha=1;
+  }},
   camcart:{w:60,h:78,name:'Camera cart',draw(ctx,w,h,c){
     baseRect(ctx,w,h,c,5);
     ctx.strokeStyle=c;
@@ -1136,7 +1170,7 @@ const CATS = [
     'actor','actor_ant','actor_extra','actor_child','animal_dog','animal_cat','animal_horse','animal_custom'
   ].map(k=>({cat:'actor', kind:k}))},
   {name:'Grip & light', open:true, items:[
-    'cstand','kino','ledpanel','fresnel','hmi','tube','astera','bounce','negfill','flag','reflector','track','jib','technocrane','truss','monitor','camcart'
+    'cstand','kino','ledpanel','fresnel','hmi','tube','astera','bounce','negfill','flag','reflector','track','dollycart','jib','technocrane','truss','monitor','camcart','hazer'
   ].map(k=>({cat:'prop', kind:k}))},
   {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','tl','neon'].map(k=>({cat:'prop', kind:k}))},
   {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','tvunit','cabinet','bookcase','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
@@ -1167,7 +1201,10 @@ const LIGHT_BEAMS = {
   pendant:      {omni:95,  tint:BEAM_TINT},
   ceilinglight: {omni:110, tint:BEAM_TINT},
   tl:           {omni:130, tint:'223,235,255'}, // fluorescent — cool white by default
+  hazer:        {omni:190, tint:'206,206,212', haze:true}, // soft ambient cloud, no light controls
 };
+// beam softening per diffusion choice (spread widens, intensity drops)
+const DIFF_F = {opal:{sp:1.08, a:.85}, half:{sp:1.16, a:.7}, full:{sp:1.25, a:.55}};
 // '#rrggbb' → 'r,g,b' (the beam gradients want raw components)
 function hexRgb(h){
   const n = parseInt(String(h).replace('#',''), 16);
@@ -1189,19 +1226,14 @@ function kelvinRgb(k){
   else b = clamp(138.52 * Math.log(k - 10) - 305.04, 0, 255);
   return [r, g, b].map(Math.round).join(',');
 }
-// a light's effective beam tint: gel (color) × kelvin (white balance);
-// neither set → the kind's default tint. Returns {tint:'r,g,b', a:alpha}.
+// a light's effective beam tint. RGB-first model: a chosen COLOR (o.gel)
+// wins outright and makes the temperature irrelevant; white/no color →
+// kelvin rules; neither → the kind's default tint. Diffusion (o.diff)
+// softens via DIFF_F in the draw. Returns {tint:'r,g,b', a:alpha}.
 function beamTintFor(o, beam){
-  if(o.gel){
-    let rgb = hexRgb(o.gel).split(',').map(Number);
-    if(o.kelvin != null){
-      const kw = kelvinRgb(o.kelvin).split(',').map(Number);
-      rgb = rgb.map((v, i)=>Math.round(v * kw[i] / 255));
-    }
-    return {tint: rgb.join(','), a: .32};
-  }
+  if(o.gel) return {tint: hexRgb(o.gel), a: .32};
   if(o.kelvin != null) return {tint: kelvinRgb(o.kelvin), a: .3};
-  return {tint: beam.tint, a: .26};
+  return {tint: beam.tint, a: beam.haze ? .13 : .26};
 }
 
 // ---------------------------------------------------------------- list cards
