@@ -3,6 +3,11 @@
 A single-file, top-down shot design tool for pre-production blocking: sketch the set,
 place cameras / cast / grip, block movement, plan the sun, and export shot lists.
 
+**License:** [Elastic License 2.0](LICENSE) (source-available). Free to use and
+self-host — including commercially for your own productions. Offering FLOOR
+Studio itself as a hosted/managed service to third parties is reserved to the
+licensor. Self-hosting guide: [SELFHOST.md](SELFHOST.md).
+
 Everything lives in **`index.html`** — no build step, no dependencies. Projects and
 recce images are saved automatically (locally per browser, or in the cloud with Stage 2).
 

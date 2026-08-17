@@ -468,6 +468,9 @@ function callSheetText(o){
   const L = [];
   L.push((project.shootName || 'PRODUCTION').toUpperCase() + ' — CALL SHEET' +
     (multi ? ' — ALL DAYS' : ''));
+  const P = project.production || {};
+  if(P.company || P.email || P.phone)
+    L.push([P.company, P.email, P.phone].filter(Boolean).join(' · '));
   for(const day of dayList){
     if(!day) continue;
     if(multi){
@@ -1018,16 +1021,19 @@ document.addEventListener('paste', async e=>{
 // "send a frozen copy" — the cheap rung of the sharing ladder.
 function collectAssetIds(){
   const img = new Set(), file = new Set();
+  const scanObjs = objs=>(objs||[]).forEach(ob=>{
+    if(ob.imgId) img.add(ob.imgId);
+    if(ob.fileId) file.add(ob.fileId);
+  });
   const scan = s=>{
     if(!s) return;
-    (s.objects||[]).forEach(ob=>{
-      if(ob.imgId) img.add(ob.imgId);
-      if(ob.fileId) file.add(ob.fileId);
-    });
+    scanObjs(s.objects);
+    (s.setups||[]).forEach(su=>scanObjs(su.objects)); // inactive setups count too
     (s.stills||[]).forEach(id=>img.add(id));
   };
   project.scenes.forEach(scan);
   scan(project.moodboard); scan(project.prodboard); scan(project.scriptboard);
+  if(project.production && project.production.logo) img.add(project.production.logo);
   return {img:[...img], file:[...file]};
 }
 async function collectAssets(){

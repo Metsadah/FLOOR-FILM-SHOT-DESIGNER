@@ -809,6 +809,13 @@ cv.addEventListener('pointermove', e => {
             a.x = o.x; a.y = o.y;
           }
       }
+      if(o.kind === 'dollycart'){
+        // the cart carries its camera
+        for(const c of shot.objects)
+          if(c.cat === 'camera' && c.mount && c.mount.type === 'cart' && c.mount.id === o.id){
+            c.x = o.x; c.y = o.y;
+          }
+      }
       if(o.cat === 'actor' && o.mount && (o.mount.type === 'seat' || o.mount.type === 'bed')){
         // …and vice versa: moving the actor takes the chair / bed along
         const v = shot.objects.find(x=>x.id === o.mount.id);
@@ -1297,6 +1304,19 @@ cv.addEventListener('pointerup', e => {
         }
       }
     }
+    // …or dropped ON a dolly cart → it rides the cart (like the jib head)
+    if(!cam.mount && !(cam.path && cam.path.length)){
+      for(const cart of shot.objects){
+        if(cart.kind !== 'dollycart') continue;
+        if(dist(cam.x, cam.y, cart.x, cart.y) < 55){
+          cam.mount = {type:'cart', id:cart.id};
+          cam.x = cart.x; cam.y = cart.y;
+          toast('Camera on the dolly cart — moving or animating the cart takes it along; pick the camera up to step off');
+          markDirty(); refreshSelBar();
+          break;
+        }
+      }
+    }
   }
   cv.classList.remove('panning');
   drag = null;
@@ -1737,7 +1757,14 @@ let framePoses = {};
 function poseOf(o, shot, t){
   if(framePoses[o.id]) return framePoses[o.id];
   let g = o;
-  if(o.cat === 'camera' && o.mount){
+  if(o.cat === 'camera' && o.mount && o.mount.type === 'cart'){
+    // riding the dolly cart: the cart's move IS the camera move (pan stays free)
+    const cart = shot.objects.find(x=>x.id === o.mount.id);
+    if(cart){
+      const pc = poseOf(cart, shot, t);
+      g = {...o, x:pc.x, y:pc.y};
+    }
+  } else if(o.cat === 'camera' && o.mount){
     const j = shot.objects.find(x=>x.id===o.mount.id && isCrane(x));
     if(j){
       const pj = poseOf(j, shot, t);

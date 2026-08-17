@@ -21,6 +21,7 @@
 // self-heal: if the local copy of supabase-js is missing (404), pull it from the CDN
 if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
 </script>
+<script src="./config.js"></script>
 <script src="./supabase-adapter.js"></script>
 <link rel="stylesheet" href="./styles.css">
 </head>
@@ -52,7 +53,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="sharePop"></div>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <span id="verChip" title="FLOOR Studio version">v0.43</span><button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="FLOOR Studio version">v0.45</span><button id="helpBtn" title="How to use">?</button>
     </div>
   </div>
 
@@ -132,7 +133,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="tabs">
         <button data-tab="info" class="on">Scene info</button>
       </div>
-      <!-- the Recce & mood tab retired in v0.43 — reference images live on the
+      <!-- the Recce & mood tab retired in v0.44 — reference images live on the
            board itself now; the hidden stills elements below stay because the
            image plumbing (stillInput / boardImgInput) still routes through them -->
       <div class="tabPage on" data-page="info">

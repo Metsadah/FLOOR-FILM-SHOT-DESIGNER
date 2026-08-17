@@ -540,8 +540,10 @@ async function loadStill(id){
   return null;
 }
 function imgReferenced(id){
+  if(project.production && project.production.logo === id) return true;
   return project.scenes.some(s =>
-    s.stills.includes(id) || s.objects.some(o => o.cat==='image' && o.imgId===id));
+    s.stills.includes(id) || s.objects.some(o => o.cat==='image' && o.imgId===id) ||
+    (s.setups||[]).some(su=>su.objects.some(o => o.cat==='image' && o.imgId===id)));
 }
 async function maybeDeleteImg(id){
   if(!imgReferenced(id)){
@@ -1996,9 +1998,12 @@ function drawObjectShape(o, ghost){
       secs.push(['WEATHER & SUN', L.length ? L
         : [['p','needs the Day header: date + "Sun from location ↻"']]]);
     }
-    // header block: production + day/calls
+    // header block: production + company contact (clickable) + day/calls
     const head = [];
     head.push(['t', (project.shootName || 'Production').toUpperCase()]);
+    const P = project.production;
+    if(P.company || P.email || P.phone)
+      head.push(seg([{t:P.company}, {t:P.email, u:mailto(P.email)}, {t:P.phone, u:tel(P.phone)}]));
     if(multi){
       head.push(['b', dayList.length + ' shoot days' +
         (dayList[0].date && dayList[dayList.length-1].date
@@ -2066,6 +2071,18 @@ function drawObjectShape(o, ghost){
       y += rowH;
     };
     for(const [k, t, sg] of head) drawLine(k, t, sg);
+    // company logo — top-right of the head block (exports with the PDF)
+    if(P.logo){
+      const im = imgCache[P.logo];
+      if(im && im.complete && im.naturalWidth){
+        const k2 = Math.min(110 / im.naturalWidth, 36 / im.naturalHeight, 1);
+        const lw = im.naturalWidth * k2, lh = im.naturalHeight * k2;
+        ctx.drawImage(im, o.w/2 - pad - lw, -o.h/2 + titleH + 8, lw, lh);
+      } else if(o._logoTried !== P.logo){
+        o._logoTried = P.logo;
+        loadStill(P.logo).then(()=>render());
+      }
+    }
     y += gap - rowH + rowH;
     for(const [name, lines] of secs){
       ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;

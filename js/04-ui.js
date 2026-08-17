@@ -420,6 +420,29 @@ function refreshSelBar(){
       }
       sbtn('Weather ↻', ()=>{ o.wx = null; markDirty(); render(); });
     }
+    if(o.cat === 'callsheet'){
+      normalizeProduction();
+      sbtn(project.production.logo ? 'Logo ↻' : 'Logo…', ()=>{
+        const fi = document.createElement('input');
+        fi.type = 'file'; fi.accept = 'image/*';
+        fi.addEventListener('change', async ()=>{
+          if(!fi.files || !fi.files[0]) return;
+          try{
+            project.production.logo = await storeImageFile(fi.files[0]);
+            markDirty(); render(); refreshSelBar();
+            toast('Company logo on the call sheet — it exports with the PDF');
+          }catch(e){ toast('Could not store that image — try a smaller one'); }
+        });
+        fi.click();
+      }).title = 'Your production company logo — shown top-right on the call sheet + PDF';
+      if(project.production.logo)
+        sbtn('Remove logo', ()=>{
+          const old = project.production.logo;
+          project.production.logo = null;
+          maybeDeleteImg(old);
+          markDirty(); render(); refreshSelBar();
+        });
+    }
     if(o.cat === 'schedule' || o.cat === 'callsheet'){
       // multi-day: bind this card to one of the Day header cards
       const days = boardDays();

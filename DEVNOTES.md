@@ -303,6 +303,68 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.45 — password login + first push of everything since v0.44
+1. Login overlay (supabase-adapter.js) rewritten as a small state machine:
+   signin (email+password, default) / signup / forgot / reset / magiclink.
+   Password sign-in means a returning device never touches email — only
+   first-time signup (one optional confirmation email, dashboard-
+   controlled) and password reset send anything. `PASSWORD_RECOVERY` auth
+   event is caught explicitly (routes to the 'reset' screen) BEFORE the
+   generic SIGNED_IN resolve, or a reset link would just log the user in
+   with their old password still active. Magic link kept as a fallback
+   for accounts that never set a password.
+   Verified live against the real Supabase project: signup correctly
+   rejects `example.com` (domain validation) and hit the project's
+   built-in-mailer RATE LIMIT on a second attempt — Supabase's free-tier
+   SMTP allows only a handful of auth emails per hour, which is almost
+   certainly why magic-link sign-in felt so painful. Password sign-in
+   sidesteps that limiter entirely after the first signup. WORTH DOING
+   NEXT: custom SMTP (Resend, already on the TODO list) removes the
+   limiter for the signup/reset emails that remain.
+2. **The ELv2 relicense + the whole v0.44 standalone batch sat unpushed.**
+   Most releases up through v0.43 ("Dolly and difusion") WERE committed
+   and pushed to origin/main as normal — but the LICENSE swap and every
+   v0.44 file (config.js, setup/schema.sql, SELFHOST.md, Dockerfile,
+   dolly-cart mount, production logo, linked contact) were only ever
+   written to the local working tree, never committed. GitHub kept
+   showing the original GPL-3.0 because that commit specifically never
+   went out. Pushed the backlog together with this release.
+
+## License (2026-07-25)
+LICENSE switched from a stock GPLv3 (repo-creation leftover — GPL would
+NOT have blocked commercial hosting anyway, that's the SaaS loophole) to
+**Elastic License 2.0**: free use + self-hosting incl. commercial
+productions; offering FLOOR itself as a hosted service is reserved to
+Gerbert. Caveats flagged to the user: sole-copyright-holder relicensing
+is clean ONLY if there are no outside contributors, and any GPLv3 copies
+already distributed stay GPLv3 for their holders. README + SELFHOST
+carry the notice; both zips include LICENSE.
+
+## v0.44 — cart-mounted cameras, logo, contact links, STANDALONE edition
+1. Camera dropped on a 'dollycart' → cam.mount = {type:'cart'} (jib UX:
+   pickup releases). Cart drag carries the camera; cart's movement path
+   drives it in poseOf (pan stays free — rot not inherited).
+2. production.logo (imgId via storeImageFile) — "Logo…"/"Remove logo" on
+   the callsheet selBar; drawn top-right of the head (max 110×36, contain
+   fit, `o._logoTried` guards the lazy loadStill). Counted in
+   collectAssetIds + imgReferenced. FIXED IN PASSING: collectAssetIds and
+   imgReferenced now scan INACTIVE setups' objects — v0.42 setups silently
+   dropped their images from .floorproj/shared copies.
+3. Head line 2: company · email (mailto) · phone (tel) as linked segments
+   → clickable on card + PDF. Also in callSheetText. Data entry: the
+   existing Production field card rows.
+4. STANDALONE: `config.js` (window.FLOOR_CONFIG {supabaseUrl, supabaseKey})
+   now feeds supabase-adapter.js — EMPTY config = clean local mode
+   (console info, no login, IndexedDB fallback from 01, shareBtn hidden
+   via `if(!window.FLOOR_SB)` in the 05 init). `setup/schema.sql` is the
+   COMPLETE backend (dumped from the live project 2026-07-24: kv, shares +
+   bucket + policies, share_comments, productions/members/docs/invites,
+   is_production_member + redeem_production_invite with the load-bearing
+   #variable_conflict). SELFHOST.md + Dockerfile added. TWO zips ship now:
+   'floor film studio.zip' (your keys) and 'floor-studio-standalone.zip'
+   (empty config — local mode out of the box). Keep both rebuilt on
+   release.
+
 ## v0.43 — RGB-first light color, named gels, diffusion, dolly cart, hazer
 1. Color model SIMPLIFIED per user: o.gel (RGB) wins OUTRIGHT — no more
    gel×kelvin multiply. White in the RGB well = gel null (temperature

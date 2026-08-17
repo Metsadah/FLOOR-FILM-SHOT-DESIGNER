@@ -895,6 +895,11 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
   await loadProject();
   if(typeof sharedPresenceGuard === 'function') sharedPresenceGuard();
   if(typeof initPresence === 'function') initPresence(); // green "who's online" chip
+  if(!window.FLOOR_SB){
+    // local mode: share links / co-editing need the cloud build — hide the button
+    const sb2 = document.getElementById('shareBtn');
+    if(sb2) sb2.style.display = 'none';
+  }
   document.getElementById('loading').remove();
   initInfoForm();
   buildShotList();
