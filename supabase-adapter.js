@@ -95,6 +95,13 @@
           mode === 'signup' ? `
             ${field('flEmail','email','you@example.com')}
             ${field('flPass','password','Choose a password (6+ characters)')}
+            <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;
+                          font-size:12px;color:#4A4636;line-height:1.45;cursor:pointer">
+              <input id="flConsent" type="checkbox" style="margin-top:2px">
+              <span>I agree to the <a href="privacy.html" target="_blank"
+                style="color:#4B6BFB">privacy policy</a> — my email (and any profile
+                details I choose to add later) are stored to run my account.</span>
+            </label>
             ${btn('flGo','Create account',true)}
             <div style="margin-top:10px">${link('flToSignin','Already have an account? Sign in')}</div>` :
           mode === 'forgot' ? `
@@ -156,6 +163,10 @@
         } else if(mode === 'signup'){
           if(!email || !pass){ msg().textContent = 'Enter an email and a password.'; return; }
           if(pass.length < 6){ msg().textContent = 'Password needs at least 6 characters.'; return; }
+          if(!el.querySelector('#flConsent')?.checked){
+            msg().textContent = 'Please agree to the privacy policy to create an account.';
+            return;
+          }
           msg().textContent = 'Creating account…';
           const {data, error} = await sb.auth.signUp({email, password:pass,
             options:{ emailRedirectTo: location.href }});
@@ -261,6 +272,139 @@
       if(error) throw error;
       const keys = (data||[]).map(r=>r.key).filter(k=>!prefix || k.startsWith(prefix));
       return {keys};
+    },
+  };
+
+  // ---- account & privacy (GDPR rights live here) ---------------------
+  // profile fields are OPTIONAL by design; consent (privacy policy version +
+  // timestamp) is recorded on the profile row. FLOOR_ACCOUNT.open() is the
+  // in-app panel: view/edit (rectification), download my data (access +
+  // portability), sign out, delete account (erasure via delete_my_account RPC).
+  const PRIVACY_VERSION = '2026-08-17';
+
+  function accountOverlay(profile, firstRun){
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;inset:0;z-index:210;background:rgba(40,38,32,.35);' +
+      'display:flex;align-items:center;justify-content:center;font-family:-apple-system,Segoe UI,sans-serif;';
+    const f = (id, label, val, ph)=>`
+      <div style="margin-top:9px">
+        <div style="font-size:10.5px;font-weight:600;color:#8A877F;letter-spacing:.4px">${label}
+          <span style="font-weight:400">· optional</span></div>
+        <input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph}"
+          style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:8px 10px;
+                 font-size:13px;margin-top:3px;box-sizing:border-box">
+      </div>`;
+    el.innerHTML = `
+      <div style="background:#fff;border:1px solid #E5E3DE;border-radius:16px;padding:26px 30px;
+                  width:360px;max-height:86vh;overflow:auto;box-shadow:0 18px 60px rgba(40,38,32,.2)">
+        <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px">
+          <div style="width:10px;height:10px;border-radius:3px;background:#4B6BFB"></div>
+          ${firstRun ? 'Welcome — tell us about yourself?' : 'Account & privacy'}
+        </div>
+        <div style="color:#8A877F;font-size:12px;margin-top:6px;line-height:1.5">
+          ${firstRun
+            ? 'Everything below is optional — it only prefills your call sheets and crew cards. Skip it freely.'
+            : 'Signed in as <b>' + ((window.FLOOR_USER && window.FLOOR_USER.email) || '') + '</b>'}
+        </div>
+        ${f('apName','NAME', profile.name, 'Your name')}
+        ${f('apAddress','ADDRESS', profile.address, 'Street, city')}
+        ${f('apPhone','PHONE', profile.phone, '+31 6 …')}
+        ${f('apProf','PROFESSION', profile.profession, 'DoP / gaffer / producer …')}
+        <div id="apMsg" style="color:#8A877F;font-size:12px;margin-top:10px;min-height:16px"></div>
+        <button id="apSave" style="width:100%;margin-top:4px;background:#4B6BFB;color:#fff;border:none;
+          border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">
+          ${firstRun ? 'Save & continue' : 'Save changes'}</button>
+        ${firstRun ? `<button id="apSkip" style="width:100%;margin-top:8px;background:#fff;color:#33322E;
+          border:1px solid #E5E3DE;border-radius:8px;padding:10px;font-size:13px;cursor:pointer">
+          Skip for now</button>` : `
+        <div style="border-top:1px solid #E5E3DE;margin-top:16px;padding-top:12px;
+                    display:flex;flex-direction:column;gap:8px">
+          <button id="apExport" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
+            padding:9px;font-size:12.5px;cursor:pointer">Download my data (JSON)</button>
+          <button id="apSignout" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
+            padding:9px;font-size:12.5px;cursor:pointer">Sign out</button>
+          <button id="apDelete" style="background:#fff;border:1px solid #E8B4AC;color:#C0392B;
+            border-radius:8px;padding:9px;font-size:12.5px;cursor:pointer">Delete my account & all data…</button>
+          <a href="privacy.html" target="_blank" style="color:#4B6BFB;font-size:12px">Privacy policy</a>
+        </div>`}
+      </div>`;
+    document.body.appendChild(el);
+    el.addEventListener('pointerdown', e=>{ if(e.target === el) el.remove(); });
+    const msg = el.querySelector('#apMsg');
+
+    async function save(){
+      msg.textContent = 'Saving…';
+      const row = {
+        user_id: window.FLOOR_USER.id,
+        name: el.querySelector('#apName').value.trim(),
+        address: el.querySelector('#apAddress').value.trim(),
+        phone: el.querySelector('#apPhone').value.trim(),
+        profession: el.querySelector('#apProf').value.trim(),
+        privacy_version: profile.privacy_version || PRIVACY_VERSION,
+        privacy_accepted_at: profile.privacy_accepted_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      const {error} = await sb.from('profiles').upsert(row);
+      if(error){ msg.textContent = 'Could not save: ' + error.message; return false; }
+      return true;
+    }
+    el.querySelector('#apSave').addEventListener('click', async ()=>{
+      if(await save()) el.remove();
+    });
+    el.querySelector('#apSkip')?.addEventListener('click', async ()=>{
+      // record consent even when skipping, so the prompt never nags again
+      await sb.from('profiles').upsert({user_id: window.FLOOR_USER.id,
+        privacy_version: PRIVACY_VERSION, privacy_accepted_at: new Date().toISOString()});
+      el.remove();
+    });
+    el.querySelector('#apExport')?.addEventListener('click', async ()=>{
+      msg.textContent = 'Collecting your data…';
+      try{
+        const dump = {exported: new Date().toISOString(),
+          account: {id: FLOOR_USER.id, email: FLOOR_USER.email}, profile: null, kv: {}};
+        const {data: p} = await sb.from('profiles').select('*')
+          .eq('user_id', FLOOR_USER.id).maybeSingle();
+        dump.profile = p;
+        const {data: rows} = await sb.from('kv').select('key, value, updated_at');
+        for(const r of rows || []) dump.kv[r.key] = {value: r.value, updated_at: r.updated_at};
+        const a = document.createElement('a');
+        a.download = 'floor-studio-my-data.json';
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(dump)], {type:'application/json'}));
+        a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+        msg.textContent = 'Downloaded. Shared productions can be exported per project (.floorproj).';
+      }catch(e){ msg.textContent = 'Export failed: ' + (e.message || e); }
+    });
+    el.querySelector('#apSignout')?.addEventListener('click', async ()=>{
+      await sb.auth.signOut();
+      location.reload();
+    });
+    el.querySelector('#apDelete')?.addEventListener('click', async ()=>{
+      const sure = prompt('This permanently deletes your account, ALL your projects, shares and ' +
+        'profile from our servers. This cannot be undone.\n\nType DELETE to confirm:');
+      if(sure !== 'DELETE'){ msg.textContent = 'Not deleted.'; return; }
+      msg.textContent = 'Deleting everything…';
+      const {error} = await sb.rpc('delete_my_account');
+      if(error){ msg.textContent = 'Could not delete: ' + error.message; return; }
+      await sb.auth.signOut().catch(()=>{});
+      alert('Your account and all data have been deleted.');
+      location.reload();
+    });
+  }
+
+  window.FLOOR_ACCOUNT = {
+    async open(){
+      await ready;
+      const {data: p} = await sb.from('profiles').select('*')
+        .eq('user_id', FLOOR_USER.id).maybeSingle();
+      accountOverlay(p || {}, false);
+    },
+    // one-time optional profile prompt after the first sign-in
+    async maybeProfilePrompt(){
+      await ready;
+      const {data: p} = await sb.from('profiles').select('user_id')
+        .eq('user_id', FLOOR_USER.id).maybeSingle();
+      if(!p) accountOverlay({}, true);
     },
   };
 })();

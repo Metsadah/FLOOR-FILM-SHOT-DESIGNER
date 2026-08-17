@@ -900,6 +900,8 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
     const sb2 = document.getElementById('shareBtn');
     if(sb2) sb2.style.display = 'none';
   }
+  // first sign-in on this account? offer the (optional) profile once
+  if(window.FLOOR_ACCOUNT) window.FLOOR_ACCOUNT.maybeProfilePrompt().catch(()=>{});
   document.getElementById('loading').remove();
   initInfoForm();
   buildShotList();

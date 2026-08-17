@@ -154,7 +154,44 @@ begin
   return query select p.id, p.name from productions p where p.id = inv.production_id;
 end $$;
 
--- ---- 4 · auth settings (dashboard, not SQL) ---------------------------------
+-- ---- 4 · profiles + GDPR account deletion -----------------------------------
+-- all profile fields are OPTIONAL (data minimization); the consent columns
+-- record which privacy-policy version the user accepted, and when
+create table if not exists profiles (
+  user_id             uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  name                text not null default '',
+  address             text not null default '',
+  phone               text not null default '',
+  profession          text not null default '',
+  privacy_version     text not null default '',
+  privacy_accepted_at timestamptz,
+  updated_at          timestamptz not null default now()
+);
+alter table profiles enable row level security;
+create policy "own profile" on profiles for all to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- GDPR right to erasure: one call removes EVERYTHING the user owns,
+-- including the auth account itself (SECURITY DEFINER reaches auth.users)
+create or replace function public.delete_my_account()
+returns void
+language plpgsql security definer set search_path to 'public'
+as $$
+begin
+  if auth.uid() is null then raise exception 'sign in first'; end if;
+  delete from kv where user_id = auth.uid();
+  delete from productions where owner = auth.uid();          -- cascades docs/members/invites
+  delete from production_members where user_id = auth.uid(); -- memberships in others' productions
+  delete from shares where owner = auth.uid();               -- cascades share_comments
+  delete from storage.objects where bucket_id = 'shares' and owner = auth.uid();
+  delete from profiles where user_id = auth.uid();
+  delete from auth.users where id = auth.uid();
+end $$;
+revoke execute on function public.delete_my_account() from anon;
+revoke execute on function public.delete_my_account() from public;
+grant execute on function public.delete_my_account() to authenticated;
+
+-- ---- 5 · auth settings (dashboard, not SQL) ---------------------------------
 -- Authentication → URL Configuration → Site URL = where you host the app
 -- (magic links redirect there). Optionally set up custom SMTP for branded
 -- login mails (Authentication → Emails).

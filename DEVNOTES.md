@@ -303,6 +303,32 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.46 — registration profile + GDPR kit
+1. `profiles` table (name/address/phone/profession — ALL optional by
+   design, data minimization) + consent columns (privacy_version,
+   privacy_accepted_at). RLS: own row only. Applied to the live project
+   AND mirrored in setup/schema.sql (§4).
+2. `delete_my_account()` RPC (SECURITY DEFINER): wipes kv, owned
+   productions (cascades docs/members/invites), memberships, shares
+   (cascades comments), shares-bucket storage objects, profile, and the
+   auth.users row itself. EXECUTE revoked from anon/public, granted to
+   authenticated — verified via has_function_privilege.
+3. Signup gained a REQUIRED, un-prechecked consent checkbox linking
+   privacy.html; Create account is blocked client-side without it.
+4. `window.FLOOR_ACCOUNT` (adapter): .open() = Account & privacy panel
+   (edit profile / Download my data as JSON = kv dump + profile / Sign
+   out / Delete my account with type-DELETE confirm);
+   .maybeProfilePrompt() = one-time OPTIONAL profile card after first
+   sign-in (Skip records consent so it never nags). Entry point: a row
+   in the Production ▾ popover (cloud mode only — FLOOR_ACCOUNT absent
+   in local mode, verified).
+5. privacy.html: plain-language GDPR policy — controller identity has
+   [YELLOW FILL-IN] placeholders Gerbert MUST complete before launch.
+   PRIVACY_VERSION constant ('2026-08-17') in the adapter; bump it +
+   the page's version line together on material changes.
+Verified live: consent gate blocks signup, wrong-password sign-in hits
+the real auth API, local mode has zero account UI.
+
 ## v0.45 — password login + first push of everything since v0.44
 1. Login overlay (supabase-adapter.js) rewritten as a small state machine:
    signin (email+password, default) / signup / forgot / reset / magiclink.
