@@ -303,6 +303,30 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.47 — merge productions + AV script import & breakdown
+1. `mergeFloorproj(f)` (06) + "Merge .floorproj into current…" in the
+   Production ▾ popover: appends the pack's SCENES (fresh scene/wall/
+   opening/object ids, mounts+rails remapped, ACTIVE setup only) and
+   imports its assets; people merged with dedupe on (name.lower, tag),
+   locations on name/street.lower, customProps on name. Boards, script
+   and production info are NOT merged (deliberate — cards reference
+   board-local state). Import… stays the "new production" path.
+2. `avPasteOverlay(o)` (06) + "Paste rows…" on the AV card selBar:
+   parses tab-separated rows (Excel/Sheets copy) or 2+-space/pipe
+   splits. Header row containing audio+video (or 'beeld') sets the
+   column order and is skipped; otherwise VIDEO-first by convention
+   with a "first column is AUDIO" swap checkbox. A leading cell
+   matching m:ss or bare digits becomes the row time. Pristine starter
+   rows are REPLACED, otherwise rows append.
+3. `breakDownAvCard(o)` (06) + "Break down → scenes": each filled row →
+   a scene via createScenesFromBreakdown (body 'VIDEO: …\nAUDIO: …\n
+   NOTES: …', heading from the video cell) + a linked sbrow next to the
+   card, mirroring the film-script breakdown. Row time → sc.duration in
+   minutes (m:ss ceil'd; bare number treated as SECONDS, min 1).
+Verified in-browser: merge kept an actor mounted in its wheelchair
+across the id remap; paste honored a TIME/VIDEO/AUDIO header; breakdown
+produced scenes with durations + linked storyboard rows.
+
 ## v0.46 — registration profile + GDPR kit
 1. `profiles` table (name/address/phone/profession — ALL optional by
    design, data minimization) + consent columns (privacy_version,

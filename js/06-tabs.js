@@ -1090,6 +1090,177 @@ async function importFloorproj(f){
   }
 }
 
+// merge another production INTO the current one: its scenes (fresh ids,
+// active setup only), assets, and any people / locations / custom props we
+// don't already have. Boards and production info stay untouched.
+async function mergeFloorproj(f){
+  toast('Reading ' + f.name + '…');
+  try{
+    const pack = JSON.parse(await f.text());
+    if(!pack.floorproj || !pack.project || !pack.project.scenes) throw new Error('not a floorproj');
+    for(const [k,v] of Object.entries((pack.assets && pack.assets.img) || {}))
+      await window.storage.set('sd:img:' + k, v);
+    for(const [k,v] of Object.entries((pack.assets && pack.assets.file) || {}))
+      await window.storage.set('sd:file:' + k, v);
+    normalizeProduction();
+    let nScenes = 0;
+    for(const src of pack.project.scenes){
+      const s = JSON.parse(JSON.stringify(src));
+      migrateShot(s);
+      s.id = uid();
+      s.setups = null; s.setupId = null; // the merge takes each scene's ACTIVE setup
+      s.walls.forEach(w=>{ w.id = uid(); (w.openings||[]).forEach(op=>op.id = uid()); });
+      const map = {};
+      s.objects.forEach(ob=>{ const nid = uid(); map[ob.id] = nid; ob.id = nid; });
+      s.objects.forEach(ob=>{
+        if(ob.mount && map[ob.mount.id]) ob.mount.id = map[ob.mount.id];
+        if(ob.rail && map[ob.rail.id]) ob.rail.id = map[ob.rail.id];
+      });
+      project.scenes.push(s);
+      nScenes++;
+    }
+    const P = project.production, Q = (pack.project.production || {});
+    let nPeople = 0, nLocs = 0;
+    for(const p of (Q.people || [])){
+      if(!p.name) continue;
+      if(P.people.some(x=>x.name.toLowerCase() === p.name.toLowerCase() && x.tag === p.tag)) continue;
+      P.people.push({...p, id:uid()});
+      nPeople++;
+    }
+    for(const l of (Q.locations || [])){
+      const nm = (l.name || l.street || '').toLowerCase();
+      if(!nm) continue;
+      if(P.locations.some(x=>(x.name || x.street || '').toLowerCase() === nm)) continue;
+      P.locations.push({...l, id:uid()});
+      nLocs++;
+    }
+    for(const cp of (pack.project.customProps || [])){
+      if(!(project.customProps || []).some(x=>x.name === cp.name))
+        project.customProps.push({...cp, id:uid()});
+    }
+    markDirty();
+    buildShotList(); buildLibrary(); buildInfo(); render();
+    toast('Merged ' + nScenes + ' scene' + (nScenes===1?'':'s') +
+      (nPeople ? ', ' + nPeople + ' people' : '') +
+      (nLocs ? ', ' + nLocs + ' location' + (nLocs===1?'':'s') : '') +
+      ' from "' + (pack.project.shootName || pack.name || f.name) + '"');
+  }catch(e){
+    console.error('floorproj merge failed', e);
+    toast('Could not merge — is that a .floorproj file?');
+  }
+}
+
+// ---------------------------------------------------------------- AV script card: import + breakdown
+// paste an AV script copied from Excel / Google Sheets (tab-separated
+// columns) or any "VIDEO ⇥ AUDIO" text into the row-based AV card
+function avPasteOverlay(o){
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;inset:0;z-index:210;background:rgba(40,38,32,.35);' +
+    'display:flex;align-items:center;justify-content:center;font-family:-apple-system,Segoe UI,sans-serif;';
+  el.innerHTML = `
+    <div style="background:#fff;border:1px solid #E5E3DE;border-radius:16px;padding:24px 28px;
+                width:520px;max-width:92vw;box-shadow:0 18px 60px rgba(40,38,32,.2)">
+      <div style="font-weight:600;font-size:15px">Paste AV script rows</div>
+      <div style="color:#8A877F;font-size:12px;margin:6px 0 10px;line-height:1.5">
+        Copy the rows from Excel / Google Sheets (or tab-separated text) and paste below.
+        Columns: <b>VIDEO ⇥ AUDIO</b> — or start with a header row naming the columns,
+        and an optional first column with a time like <b>0:30</b>.
+      </div>
+      <textarea id="avPasteTa" rows="10" spellcheck="false"
+        style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:10px;
+               font:12px ui-monospace,Menlo,monospace;box-sizing:border-box"></textarea>
+      <label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#4A4636;margin-top:8px;cursor:pointer">
+        <input id="avPasteSwap" type="checkbox"> First column is AUDIO (swap the two)
+      </label>
+      <div id="avPasteMsg" style="color:#8A877F;font-size:12px;margin-top:8px;min-height:15px"></div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button id="avPasteGo" style="flex:1;background:#4B6BFB;color:#fff;border:none;border-radius:8px;
+          padding:10px;font-size:13px;font-weight:600;cursor:pointer">Import rows</button>
+        <button id="avPasteNo" style="flex:0 0 90px;background:#fff;border:1px solid #E5E3DE;
+          border-radius:8px;padding:10px;font-size:13px;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  el.querySelector('#avPasteNo').addEventListener('click', ()=>el.remove());
+  el.addEventListener('pointerdown', e=>{ if(e.target === el) el.remove(); });
+  el.querySelector('#avPasteTa').focus();
+  el.querySelector('#avPasteGo').addEventListener('click', ()=>{
+    const txt = el.querySelector('#avPasteTa').value;
+    let lines = txt.split(/\r?\n/).map(l=>l.replace(/\s+$/,'')).filter(l=>l.trim());
+    if(!lines.length){ el.querySelector('#avPasteMsg').textContent = 'Nothing to import yet.'; return; }
+    const isTime = c => /^\d{1,2}[:.]\d{2}$/.test(c.trim()) || /^\d{1,3}\s?s?$/.test(c.trim());
+    let vFirst = !el.querySelector('#avPasteSwap').checked;
+    // header row names the columns? derive the order from it and skip it
+    const head = lines[0].toLowerCase();
+    if(/audio/.test(head) && /video|beeld/.test(head)){
+      const cells0 = lines[0].toLowerCase().split('\t');
+      const vi = cells0.findIndex(c=>/video|beeld/.test(c));
+      const ai = cells0.findIndex(c=>/audio/.test(c));
+      if(vi > -1 && ai > -1) vFirst = vi < ai;
+      lines = lines.slice(1);
+    }
+    const made = [];
+    for(const line of lines){
+      let cells = line.includes('\t') ? line.split('\t') : line.split(/\s{2,}|\s\|\s/);
+      cells = cells.map(c=>c.trim());
+      let time = '';
+      if(cells.length > 1 && isTime(cells[0])) time = cells.shift();
+      const a = cells.length > 1 ? (vFirst ? cells[1] : cells[0]) : '';
+      const v = cells.length > 1 ? (vFirst ? cells[0] : cells[1]) : cells[0] || '';
+      if(!a && !v) continue;
+      made.push({id:uid(), no:'', time, audio:a, video:v, notes:'', imgId:null});
+    }
+    if(!made.length){ el.querySelector('#avPasteMsg').textContent = 'Could not find any rows in that.'; return; }
+    // pristine starter rows get replaced; otherwise the import appends
+    const blank = r=>!((r.no||'')+(r.time||'')+(r.audio||'')+(r.video||'')+(r.notes||'')).trim();
+    if((o.rows||[]).every(blank)) o.rows = made;
+    else o.rows = o.rows.concat(made);
+    markDirty(); render(); refreshSelBar();
+    el.remove();
+    toast(made.length + ' AV row' + (made.length===1?'':'s') + ' imported');
+  });
+}
+
+// break the AV card down into SCENES — every row (beat) becomes a scene board
+// in the Shot designer, exactly like the film-script breakdown
+function breakDownAvCard(o){
+  const rows = (o.rows||[]).filter(r=>(r.audio||'').trim() || (r.video||'').trim());
+  if(!rows.length){ toast('No filled rows on this AV script yet'); return; }
+  const durMin = t=>{
+    t = String(t||'').trim();
+    if(!t) return 0;
+    const m = t.match(/^(\d{1,2})[:.](\d{2})$/);
+    if(m) return Math.max(1, Math.ceil((+m[1] + +m[2]/60)));
+    const n = parseInt(t, 10);
+    return n ? Math.max(1, Math.ceil(n/60)) : 0; // bare number = seconds
+  };
+  const parsed = rows.map((r, i)=>({
+    heading: (r.video || r.audio).split('\n')[0].slice(0, 60),
+    intExt:'', dayNight:'', characters:[],
+    body: [r.video && 'VIDEO: ' + r.video, r.audio && 'AUDIO: ' + r.audio,
+           r.notes && 'NOTES: ' + r.notes].filter(Boolean).join('\n'),
+  }));
+  const scenes = createScenesFromBreakdown(parsed);
+  scenes.forEach((sc, i)=>{
+    const d = durMin(rows[i].time);
+    if(d) sc.duration = d;
+  });
+  // storyboard rows to the right of the card, like the script-block breakdown
+  const board = activeScene();
+  const x0 = o.x + o.w/2 + 340;
+  let y = o.y - o.h/2 + 60;
+  scenes.forEach((sc, i)=>{
+    board.objects.push({id:uid(), cat:'sbrow', kind:'sbrow',
+      x:x0, y:y + i*140, rot:0, w:560, h:120,
+      title:(sc.scene ? 'Scene ' + sc.scene : sc.name) + (sc.sceneDesc ? ' — ' + sc.sceneDesc : ''),
+      desc:'', imgId:null, sceneId:sc.id,
+      color:COLORS[i % COLORS.length], label:'', path:[]});
+  });
+  markDirty(); render(); refreshSelBar();
+  toast(scenes.length + ' scene' + (scenes.length===1?'':'s') +
+    ' broken down from the AV script — each beat has its own board now');
+}
+
 // ---------------------------------------------------------------- trash can (drop to delete)
 const trashEl = document.createElement('div');
 trashEl.id = 'trashCan';
@@ -1181,6 +1352,19 @@ async function openProjectPop(){
   });
   exRow.appendChild(exB); exRow.appendChild(imB);
   pop.appendChild(exRow);
+  const mgB = document.createElement('button');
+  mgB.className = 'btn';
+  mgB.style.cssText = 'width:100%;margin-top:6px;';
+  mgB.textContent = 'Merge .floorproj into current…';
+  mgB.title = 'Append another production’s scenes, people and locations to THIS one';
+  mgB.addEventListener('click', ()=>{
+    pop.classList.remove('show');
+    const fi = document.createElement('input');
+    fi.type = 'file'; fi.accept = '.floorproj,application/json';
+    fi.addEventListener('change', ()=>{ if(fi.files && fi.files[0]) mergeFloorproj(fi.files[0]); });
+    fi.click();
+  });
+  pop.appendChild(mgB);
 
   const nw = document.createElement('button');
   nw.className = 'btn primary';
