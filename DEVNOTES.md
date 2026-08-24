@@ -303,6 +303,33 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.50 — AV stills filmstrip, script scaling, PDF → board
+1. AV rows: `r.imgs = [imgId, …]` (renderer migrates legacy r.imgId on
+   sight). Still cell = filmstrip: every still side by side at o.stillH
+   (S/M/L/XL select = 44/72/110/160), 16:9 slots, cover-fit, × chip per
+   thumb when selected (o._stillDels), '+' slot appends (pickAvStill —
+   multi-select file picker; clicking an EXISTING thumb replaces it).
+   avCols sizes the stills column from the fullest row. DROPPING image
+   files on an AV row (canvas drop handler checks avscript hit + avRowAt)
+   stores them into that row and switches the Stills column on.
+2. Whole-script scaling: avscript o.fs (A−/A+, ×0.8–1.8) scales widths,
+   fonts, line heights, row minimums. The film-script block got A−/A+ on
+   its existing fontSize too.
+3. PDF → board: `pdfPagesToSubboard(buf, name, x, y)` renders every page
+   via the vendored pdf.js at ≤1600px wide (JPEG .85) into image objects
+   stacked on a fresh SUB-BOARD named after the file. Routes: file-card
+   selBar "Pages → board" (stored PDFs), and the canvas drop handler now
+   OFFERS this for PDFs over the 4.5MB file-card limit instead of
+   refusing them. (That limit exists because file cards store the whole
+   file as a base64 dataURL in ONE kv row — fine for call sheets, unkind
+   for 40MB print PDFs; the pages route never stores the PDF itself.)
+4. collectAssetIds + imgReferenced now scan AV-row stills (r.imgs/imgId)
+   — they previously only saw ob.imgId, so AV stills would have been
+   dropped from .floorproj exports the moment the still column shipped.
+Verified self-test: fed the app's own call-sheet PDF into
+pdfPagesToSubboard → 1-page sub-board at >1000px. Migration, 3-thumb
+row, XL growth, fs scaling, × dels, row-hit for drops all green.
+
 ## v0.49 — sub-boards (boards within boards, every tab)
 `cat:'subboard'` = a card holding a full shot-shaped board (`o.board`).
 THE architecture trick: `activeScene()` resolves through `boardStack`

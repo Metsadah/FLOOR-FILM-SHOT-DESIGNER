@@ -508,11 +508,17 @@ cv.addEventListener('pointerdown', e => {
         markDirty(); render(); refreshSelBar();
         return;
       }
+      const sd = (so._stillDels||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
+      if(sd){
+        const row = so.rows.find(r=>r.id === sd.rowId);
+        if(row){ (row.imgs||[]).splice(sd.idx, 1); row.imgId = null; markDirty(); render(); }
+        return;
+      }
       const st = (so._stillRects||[]).find(z=> wx >= z.x && wx <= z.x + z.w &&
                                                wy >= z.y && wy <= z.y + z.h);
       if(st){
         const row = so.rows.find(r=>r.id === st.rowId);
-        if(row) pickSbImage(row); // sets row.imgId — same picker as storyboard rows
+        if(row) pickAvStill(row, st.idx === 'add' ? null : st.idx); // add or replace
         return;
       }
       const rr = (so._rowRects||[]).find(r=> wx >= r.x && wx <= r.x + r.w &&
@@ -1430,9 +1436,31 @@ cv.addEventListener('drop', async e => {
   let {x, y} = toWorld(sx, sy);
   for(const f of files){
     if(f.type.startsWith('image/')){
-      await addBoardImage(f, x, y);
+      // dropped ON an AV script row? → it becomes one of that beat's stills
+      const shot = activeShot();
+      const av = [...shot.objects].reverse().find(ob=>ob.cat === 'avscript' &&
+        Math.abs(x - ob.x) <= ob.w/2 && Math.abs(y - ob.y) <= ob.h/2);
+      const row = (av && typeof avRowAt === 'function') ? avRowAt(av, y) : null;
+      if(av && row){
+        try{
+          const id = await storeImageFile(f);
+          row.imgs = row.imgs || [];
+          row.imgs.push(id);
+          av.cols.still = true; // dropping a still switches the column on
+          markDirty(); render();
+          toast('Still added to the AV row');
+        }catch(err){ toast('Could not store that image'); }
+      } else {
+        await addBoardImage(f, x, y);
+      }
     } else if(f.type.startsWith('audio/') && typeof addBoardAudioAt === 'function'){
       await addBoardAudioAt(f, x, y);
+    } else if((f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) &&
+              f.size > 4.5*1024*1024 && typeof pdfFileToSubboard === 'function'){
+      // too big to STORE as a file — but its pages can still become a board
+      if(confirm('“' + f.name + '” is too large to keep as a file card (~4 MB max).\n\n' +
+                 'Turn its PAGES into a board instead? Every page becomes a full-res image.'))
+        await pdfFileToSubboard(f, x, y);
     } else if(typeof addBoardFileAt === 'function'){
       await addBoardFileAt(f, x, y); // PDFs get a first-page preview card
     }

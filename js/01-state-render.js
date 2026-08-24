@@ -643,6 +643,7 @@ function imgReferenced(id){
   if(project.production && project.production.logo === id) return true;
   const inObjs = objs => (objs||[]).some(o =>
     (o.cat==='image' && o.imgId===id) ||
+    (o.cat==='avscript' && (o.rows||[]).some(r=>r.imgId===id || (r.imgs||[]).includes(id))) ||
     (o.cat==='subboard' && o.board &&
       (inObjs(o.board.objects) || (o.board.stills||[]).includes(id))));
   const inBoard = s => s && (s.stills.includes(id) || inObjs(s.objects) ||
@@ -1554,21 +1555,24 @@ function drawObjectShape(o, ghost){
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'avscript'){
     const G = AVS;
+    const S = o.fs || 1;                 // whole-script scale
+    const SH = o.stillH || G.stillH;     // still thumb height (resizable)
     o.rows = (o.rows && o.rows.length) ? o.rows
-      : [{id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgId:null}];
+      : [{id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgs:[]}];
+    o.rows.forEach(r=>{ if(!r.imgs) r.imgs = r.imgId ? [r.imgId] : []; }); // v0.50 migration
     o.cols = o.cols || {no:false, still:false, notes:false};
     const cols = avCols(o);
     o._avCols = cols;
     o.w = G.grip + cols.reduce((a,c)=>a+c[2], 0);
     const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
-    ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+    ctx.font = (12*S) + 'px -apple-system,Segoe UI,sans-serif';
     const rowHs = o.rows.map(r=>{
       let lines = 1;
       for(const [key,,wd] of cols)
         if(key==='audio' || key==='video' || key==='notes')
           lines = Math.max(lines, wrapCanvasText(ctx, r[key]||'', wd-16).length);
-      let h = Math.max(G.minRowH, lines*G.lineH + G.rowPad*2);
-      if(o.cols.still) h = Math.max(h, G.stillH + 10);
+      let h = Math.max(G.minRowH*S, lines*G.lineH*S + G.rowPad*2);
+      if(o.cols.still) h = Math.max(h, SH + 12);
       return h;
     });
     o._rowHs = rowHs;
@@ -1600,7 +1604,7 @@ function drawObjectShape(o, ghost){
       ctx.beginPath(); ctx.moveTo(vx, -o.h/2 + G.titleH); ctx.lineTo(vx, o.h/2); ctx.stroke();
     }
     // rows
-    o._rowRects = []; o._stillRects = [];
+    o._rowRects = []; o._stillRects = []; o._stillDels = [];
     let yTop = -o.h/2 + G.titleH + G.headH;
     o.rows.forEach((r, i)=>{
       const rh = rowHs[i];
@@ -1618,43 +1622,63 @@ function drawObjectShape(o, ghost){
       for(const [key,,wd] of cols){
         const editing = noteEditor && noteEditor.id===o.id && noteEditor.field==='avr:'+r.id+':'+key;
         if(key === 'still'){
-          const im = r.imgId ? imgCache[r.imgId] : null;
-          const iw = wd - 12, ih = G.stillH;
-          const ix = x0 + 6, iy = yTop + (rh - ih)/2;
-          if(im && im.complete && im.naturalWidth){
-            ctx.save();
-            ctx.beginPath(); ctx.roundRect(ix, iy, iw, ih, 2); ctx.clip();
-            const ar = im.naturalWidth/im.naturalHeight, fr = iw/ih;
-            let dw = iw, dh = ih;
-            if(ar > fr) dw = ih*ar; else dh = iw/ar;
-            ctx.drawImage(im, ix + (iw-dw)/2, iy + (ih-dh)/2, dw, dh);
-            ctx.restore();
-          } else {
-            if(r.imgId && !im) loadStill(r.imgId).then(()=>render());
-            ctx.strokeStyle = '#D8D5CF'; ctx.setLineDash([4,3]);
-            ctx.beginPath(); ctx.roundRect(ix, iy, iw, ih, 2); ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.font = '11px -apple-system,Segoe UI,sans-serif';
-            ctx.fillStyle = 'rgba(74,70,54,.4)';
-            ctx.textAlign = 'center';
-            ctx.fillText('+ still', ix + iw/2, iy + ih/2);
-            ctx.textAlign = 'left';
-          }
-          o._stillRects.push({rowId:r.id, x:o.x + ix, y:o.y + iy, w:iw, h:ih});
+          // a little filmstrip: every still in the row, side by side, then a + slot
+          const ih = SH, slot = Math.round(SH*16/9);
+          let ix = x0 + 6;
+          const iy = yTop + (rh - ih)/2;
+          (r.imgs || []).forEach((id, ii)=>{
+            const im = imgCache[id];
+            if(im && im.complete && im.naturalWidth){
+              ctx.save();
+              ctx.beginPath(); ctx.roundRect(ix, iy, slot, ih, 2); ctx.clip();
+              const ar = im.naturalWidth/im.naturalHeight, fr = slot/ih;
+              let dw = slot, dh = ih;
+              if(ar > fr) dw = ih*ar; else dh = slot/ar;
+              ctx.drawImage(im, ix + (slot-dw)/2, iy + (ih-dh)/2, dw, dh);
+              ctx.restore();
+            } else {
+              if(id && !im) loadStill(id).then(()=>render());
+              ctx.fillStyle = '#F2F1EE';
+              ctx.beginPath(); ctx.roundRect(ix, iy, slot, ih, 2); ctx.fill();
+            }
+            o._stillRects.push({rowId:r.id, idx:ii, x:o.x + ix, y:o.y + iy, w:slot, h:ih});
+            if(selMe){ // × chip to pluck one still out
+              ctx.beginPath(); ctx.arc(ix + slot - 7, iy + 7, 6.5, 0, 7);
+              ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fill();
+              ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1; ctx.stroke();
+              ctx.fillStyle = '#8A877F'; ctx.textAlign = 'center';
+              ctx.font = '700 9px -apple-system,Segoe UI,sans-serif';
+              ctx.fillText('×', ix + slot - 7, iy + 7.5);
+              ctx.textAlign = 'left';
+              o._stillDels.push({rowId:r.id, idx:ii, x:o.x + ix + slot - 7, y:o.y + iy + 7, r:9});
+            }
+            ix += slot + 6;
+          });
+          // + slot (drop an image here or click) — always present
+          const pw = (r.imgs && r.imgs.length) ? 18 : slot;
+          ctx.strokeStyle = '#D8D5CF'; ctx.setLineDash([4,3]);
+          ctx.beginPath(); ctx.roundRect(ix, iy, pw, ih, 2); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+          ctx.fillStyle = 'rgba(74,70,54,.4)';
+          ctx.textAlign = 'center';
+          ctx.fillText((r.imgs && r.imgs.length) ? '+' : '+ still', ix + pw/2, iy + ih/2);
+          ctx.textAlign = 'left';
+          o._stillRects.push({rowId:r.id, idx:'add', x:o.x + ix, y:o.y + iy, w:pw, h:ih});
         } else if(!editing){
           const multi = key==='audio' || key==='video' || key==='notes';
-          ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+          ctx.font = (12*S) + 'px -apple-system,Segoe UI,sans-serif';
           const v = r[key] || '';
           if(multi){
             ctx.fillStyle = v ? (key==='audio' ? shade(o.color, .75) : '#4A4636') : 'rgba(74,70,54,.3)';
             const ph = key==='audio' ? 'lyrics / VO / sfx…' : key==='video' ? 'what we see…' : '…';
             const lines = wrapCanvasText(ctx, v || ph, wd - 16);
             ctx.textBaseline = 'alphabetic';
-            lines.forEach((l, li)=> ctx.fillText(l, x0 + 8, yTop + G.rowPad + 11 + li*G.lineH));
+            lines.forEach((l, li)=> ctx.fillText(l, x0 + 8, yTop + G.rowPad + 11*S + li*G.lineH*S));
             ctx.textBaseline = 'middle';
           } else {
             ctx.fillStyle = v ? '#33322E' : 'rgba(74,70,54,.3)';
-            ctx.font = '600 12px -apple-system,Segoe UI,sans-serif';
+            ctx.font = '600 ' + (12*S) + 'px -apple-system,Segoe UI,sans-serif';
             ctx.fillText(trimText(ctx, v || (key==='time' ? '0:00' : '#'), wd - 12), x0 + 8, yTop + rh/2 + .5);
           }
         }

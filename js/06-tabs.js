@@ -701,6 +701,72 @@ async function pdfFirstPageThumb(file){
   return c.toDataURL('image/jpeg', .8);
 }
 
+// pick one or more stills for an AV row (append), or replace one (idx set)
+function pickAvStill(row, idx){
+  const fi = document.createElement('input');
+  fi.type = 'file'; fi.accept = 'image/*';
+  if(idx == null) fi.multiple = true;
+  fi.addEventListener('change', async ()=>{
+    if(!fi.files || !fi.files.length) return;
+    try{
+      row.imgs = row.imgs || [];
+      if(idx != null) row.imgs[idx] = await storeImageFile(fi.files[0]);
+      else for(const f of fi.files) row.imgs.push(await storeImageFile(f));
+      markDirty(); render(); refreshSelBar();
+    }catch(e){ toast('Could not store that image — try a smaller one'); }
+  });
+  fi.click();
+}
+
+// ---------------------------------------------------------------- PDF → board
+// every page rendered full-res (≤1600px wide, JPEG) onto a fresh sub-board
+async function pdfPagesToSubboard(buf, name, x, y){
+  await loadPdfJs();
+  const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
+  const sub = {id:uid(), cat:'subboard', kind:'subboard', x, y, rot:0, w:260, h:180,
+    color:'#5B6472', label:(name || 'PDF').replace(/\.pdf$/i,''), path:[],
+    board:{id:uid(), name:'', objects:[], walls:[], stills:[], shots:[]}};
+  let yy = 0;
+  for(let p = 1; p <= doc.numPages; p++){
+    toast('Rendering page ' + p + ' / ' + doc.numPages + '…');
+    const page = await doc.getPage(p);
+    const vp0 = page.getViewport({scale:1});
+    const scale = Math.min(3, 1600 / vp0.width);
+    const vp = page.getViewport({scale});
+    const c = document.createElement('canvas');
+    c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    await page.render({canvasContext:c.getContext('2d'), viewport:vp}).promise;
+    const dataURL = c.toDataURL('image/jpeg', .85);
+    const id = uid();
+    await window.storage.set('sd:img:' + id, dataURL);
+    const im = new Image(); im.src = dataURL;
+    imgCache[id] = im;
+    const w = 620, h = Math.round(620 * vp.height / vp.width);
+    sub.board.objects.push({id:uid(), cat:'image', kind:'image', imgId:id,
+      x:0, y:yy + h/2, rot:0, w, h, color:'#5B6472', label:'p. ' + p, path:[]});
+    yy += h + 40;
+  }
+  activeShot().objects.push(sub);
+  sel = {type:'object', id:sub.id};
+  markDirty(); render(); refreshSelBar();
+  toast(doc.numPages + ' page' + (doc.numPages === 1 ? '' : 's') +
+    ' → sub-board “' + sub.label + '” — double-click to open');
+  return sub;
+}
+async function pdfFileToSubboard(f, x, y){
+  try{ await pdfPagesToSubboard(await f.arrayBuffer(), f.name, x, y); }
+  catch(e){ console.error('pdf → board failed', e); toast('Could not read that PDF'); }
+}
+async function pdfCardToSubboard(o){
+  try{
+    toast('Reading PDF…');
+    const r = await window.storage.get('sd:file:' + o.fileId);
+    if(!r || !r.value){ toast('File data not found'); return; }
+    const blob = await (await fetch(r.value)).blob();
+    await pdfPagesToSubboard(await blob.arrayBuffer(), o.name, o.x + o.w/2 + 200, o.y);
+  }catch(e){ console.error('pdf → board failed', e); toast('Could not read that PDF'); }
+}
+
 // import a script file straight into a script block (.txt / .fountain / .fdx / .pdf)
 function importIntoScriptBlock(o){
   const fi = document.createElement('input');
@@ -1025,6 +1091,11 @@ function collectAssetIds(){
   const scanObjs = objs=>(objs||[]).forEach(ob=>{
     if(ob.imgId) img.add(ob.imgId);
     if(ob.fileId) file.add(ob.fileId);
+    if(ob.cat === 'avscript') // AV rows carry their own stills
+      (ob.rows||[]).forEach(r=>{
+        if(r.imgId) img.add(r.imgId);
+        (r.imgs||[]).forEach(id=>img.add(id));
+      });
     if(ob.cat === 'subboard' && ob.board){ // boards within boards count too
       scanObjs(ob.board.objects);
       (ob.board.stills||[]).forEach(id=>img.add(id));

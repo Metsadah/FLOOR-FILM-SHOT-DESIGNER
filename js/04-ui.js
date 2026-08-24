@@ -541,6 +541,20 @@ function refreshSelBar(){
       tgl('Scene #', 'no');
       tgl('Stills', 'still');
       tgl('Notes', 'notes');
+      sbtn('A−', ()=>{ o.fs = Math.max(.8, +((o.fs || 1) - .15).toFixed(2)); markDirty(); render(); refreshSelBar(); })
+        .title = 'Smaller script (everything scales)';
+      sbtn('A+', ()=>{ o.fs = Math.min(1.8, +((o.fs || 1) + .15).toFixed(2)); markDirty(); render(); refreshSelBar(); })
+        .title = 'Larger script (everything scales)';
+      if(o.cols.still){
+        const ss = document.createElement('select');
+        ss.title = 'Still size in the script';
+        ss.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:#fff;';
+        for(const [v, n] of [[44,'Stills S'],[72,'Stills M'],[110,'Stills L'],[160,'Stills XL']])
+          ss.insertAdjacentHTML('beforeend', `<option value="${v}"${(o.stillH||52)===v?' selected':''}>${n}</option>`);
+        ss.addEventListener('change', ()=>{ o.stillH = +ss.value; markDirty(); render(); });
+        ss.addEventListener('pointerdown', e=>e.stopPropagation());
+        selBar.appendChild(ss);
+      }
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
       hint.textContent = 'Click a cell to write · Tab hops cells · Enter = new line';
@@ -605,6 +619,9 @@ function refreshSelBar(){
           setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
         }catch(e){ toast('Could not read the file'); }
       });
+      if(o.mime === 'application/pdf' || /\.pdf$/i.test(o.name || ''))
+        sbtn('Pages → board', ()=>pdfCardToSubboard(o))
+          .title = 'Every PDF page becomes a full-res image on a new sub-board';
     }
     if(o.cat === 'weather'){
       const pl = document.createElement('input');
@@ -624,6 +641,10 @@ function refreshSelBar(){
     if(o.cat === 'script'){
       sbtn('Import\u2026', ()=>importIntoScriptBlock(o));
       sbtn('Break down', ()=>breakDownScriptBlock(o));
+      sbtn('A\u2212', ()=>{ o.fontSize = Math.max(9, (o.fontSize || 12.5) - 1); markDirty(); render(); })
+        .title = 'Smaller script text';
+      sbtn('A+', ()=>{ o.fontSize = Math.min(22, (o.fontSize || 12.5) + 1); markDirty(); render(); })
+        .title = 'Larger script text';
       sbtn('Export .txt', ()=>{
         const text = o.mode==='av'
           ? 'VIDEO\n\n' + (o.text||'') + '\n\nAUDIO\n\n' + (o.textR||'')
@@ -1135,6 +1156,11 @@ function addSbRowBelow(o){
 }
 
 // ---- AV script card (rows: time | audio | video, optional sc#/still/notes) ----
+// which AV row sits under this world-y? (row rects carry world coords)
+function avRowAt(o, wy){
+  const rr = (o._rowRects||[]).find(r=>wy >= r.y && wy <= r.y + r.h);
+  return rr ? (o.rows||[]).find(x=>x.id === rr.rowId) : null;
+}
 function avCellAt(o, wx, wy){
   const G = AVS;
   const cols = o._avCols || avCols(o);

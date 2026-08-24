@@ -1314,13 +1314,21 @@ const AVS = {titleH:26, headH:22, rowPad:7, lineH:15, minRowH:36, grip:14, still
   w:{no:44, time:64, still:96, audio:215, video:255, notes:170}};
 function avCols(o){
   const c = o.cols || {};
+  const S = o.fs || 1; // whole-script scale (A− / A+ in the selection bar)
   const out = [];
-  if(c.no) out.push(['no','SC', AVS.w.no]);
-  out.push(['time','TIME', AVS.w.time]);
-  if(c.still) out.push(['still','STILL', AVS.w.still]);
-  out.push(['audio','AUDIO — HEAR', AVS.w.audio]);
-  out.push(['video','VIDEO — SEE', AVS.w.video]);
-  if(c.notes) out.push(['notes','NOTES', AVS.w.notes]);
+  if(c.no) out.push(['no','SC', Math.round(AVS.w.no*S)]);
+  out.push(['time','TIME', Math.round(AVS.w.time*S)]);
+  if(c.still){
+    // stills column grows with the thumb size AND the fullest row
+    const sh = o.stillH || AVS.stillH;
+    const slot = Math.round(sh*16/9) + 6;
+    let maxN = 1;
+    for(const r of (o.rows||[])) maxN = Math.max(maxN, (r.imgs||[]).length);
+    out.push(['still','STILLS', 12 + maxN*slot + 22]);
+  }
+  out.push(['audio','AUDIO — HEAR', Math.round(AVS.w.audio*S)]);
+  out.push(['video','VIDEO — SEE', Math.round(AVS.w.video*S)]);
+  if(c.notes) out.push(['notes','NOTES', Math.round(AVS.w.notes*S)]);
   return out;
 }
 
