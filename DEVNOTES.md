@@ -303,6 +303,33 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.49 — sub-boards (boards within boards, every tab)
+`cat:'subboard'` = a card holding a full shot-shaped board (`o.board`).
+THE architecture trick: `activeScene()` resolves through `boardStack`
+(an array of subboard IDS re-resolved on every call against the current
+tab's root — stale links self-prune, so undo/remote pulls can't dangle).
+Because every tool reads activeShot(), drawing/library/selection/marquee/
+NESTED sub-boards all work inside with zero extra wiring.
+- Enter: double-click or selBar "Open". Exit: the #boardCrumb pill
+  (top-left, "⬑ Scene 1 › Bathroom ideas › Tile refs", click = up one).
+  zoomFit on both enter and exit.
+- Create: "Sub-board" Board tile (all tabs), OR multi-select →
+  "→ Sub-board" (`groupIntoSubboard`: moves selection in at preserved
+  coords, card at the selection centroid, cross-boundary mounts/rails
+  cut). Name = o.label via the ordinary Label field.
+- Card renders a LIVE THUMBNAIL: renderShotPlan(o.board, 640) cached on
+  `o._pv`, generated in a setTimeout (never nested inside a draw),
+  invalidated on exit. NOTE: `_pv` is a canvas — after JSON round-trip
+  it deserializes as {}, so every check is `pv && pv.width`, never
+  truthiness.
+- `exitAllSubboards()` hooks: switchTab, switchShot, applyState (undo),
+  pullRemoteProject, switchSetup — anywhere the objects arrays get
+  replaced under the stack.
+- Deleting a filled sub-board confirms (contents die with it).
+  collectAssetIds + imgReferenced recurse into sub-boards (and now also
+  scan the mood/prod/script boards for GC — they previously only
+  checked scenes).
+
 ## v0.48 — merge now brings the BOARDS along
 User report: merged a project and the AV script card + sticky notes
 didn't appear — v0.47 deliberately skipped boards. mergeFloorproj now

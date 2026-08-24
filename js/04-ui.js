@@ -12,6 +12,41 @@ const MOVE_KINDS = new Set(['bicycle','motorcycle','car','car_small','car_suv','
 function canMove(o){
   return o.cat === 'camera' || o.cat === 'actor' || (o.cat === 'prop' && MOVE_KINDS.has(o.kind));
 }
+// tuck the current multi-selection into a fresh sub-board card at its centroid
+function groupIntoSubboard(){
+  if(!sel || sel.type !== 'multi') return;
+  const shot = activeShot();
+  const ids = new Set(sel.ids || []);
+  const wids = new Set(sel.wallIds || []);
+  const objs = shot.objects.filter(o=>ids.has(o.id) && !o.locked);
+  const walls = shot.walls.filter(w=>wids.has(w.id) && !w.locked);
+  if(!objs.length && !walls.length) return;
+  let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+  for(const o of objs){
+    mnx = Math.min(mnx, o.x - (o.w||20)/2); mxx = Math.max(mxx, o.x + (o.w||20)/2);
+    mny = Math.min(mny, o.y - (o.h||20)/2); mxy = Math.max(mxy, o.y + (o.h||20)/2);
+  }
+  for(const w of walls){
+    mnx = Math.min(mnx, w.x1, w.x2); mxx = Math.max(mxx, w.x1, w.x2);
+    mny = Math.min(mny, w.y1, w.y2); mxy = Math.max(mxy, w.y1, w.y2);
+  }
+  const kept = new Set(objs.map(o=>o.id));
+  const sub = {id:uid(), cat:'subboard', kind:'subboard',
+    x:(mnx+mxx)/2, y:(mny+mxy)/2, rot:0, w:260, h:180,
+    color:'#5B6472', label:'', path:[],
+    board:{id:uid(), name:'', objects:objs, walls, stills:[], shots:[]}};
+  shot.objects = shot.objects.filter(o=>!kept.has(o.id));
+  shot.walls = shot.walls.filter(w=>!wids.has(w.id) || w.locked);
+  // links that crossed the boundary can't survive the move
+  shot.objects.forEach(c=>{
+    if(c.mount && kept.has(c.mount.id)) c.mount = null;
+    if(c.rail && kept.has(c.rail.id)){ c.rail = null; c.path = []; }
+  });
+  shot.objects.push(sub);
+  sel = {type:'object', id:sub.id};
+  markDirty(); render(); refreshSelBar();
+  toast('Tucked into a sub-board — double-click to open it, name it via the Label field');
+}
 function swapPropKind(o, kind){ // variant switch that keeps the user's scale
   if(o.kind === kind || !PROPS[kind]) return;
   const sc = o.w / PROPS[o.kind].w;
@@ -97,6 +132,8 @@ function refreshSelBar(){
       ' — drag to move, ⌘C to copy';
     selBar.appendChild(lab);
     sbtn('Duplicate', duplicateSelection);
+    sbtn('→ Sub-board', groupIntoSubboard)
+      .title = 'Tuck this selection into its own named sub-board (double-click it to open)';
     sbtn('Delete all', deleteSelection, true);
     selBar.classList.add('show');
     updateSelBarPos();
@@ -480,6 +517,14 @@ function refreshSelBar(){
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
       hint.textContent = 'Cameras & lights from each scene board (fixture names when set) — + prop adds your own rows';
+      selBar.appendChild(hint);
+    }
+    if(o.cat === 'subboard'){
+      sbtn('Open', ()=>enterSubboard(o))
+        .title = 'Step inside this sub-board (double-click does the same)';
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = 'A board within the board — name it via the Label field';
       selBar.appendChild(hint);
     }
     if(o.cat === 'avscript'){
@@ -1523,6 +1568,15 @@ function buildLibrary(){
     tc.beginPath(); tc.moveTo(-w2/2,h2/2); tc.lineTo(w2*.3,-h2*.3); tc.stroke();
     tc.beginPath(); tc.moveTo(w2*.3,-h2*.3); tc.lineTo(w2*.05,-h2*.32); tc.moveTo(w2*.3,-h2*.3); tc.lineTo(w2*.33,-h2*.05); tc.stroke();
   }, 90, 90, '#E8604C', {cat:'line', kind:'line', w:220, h:14, color:'#E8604C'});
+  boardTile('Sub-board', (tc,w2,h2,c)=>{
+    tc.beginPath(); tc.roundRect(-w2/2,-h2*.42,w2,h2*.84,5);
+    tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=c; tc.lineWidth=2.5; tc.stroke();
+    tc.fillStyle=c; tc.globalAlpha=.28; tc.fillRect(-w2/2,-h2*.42,w2,h2*.18); tc.globalAlpha=1;
+    tc.globalAlpha=.5;
+    tc.strokeRect(-w2*.3,-h2*.1,w2*.24,h2*.3);
+    tc.beginPath(); tc.arc(w2*.16,h2*.05,h2*.14,0,7); tc.stroke();
+    tc.globalAlpha=1;
+  }, 100, 78, '#5B6472', {cat:'subboard', kind:'subboard', w:260, h:180, color:'#5B6472'});
   boardTile('Measure', (tc,w2,h2,c)=>{
     tc.strokeStyle=c; tc.lineWidth=4; tc.lineCap='round';
     tc.beginPath(); tc.moveTo(-w2/2+6,0); tc.lineTo(w2/2-6,0); tc.stroke();
@@ -1749,6 +1803,10 @@ function dropLib(e){
     } else if(libDrag.cat === 'proplist'){
       o = {id:uid(), cat:'proplist', kind:'proplist', x, y, rot:0, w:280, h:160,
            props:{}, hide:{}, done:{}, color:libDrag.color || '#7FA05A', label:'', path:[]};
+    } else if(libDrag.cat === 'subboard'){
+      o = {id:uid(), cat:'subboard', kind:'subboard', x, y, rot:0, w:260, h:180,
+           color:libDrag.color || '#5B6472', label:'', path:[],
+           board:{id:uid(), name:'', objects:[], walls:[], stills:[], shots:[]}};
     } else if(libDrag.cat === 'gearlist'){
       o = {id:uid(), cat:'gearlist', kind:'gearlist', x, y, rot:0, w:280, h:160,
            props:{}, hide:{}, done:{}, color:libDrag.color || '#4C8AD9', label:'', path:[]};

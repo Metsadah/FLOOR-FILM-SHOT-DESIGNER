@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------- tab switching
 function switchTab(t){
   if(activeTab === t) return;
+  if(typeof exitAllSubboards === 'function') exitAllSubboards();
   closeNoteEditor(true);
   togglePlay(false);
   sel = null; drag = null;
@@ -1024,6 +1025,10 @@ function collectAssetIds(){
   const scanObjs = objs=>(objs||[]).forEach(ob=>{
     if(ob.imgId) img.add(ob.imgId);
     if(ob.fileId) file.add(ob.fileId);
+    if(ob.cat === 'subboard' && ob.board){ // boards within boards count too
+      scanObjs(ob.board.objects);
+      (ob.board.stills||[]).forEach(id=>img.add(id));
+    }
   });
   const scan = s=>{
     if(!s) return;

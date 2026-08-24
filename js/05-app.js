@@ -108,6 +108,7 @@ function buildShotList(){
 }
 function switchShot(id){
   if(project.activeSceneId === id) return;
+  if(typeof exitAllSubboards === 'function') exitAllSubboards();
   togglePlay(false);
   closeNoteEditor(true);
   project.activeSceneId = id;

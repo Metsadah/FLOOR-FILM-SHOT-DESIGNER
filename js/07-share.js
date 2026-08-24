@@ -372,6 +372,7 @@ async function pullRemoteProject(auto){
   if(!res || !res.value) return;
   project = JSON.parse(res.value);
   normalizeLoadedProject();
+  if(typeof exitAllSubboards === 'function') exitAllSubboards();
   dirty = false;
   undoStack.length = 0; redoStack.length = 0; // undo must not resurrect a co-editor's past
   if(typeof updateHistBtns === 'function') updateHistBtns();

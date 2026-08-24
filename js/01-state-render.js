@@ -126,6 +126,7 @@ function switchSetup(s, id){
   if(!s.setups) return;
   const su = s.setups.find(x=>x.id === id);
   if(!su || id === s.setupId) return;
+  exitAllSubboards(); // the stack points into the outgoing objects array
   const cur = activeSetupOf(s);
   if(cur) cur.objects = s.objects; // store the working array back
   s.objects = su.objects;
@@ -383,13 +384,112 @@ function plSceneHead(s){
 
 let activeTab = 'design'; // design | mood | script | story | org
 const BOARD_TABS = new Set(['mood','org','write']);
-function activeScene(){
+// ---------------------------------------------------------------- sub-boards
+// A sub-board is a CARD that contains a full board (o.board, shot-shaped).
+// "Entering" one pushes its id onto boardStack; activeScene() then serves the
+// inner board — so every existing tool (drawing, library drops, selection,
+// even sub-boards inside sub-boards) works inside without knowing about any
+// of this. The stack holds IDS and is re-resolved on every call, so undo or
+// a co-editor's version can never leave us pointing at a dead object: a
+// broken link simply prunes the stack back to the deepest level that exists.
+let boardStack = []; // subboard object ids, outermost first
+function rootBoard(){
   if(activeTab === 'mood' && project.moodboard) return project.moodboard;
   if(activeTab === 'org' && project.prodboard) return project.prodboard;
   if(activeTab === 'write' && project.scriptboard) return project.scriptboard;
   return project.scenes.find(s => s.id === project.activeSceneId) || project.scenes[0];
 }
+function subboardPath(){
+  let host = rootBoard();
+  const chain = [];
+  for(const id of boardStack){
+    const sub = host && (host.objects || []).find(o => o.id === id && o.cat === 'subboard');
+    if(!sub || !sub.board) break;
+    chain.push(sub);
+    host = sub.board;
+  }
+  if(chain.length !== boardStack.length){
+    boardStack = chain.map(s => s.id);
+    updateCrumb();
+  }
+  return chain;
+}
+function activeScene(){
+  const chain = subboardPath();
+  return chain.length ? chain[chain.length - 1].board : rootBoard();
+}
 const activeShot = activeScene; // legacy alias — every existing call site keeps working
+function enterSubboard(o){
+  if(!o || o.cat !== 'subboard') return;
+  if(!o.board) o.board = {id:uid(), name:'', objects:[], walls:[], stills:[], shots:[]};
+  migrateShot(o.board);
+  sel = null; drag = null; hoverWall = null;
+  closeNoteEditor(true);
+  boardStack.push(o.id);
+  updateCrumb();
+  if(typeof refreshSelBar === 'function') refreshSelBar();
+  if(typeof zoomFit === 'function') zoomFit();
+  render();
+}
+function exitSubboard(){
+  if(!boardStack.length) return;
+  const chain = subboardPath();
+  const leaving = chain[chain.length - 1];
+  if(leaving) leaving._pv = null; // contents may have changed — redo the thumbnail
+  sel = null; drag = null; hoverWall = null;
+  closeNoteEditor(true);
+  boardStack.pop();
+  updateCrumb();
+  if(typeof refreshSelBar === 'function') refreshSelBar();
+  if(typeof zoomFit === 'function') zoomFit();
+  render();
+}
+function exitAllSubboards(){
+  if(!boardStack.length) return;
+  subboardPath().forEach(s => { s._pv = null; });
+  boardStack = [];
+  updateCrumb();
+}
+function updateCrumb(){
+  let el = document.getElementById('boardCrumb');
+  const chain = boardStack.length ? subboardPathNoPrune() : [];
+  if(!chain.length){ if(el) el.remove(); return; }
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'boardCrumb';
+    const host = document.getElementById('canvasWrap');
+    if(!host) return;
+    host.appendChild(el);
+    el.addEventListener('click', ()=>exitSubboard());
+  }
+  el.style.cssText = 'position:absolute;top:12px;left:12px;z-index:60;display:flex;gap:6px;' +
+    'align-items:center;background:#fff;border:1px solid #E5E3DE;border-radius:20px;' +
+    'padding:5px 13px 5px 10px;font:600 12px -apple-system,Segoe UI,sans-serif;color:#33322E;' +
+    'box-shadow:0 6px 20px rgba(40,38,32,.14);cursor:pointer;max-width:60%;overflow:hidden;' +
+    'white-space:nowrap;text-overflow:ellipsis;';
+  el.title = 'Inside a sub-board — click to go back up';
+  const rootName = activeTab === 'mood' ? 'Mood & inspiration'
+    : activeTab === 'org' ? 'Production'
+    : activeTab === 'write' ? 'Script & Storyboard'
+    : (rootBoard() ? rootBoard().name : 'Scene');
+  el.innerHTML = '<span style="color:#4B6BFB">⬑</span>&nbsp;' + esc(rootName) +
+    chain.map((s, i)=>' <span style="color:#B9B6AE">›</span> ' +
+      (i === chain.length - 1
+        ? '<b>' + esc(s.label || 'Sub-board') + '</b>'
+        : esc(s.label || 'Sub-board'))).join('');
+}
+// crumb-safe path (no prune side effects while we're mid-update)
+function subboardPathNoPrune(){
+  let host = rootBoard();
+  const chain = [];
+  for(const id of boardStack){
+    const sub = host && (host.objects || []).find(o => o.id === id && o.cat === 'subboard');
+    if(!sub || !sub.board) break;
+    chain.push(sub);
+    host = sub.board;
+  }
+  return chain;
+}
 function findObj(id){ return activeShot().objects.find(o=>o.id===id); }
 
 // ---------------------------------------------------------------- storage
@@ -541,9 +641,14 @@ async function loadStill(id){
 }
 function imgReferenced(id){
   if(project.production && project.production.logo === id) return true;
-  return project.scenes.some(s =>
-    s.stills.includes(id) || s.objects.some(o => o.cat==='image' && o.imgId===id) ||
-    (s.setups||[]).some(su=>su.objects.some(o => o.cat==='image' && o.imgId===id)));
+  const inObjs = objs => (objs||[]).some(o =>
+    (o.cat==='image' && o.imgId===id) ||
+    (o.cat==='subboard' && o.board &&
+      (inObjs(o.board.objects) || (o.board.stills||[]).includes(id))));
+  const inBoard = s => s && (s.stills.includes(id) || inObjs(s.objects) ||
+    (s.setups||[]).some(su=>inObjs(su.objects)));
+  return project.scenes.some(inBoard) ||
+    inBoard(project.moodboard) || inBoard(project.prodboard) || inBoard(project.scriptboard);
 }
 async function maybeDeleteImg(id){
   if(!imgReferenced(id)){
@@ -2093,6 +2198,63 @@ function drawObjectShape(o, ghost){
       y += secHead;
       for(const [k, t, sg] of lines) drawLine(k, t, sg);
       y += gap;
+    }
+    ctx.restore();
+    ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
+  } else if(o.cat === 'subboard'){
+    // a board inside the board: named card + live thumbnail of its contents
+    const titleH = 26;
+    o.w = Math.max(o.w || 260, 160);
+    o.h = Math.max(o.h || 180, 120);
+    const nObj = (o.board && o.board.objects || []).length;
+    const nWall = (o.board && o.board.walls || []).length;
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h,3); ctx.clip();
+    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillRect(-o.w/2, -o.h/2, o.w, titleH);
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle = '#33322E';
+    ctx.fillText('▣ ' + trimText(ctx, (o.label || 'SUB-BOARD').toUpperCase(), o.w - 70),
+      -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+    if(nObj + nWall){
+      ctx.textAlign = 'right';
+      ctx.font = '600 10px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#8A877F';
+      ctx.fillText((nObj + nWall) + ' item' + (nObj + nWall === 1 ? '' : 's'),
+        o.w/2 - 8, -o.h/2 + titleH/2 + .5);
+      ctx.textAlign = 'left';
+    }
+    const pv = o._pv;
+    if(pv && pv.width){
+      // contain-fit the cached thumbnail into the body
+      const bw = o.w - 12, bh = o.h - titleH - 12;
+      const k = Math.min(bw / pv.width, bh / pv.height);
+      const dw = pv.width * k, dh = pv.height * k;
+      ctx.globalAlpha = .96;
+      ctx.drawImage(pv, -dw/2, -o.h/2 + titleH + 6 + (bh - dh)/2, dw, dh);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.font = 'italic 11px -apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = 'rgba(74,70,54,.4)';
+      ctx.textAlign = 'center';
+      ctx.fillText(nObj + nWall ? 'rendering preview…' : 'empty — double-click to open',
+        0, -o.h/2 + titleH + (o.h - titleH)/2);
+      ctx.textAlign = 'left';
+      if((nObj + nWall) && !(pv && pv.width) && !o._pvGen && !ghost){
+        o._pvGen = true; // deferred so thumbnail rendering never nests inside a draw
+        setTimeout(()=>{
+          try{ o._pv = renderShotPlan(o.board, 640, null, false); }
+          catch(e){ console.warn('subboard thumb failed', e); }
+          o._pvGen = false;
+          render();
+        }, 0);
+      }
     }
     ctx.restore();
     ctx.strokeStyle = '#D8D5CF'; ctx.lineWidth = 1.5;

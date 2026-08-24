@@ -58,6 +58,7 @@ function applyState(s){
   if(!project.scenes.length){ project.scenes = [newShot(1)]; }
   if(!project.scenes.find(x=>x.id===project.activeSceneId)) project.activeSceneId = project.scenes[0].id;
   project.scenes.forEach(migrateShot);
+  if(typeof exitAllSubboards === 'function') exitAllSubboards(); // stack may point into replaced arrays
   sel = null; drag = null; hoverWall = null;
   togglePlay(false);
   closeNoteEditor(false);
@@ -1333,6 +1334,7 @@ cv.addEventListener('dblclick', e => {
   if(o){
     sel = {type:'object', id:o.id};
     refreshSelBar(); render();
+    if(o.cat === 'subboard'){ enterSubboard(o); return; }
     if(o.cat === 'note' || o.cat === 'text'){ openNoteEditor(o); return; }
     if(o.cat === 'todo'){
       const rowH = 32, top = o.label ? 36 : 8;
@@ -1564,6 +1566,10 @@ function deleteSelection(){
   if(sel.type === 'object'){
     const o = shot.objects.find(x=>x.id===sel.id);
     if(o && o.locked){ toast('Locked — unlock it in the selection bar first'); return; }
+    if(o && o.cat === 'subboard'){
+      const n = (o.board && o.board.objects || []).length + (o.board && o.board.walls || []).length;
+      if(n && !confirm('Delete this sub-board AND the ' + n + ' item' + (n===1?'':'s') + ' inside it?')) return;
+    }
     shot.objects = shot.objects.filter(x=>x.id!==sel.id);
     if(o) shot.objects.forEach(c=>{
       if(c.mount && c.mount.id===o.id) c.mount=null;
