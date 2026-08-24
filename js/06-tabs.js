@@ -1091,8 +1091,13 @@ async function importFloorproj(f){
 }
 
 // merge another production INTO the current one: its scenes (fresh ids,
-// active setup only), assets, and any people / locations / custom props we
-// don't already have. Boards and production info stay untouched.
+// active setup only), assets, its BOARD content (mood / script&storyboard /
+// production — AV cards, sticky notes, storyboard rows, day headers, …,
+// offset to the right of what's already there), and any people / locations /
+// custom props we don't already have. Cross-references are remapped: sbrows
+// and schedule rows point at the MERGED scenes, location cards and day
+// headers at the merged locations, schedule/call-sheet day bindings at the
+// merged day headers. Production info fields stay untouched.
 async function mergeFloorproj(f){
   toast('Reading ' + f.name + '…');
   try{
@@ -1103,11 +1108,12 @@ async function mergeFloorproj(f){
     for(const [k,v] of Object.entries((pack.assets && pack.assets.file) || {}))
       await window.storage.set('sd:file:' + k, v);
     normalizeProduction();
+    const sceneMap = {}, locMap = {};
     let nScenes = 0;
     for(const src of pack.project.scenes){
       const s = JSON.parse(JSON.stringify(src));
       migrateShot(s);
-      s.id = uid();
+      sceneMap[src.id] = s.id = uid();
       s.setups = null; s.setupId = null; // the merge takes each scene's ACTIVE setup
       s.walls.forEach(w=>{ w.id = uid(); (w.openings||[]).forEach(op=>op.id = uid()); });
       const map = {};
@@ -1130,17 +1136,76 @@ async function mergeFloorproj(f){
     for(const l of (Q.locations || [])){
       const nm = (l.name || l.street || '').toLowerCase();
       if(!nm) continue;
-      if(P.locations.some(x=>(x.name || x.street || '').toLowerCase() === nm)) continue;
-      P.locations.push({...l, id:uid()});
+      const dupe = P.locations.find(x=>(x.name || x.street || '').toLowerCase() === nm);
+      if(dupe){ locMap[l.id] = dupe.id; continue; }
+      const nid = uid();
+      locMap[l.id] = nid;
+      P.locations.push({...l, id:nid});
       nLocs++;
     }
     for(const cp of (pack.project.customProps || [])){
       if(!(project.customProps || []).some(x=>x.name === cp.name))
         project.customProps.push({...cp, id:uid()});
     }
+    // ---- board content: AV cards, notes, sbrows, day headers, cards, ink… ----
+    const remapSceneKeys = m=>{
+      const out = {};
+      for(const k in m){
+        const bar = k.indexOf('|');
+        const sid = bar > -1 ? k.slice(0, bar) : k;
+        out[(sceneMap[sid] || sid) + (bar > -1 ? k.slice(bar) : '')] = m[k];
+      }
+      return out;
+    };
+    const mergeBoard = (src, dst)=>{
+      if(!src || (!(src.objects||[]).length && !(src.walls||[]).length)) return 0;
+      // land the merged content to the RIGHT of what's already on the board
+      let dx = 0;
+      if((dst.objects||[]).length && (src.objects||[]).length){
+        const maxX = Math.max(...dst.objects.map(o=>o.x + (o.w||0)/2));
+        const minX = Math.min(...src.objects.map(o=>o.x - (o.w||0)/2));
+        dx = Math.round(maxX + 260 - minX);
+      }
+      const idMap = {};
+      const objs = JSON.parse(JSON.stringify(src.objects || []));
+      objs.forEach(ob=>{ const nid = uid(); idMap[ob.id] = nid; ob.id = nid; });
+      for(const ob of objs){
+        ob.x += dx;
+        if(ob.p1){ ob.p1.x += dx; } if(ob.p2){ ob.p2.x += dx; } if(ob.mid){ ob.mid.x += dx; }
+        if(Array.isArray(ob.pts)) ob.pts.forEach(p=>{ p.x += dx; });          // ink / track
+        if(Array.isArray(ob.path)) ob.path.forEach(p=>{ if(p.x != null) p.x += dx; });
+        if(ob.mount && idMap[ob.mount.id]) ob.mount.id = idMap[ob.mount.id];
+        if(ob.rail && idMap[ob.rail.id]) ob.rail.id = idMap[ob.rail.id];
+        if(ob.sceneId) ob.sceneId = sceneMap[ob.sceneId] || ob.sceneId;       // storyboard rows
+        if(ob.locId) ob.locId = locMap[ob.locId] || ob.locId;                 // location field cards
+        if(Array.isArray(ob.locIds)) ob.locIds = ob.locIds.map(i=>locMap[i] || i); // day headers
+        if(ob.dayId) ob.dayId = idMap[ob.dayId] || ob.dayId;                  // schedule / call-sheet day binding
+        if(Array.isArray(ob.items))                                           // schedule rows
+          ob.items.forEach(it=>{ if(it.sceneId) it.sceneId = sceneMap[it.sceneId] || it.sceneId; });
+        if(ob.props && (ob.cat === 'proplist' || ob.cat === 'gearlist')){     // prop / gear lists
+          const np = {};
+          for(const k in ob.props) np[sceneMap[k] || k] = ob.props[k];
+          ob.props = np;
+          if(ob.hide) ob.hide = remapSceneKeys(ob.hide);
+          if(ob.done) ob.done = remapSceneKeys(ob.done);
+        }
+        dst.objects.push(ob);
+      }
+      for(const w of JSON.parse(JSON.stringify(src.walls || []))){
+        w.id = uid(); (w.openings||[]).forEach(op=>op.id = uid());
+        w.x1 += dx; w.x2 += dx; if(w.mid) w.mid.x += dx;
+        dst.walls.push(w);
+      }
+      return objs.length;
+    };
+    let nBoard = 0;
+    if(pack.project.moodboard){ ensureMoodboard(); nBoard += mergeBoard(pack.project.moodboard, project.moodboard); }
+    if(pack.project.scriptboard){ ensureScriptBoard(); nBoard += mergeBoard(pack.project.scriptboard, project.scriptboard); }
+    if(pack.project.prodboard){ ensureProdBoard(); nBoard += mergeBoard(pack.project.prodboard, project.prodboard); }
     markDirty();
     buildShotList(); buildLibrary(); buildInfo(); render();
     toast('Merged ' + nScenes + ' scene' + (nScenes===1?'':'s') +
+      (nBoard ? ', ' + nBoard + ' board item' + (nBoard===1?'':'s') : '') +
       (nPeople ? ', ' + nPeople + ' people' : '') +
       (nLocs ? ', ' + nLocs + ' location' + (nLocs===1?'':'s') : '') +
       ' from "' + (pack.project.shootName || pack.name || f.name) + '"');

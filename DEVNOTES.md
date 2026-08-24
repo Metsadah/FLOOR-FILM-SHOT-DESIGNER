@@ -303,6 +303,22 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.48 — merge now brings the BOARDS along
+User report: merged a project and the AV script card + sticky notes
+didn't appear — v0.47 deliberately skipped boards. mergeFloorproj now
+merges mood/script/prod board content too (`mergeBoard`): objects get
+fresh ids and are OFFSET to the right of the destination board's
+existing content (dx from bbox; p1/p2/mid, pts (ink/track absolute),
+and path points shifted too). Remaps: mounts/rails (same-board idMap),
+sbrow.sceneId + schedule item sceneIds via sceneMap, fieldcard.locId +
+dayheader.locIds via locMap (which now ALSO maps dupe locations onto
+the existing id instead of dropping the reference), schedule/callsheet
+dayId via idMap (day headers live on the same board), prop/gear list
+props/hide/done keys re-prefixed per scene. Board walls merged too.
+Production info FIELDS still not merged (deliberate). Verified: AV
+card + note + linked sbrow land offset on scriptboard; the merged
+day header → schedule → call sheet chain stays intact end to end.
+
 ## v0.47 — merge productions + AV script import & breakdown
 1. `mergeFloorproj(f)` (06) + "Merge .floorproj into current…" in the
    Production ▾ popover: appends the pack's SCENES (fresh scene/wall/
