@@ -1332,16 +1332,17 @@ function drawObjectShape(o, ghost){
   } else if(o.cat === 'table'){
     o.cells = (o.cells && o.cells.length) ? o.cells : [['',''],['','']];
     const nR = o.cells.length, nC = o.cells[0].length;
-    const headH = 30, rowH = 28;
+    const S = o.fs || 1; // corner-drag scale — everything grows together
+    const headH = 30*S, rowH = 28*S;
     // columns size themselves to content
     const ws = [];
     for(let c=0;c<nC;c++){
-      let mw = 90;
+      let mw = 90*S;
       for(let r=0;r<nR;r++){
-        ctx.font = (r===0 ? '700 ' : '') + '12px -apple-system,Segoe UI,sans-serif';
-        mw = Math.max(mw, ctx.measureText(o.cells[r][c]||'').width + 20);
+        ctx.font = (r===0 ? '700 ' : '') + (12*S) + 'px -apple-system,Segoe UI,sans-serif';
+        mw = Math.max(mw, ctx.measureText(o.cells[r][c]||'').width + 20*S);
       }
-      ws.push(Math.min(280, mw));
+      ws.push(Math.min(280*S, mw));
     }
     o._colWs = ws;
     o.w = ws.reduce((a,b)=>a+b, 0);
@@ -1368,7 +1369,7 @@ function drawObjectShape(o, ghost){
       let x0 = -o.w/2;
       for(let c=0;c<nC;c++){
         if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='cell:'+r+':'+c)){
-          ctx.font = (r===0 ? '700 ' : '') + '12px -apple-system,Segoe UI,sans-serif';
+          ctx.font = (r===0 ? '700 ' : '') + (12*S) + 'px -apple-system,Segoe UI,sans-serif';
           ctx.fillStyle = r===0 ? '#33322E' : '#4A4636';
           const cy = r===0 ? -o.h/2 + headH/2 : -o.h/2 + headH + (r-1)*rowH + rowH/2;
           ctx.fillText(trimText(ctx, o.cells[r][c]||'', ws[c]-16), x0 + 8, cy);

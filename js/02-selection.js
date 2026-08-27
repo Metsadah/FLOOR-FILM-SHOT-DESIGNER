@@ -29,14 +29,20 @@ function handleList(){
       hs.push({id:'lm', x:m.x, y:m.y});
       return hs;
     }
-    if(['ink','listcard','fieldcard','dayheader','avscript'].includes(o.cat)) return hs; // self-sizing — no resize/rotate
+    if(['ink','listcard','fieldcard','dayheader'].includes(o.cat)) return hs; // self-sizing — no resize/rotate
+    if(o.cat === 'avscript'){
+      // photo-style corner: drag to scale the whole script
+      hs.push({id:'cardS', x:o.x + o.w/2 + 10/s, y:o.y + o.h/2 + 10/s});
+      return hs;
+    }
     if(o.cat === 'callsheet' || o.cat === 'schedule' || o.cat === 'proplist' || o.cat === 'gearlist'){
       // width-only handle: give the cells more room (height stays automatic)
       hs.push({id:'cardW', x:o.x + o.w/2 + 10/s, y:o.y});
       return hs;
     }
     if(o.cat === 'table'){
-      // spreadsheet-style: drag the corner to add/remove rows and columns
+      // right corner adds rows/columns; LEFT corner scales like a photo
+      hs.push({id:'cardS', x:o.x - o.w/2 - 10/s, y:o.y + o.h/2 + 10/s});
       hs.push({id:'tgrow', x:o.x + o.w/2 + 10/s, y:o.y + o.h/2 + 10/s});
       return hs;
     }

@@ -440,6 +440,7 @@ cv.addEventListener('pointerdown', e => {
       else if(h.id === 'resize') drag = {kind:'resize', o, ratio:o.h/o.w};
       else if(h.id === 'jibHead') drag = {kind:'jibHead', o, B:jibBasePos(o)};
       else if(h.id === 'cardW') drag = {kind:'cardW', o, left:o.x - o.w/2};
+      else if(h.id === 'cardS') drag = {kind:'cardS', o, w0:o.w, fs0:o.fs || 1, cx0:o.x};
       else if(h.id === 'tgrow') drag = {kind:'tgrow', o,
         left:o.x - o.w/2, top:o.y - o.h/2,
         avgW: Math.max(60, o.w / o.cells[0].length)};
@@ -828,6 +829,15 @@ cv.addEventListener('pointermove', e => {
         const v = shot.objects.find(x=>x.id === o.mount.id);
         if(v && !v.locked){ v.x = o.x; v.y = o.y; }
       }
+      markDirty();
+      break;
+    }
+    case 'cardS': {
+      // photo-style scaling for self-sizing cards: the cursor's distance from
+      // the card centre vs the starting half-width sets the scale factor
+      const o = drag.o;
+      const f = Math.abs(wx - drag.cx0) / Math.max(40, drag.w0 / 2);
+      o.fs = clamp(+(drag.fs0 * f).toFixed(2), .7, 2);
       markDirty();
       break;
     }
@@ -1235,6 +1245,33 @@ cv.addEventListener('pointerup', e => {
       setTool('select');
     }
   }
+  // board image dropped ON an AV script row → it becomes one of that beat's
+  // stills (the image card moves INTO the table); on a storyboard row → frame
+  if(drag.kind === 'move' && drag.o.cat === 'image' && drag.o.imgId){
+    const im = drag.o;
+    const av = [...shot.objects].reverse().find(ob=>ob.cat === 'avscript' && ob.id !== im.id &&
+      Math.abs(im.x - ob.x) <= ob.w/2 && Math.abs(im.y - ob.y) <= ob.h/2);
+    const row = (av && typeof avRowAt === 'function') ? avRowAt(av, im.y) : null;
+    if(av && row){
+      row.imgs = row.imgs || [];
+      row.imgs.push(im.imgId);
+      av.cols.still = true;
+      shot.objects = shot.objects.filter(x=>x.id !== im.id);
+      sel = {type:'object', id:av.id};
+      toast('Still moved into the AV script row');
+      markDirty(); render(); refreshSelBar();
+    } else {
+      const sb = [...shot.objects].reverse().find(ob=>ob.cat === 'sbrow' &&
+        Math.abs(im.x - ob.x) <= ob.w/2 && Math.abs(im.y - ob.y) <= ob.h/2);
+      if(sb){
+        sb.imgId = im.imgId;
+        shot.objects = shot.objects.filter(x=>x.id !== im.id);
+        sel = {type:'object', id:sb.id};
+        toast('Image is now this storyboard row’s frame');
+        markDirty(); render(); refreshSelBar();
+      }
+    }
+  }
   // actor dropped on a wheelchair / hospital bed → attached (they move as one)
   if(drag.kind === 'move' && drag.o.cat === 'actor' && !drag.o.mount){
     const a = drag.o;
@@ -1381,7 +1418,8 @@ cv.addEventListener('dblclick', e => {
     }
     if(o.cat === 'table'){
       const nR = o.cells.length, nC = o.cells[0].length;
-      const headH = 30, rowH = 28;
+      const S = o.fs || 1;
+      const headH = 30*S, rowH = 28*S;
       const ws = o._colWs || o.cells[0].map(()=>o.w/nC);
       const lx = wx - o.x + o.w/2, ly = wy - o.y + o.h/2;
       let c = 0, acc = 0;

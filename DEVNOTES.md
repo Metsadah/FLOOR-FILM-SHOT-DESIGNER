@@ -303,6 +303,22 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.51 — drag stills into the AV table, corner-scale for tables/AV
+1. Board image dropped ON an AV script row (pointerup move-case, hit by
+   image CENTRE + avRowAt) MOVES it into that row's stills (imgs.push,
+   image object removed, Stills column auto-on). Dropped on a storyboard
+   row → becomes that row's frame. Both toast + select the target.
+2. 'cardS' corner handle = photo-style scaling for self-sizing cards:
+   factor = |cursor.x − card centre| / (startW/2), o.fs = clamp(fs0×f,
+   .7, 2). AV script: bottom-RIGHT corner (it left the no-resize list).
+   Table: bottom-LEFT corner (tgrow keeps the right corner for
+   rows/cols — selBar hint names both).
+3. Table renderer fully scales via o.fs (headH/rowH/fonts/col min-max/
+   padding); tap geometry (03) and openTableCell (04) use the same S —
+   keep all three in sync or clicks land in the wrong cell.
+Verified: real corner drag through the input pipeline scaled a table
+fs 1 → 2 (clamped); image-drop into AV row + sbrow frame both green.
+
 ## v0.50 — AV stills filmstrip, script scaling, PDF → board
 1. AV rows: `r.imgs = [imgId, …]` (renderer migrates legacy r.imgId on
    sight). Still cell = filmstrip: every still side by side at o.stillH

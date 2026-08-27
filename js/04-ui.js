@@ -280,7 +280,7 @@ function refreshSelBar(){
       sbtn('\u2212 Col', ()=>{ if(o.cells[0].length>1){ o.cells.forEach(r=>r.pop()); markDirty(); render(); } });
       const hint = document.createElement('span');
       hint.style.cssText='font-size:10.5px;color:var(--ink2);padding:0 4px;';
-      hint.textContent = 'Drag the corner handle to add/remove rows & cols \u00b7 Tab/Enter hop cells';
+      hint.textContent = 'Right corner adds rows & cols \u00b7 LEFT corner scales the table \u00b7 Tab/Enter hop cells';
       selBar.appendChild(hint);
     }
     if(o.cat === 'prop' && (o.kind === 'stairs' || o.kind === 'stairs_curved')){
@@ -1084,13 +1084,14 @@ function openTodoItem(o, i){
     {x:-o.w/2+30, y:-o.h/2+top + i*rowH + 3, w:o.w-40, h:rowH-6}, 12.5);
 }
 function openTableCell(o, r, c){
-  const headH = 30, rowH = 28;
+  const S = o.fs || 1;
+  const headH = 30*S, rowH = 28*S;
   const ws = o._colWs || o.cells[0].map(()=>o.w/o.cells[0].length);
   let x0 = -o.w/2;
   for(let k=0;k<c;k++) x0 += ws[k];
   const cy = r===0 ? 0 : headH + (r-1)*rowH;
   openNoteEditor(o, 'cell:'+r+':'+c,
-    {x:x0+3, y:-o.h/2+cy+3, w:ws[c]-6, h:(r===0?headH:rowH)-6}, 12);
+    {x:x0+3, y:-o.h/2+cy+3, w:ws[c]-6, h:(r===0?headH:rowH)-6}, 12*S);
 }
 // ---- list cards (Crew / Cast / Client — live views of the People registry) ----
 function listCellAt(o, wx, wy){
