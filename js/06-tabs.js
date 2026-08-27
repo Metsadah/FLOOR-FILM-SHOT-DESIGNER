@@ -942,6 +942,9 @@ function breakDownScriptBlock(o){
     return;
   }
   const scenes = createScenesFromBreakdown(parsed);
+  // when the block carries a label, its scenes group under that film name
+  const film = (o.label || '').trim();
+  if(film) scenes.forEach(sc=>{ sc.film = film; sc.filmSrc = o.id; });
   const board = activeScene();
   const x0 = o.x + o.w/2 + 340;
   let y = o.y - o.h/2 + 60;
@@ -954,6 +957,34 @@ function breakDownScriptBlock(o){
   });
   markDirty(); render(); refreshSelBar();
   toast(scenes.length + ' scenes broken down \u2014 storyboard rows added to the right');
+}
+// screenplay \u2192 editable AV table: one row per scene (SC number + the scene's
+// text in VIDEO). From there rows, custom columns, stills and regie notes are
+// free, and "Break down \u2192 scenes" keeps the Shot designer in sync.
+function avTableFromScript(o){
+  const parsed = o.mode === 'av' ? parseAV(o.text || '') : parseScreenplay(o.text || '');
+  if(!parsed.length){
+    toast(o.mode === 'av'
+      ? 'No scenes found \u2014 AV blocks split on blank lines in the VIDEO column'
+      : 'No scenes found \u2014 use headings like INT. KITCHEN \u2014 DAY');
+    return;
+  }
+  // if the block was already broken down the old way, reuse THOSE scene
+  // numbers (parse order = creation order) so the AV sync updates instead of
+  // duplicating; otherwise plain 1..n
+  const prev = project.scenes.filter(s=>s.filmSrc === o.id);
+  const rows = parsed.map((s, i)=>({id:uid(),
+    no: prev[i] ? String(prev[i].scene || (i + 1)) : String(i + 1), time:'',
+    audio:'', video:(s.heading ? s.heading + '\n' : '') + (s.body || ''),
+    notes:'', imgs:[]}));
+  const card = {id:uid(), cat:'avscript', kind:'avscript',
+    x:o.x + o.w/2 + 460, y:o.y, rot:0, w:900, h:200,
+    color:'#8B7BD8', label:(o.label || '').trim(), path:[],
+    cols:{no:true, still:false, notes:true}, rows};
+  activeScene().objects.push(card);
+  sel = {type:'object', id:card.id};
+  markDirty(); render(); refreshSelBar();
+  toast(parsed.length + ' scenes in an AV table \u2014 add rows & columns, then Break down \u2192 scenes');
 }
 function pickSbImage(o){
   const fi = document.createElement('input');
@@ -1379,11 +1410,26 @@ function breakDownAvCard(o){
     if(m) return (+m[1])*60 + (+m[2]);
     return parseInt(t, 10) || 0; // bare number = seconds
   };
+  // ---- which film is this? A production can hold several scripts; scenes
+  // group under the card's label in the Shot designer, and numbering/matching
+  // stays INSIDE the film — two films can both have a scene 1.
+  let film = (o.label || '').trim();
+  if(!film){
+    const nFilms = new Set(project.scenes.map(s=>s.filmSrc).filter(Boolean)).size;
+    const name = prompt('Film / script name for this breakdown (scenes group under it)',
+      'Film ' + (nFilms + 1));
+    if(name !== null && name.trim()){ film = name.trim(); o.label = film; }
+  }
+  // the film NAME is the identity: an AV table made from a script block (other
+  // filmSrc, same name) must sync the same scenes, not duplicate them
+  const mine = s => film ? (s.film === film || s.filmSrc === o.id) : s.filmSrc === o.id;
+  const orphan = s => !s.filmSrc; // pre-film scenes: adoptable by number
   // ---- group rows by scene number: same SC = one scene, an empty SC row
   // continues the scene above it. Rows with no number at all get one WRITTEN
   // BACK into the card (and the SC column switched on) so the next breakdown
   // recognises them instead of minting extra scenes.
-  const taken = new Set(project.scenes.map(s=>String(s.scene||'').trim()).filter(Boolean));
+  const taken = new Set(project.scenes.filter(s=>mine(s) || orphan(s))
+    .map(s=>String(s.scene||'').trim()).filter(Boolean));
   rows.forEach(r=>{ const n = String(r.no||'').trim(); if(n) taken.add(n); });
   let nextNo = 1, assigned = false;
   const freshNo = ()=>{
@@ -1408,16 +1454,25 @@ function breakDownAvCard(o){
     /^Scene \d+$/.test(s.name || '');
   let made = 0, updated = 0;
   groups.forEach(g=>{
-    let sc = project.scenes.find(s=>String(s.scene||'').trim() === g.no);
+    let sc = project.scenes.find(s=>mine(s) && String(s.scene||'').trim() === g.no)
+          || project.scenes.find(s=>orphan(s) && String(s.scene||'').trim() === g.no);
     const isNew = !sc;
     if(isNew){
       // the untouched newborn "Scene 1" gets replaced instead of joined
       sc = (project.scenes.length === 1 && pristine(project.scenes[0]))
         ? project.scenes[0] : null;
-      if(!sc){ sc = newShot(project.scenes.length + 1); project.scenes.push(sc); }
+      if(!sc){
+        sc = newShot(project.scenes.length + 1);
+        // new scenes land right after this film's last scene, not at the end
+        let at = -1;
+        project.scenes.forEach((s, i)=>{ if(mine(s)) at = i; });
+        if(at >= 0) project.scenes.splice(at + 1, 0, sc); else project.scenes.push(sc);
+      }
       sc.scene = g.no;
       sc.name = 'Sc ' + g.no;
     }
+    sc.filmSrc = o.id;
+    sc.film = film;
     const head = ((g.rows[0].video || g.rows[0].audio || '').split('\n')[0] || '').slice(0, 80);
     if(isNew || !sc.sceneDesc) sc.sceneDesc = head;
     sc.script = g.rows.map(r=>[

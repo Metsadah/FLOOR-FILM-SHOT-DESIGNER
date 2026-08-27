@@ -303,6 +303,31 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.59 — multiple films per production + script→AV bridge
+A production can hold several scripts, each with its own breakdown, and
+scene numbers repeat across films ("twee keer scene 1"). The FILM NAME
+is the identity: breakDownAvCard takes it from o.label (prompting once
+and writing it back when empty), stamps sc.film + sc.filmSrc, and
+scopes EVERYTHING per film — number matching (`mine` matches
+s.film===film OR s.filmSrc===o.id; name first, so an AV table and a
+script block with the same label sync the SAME scenes), the freshNo
+`taken` set (other films' numbers are free to reuse), and insertion
+(new scenes splice in after the film's last scene, not at the end).
+Untagged pre-v0.59 scenes stay adoptable by bare number.
+buildShotList groups under uppercase film headers when any scene has
+film/filmSrc; in select mode a header click ticks/unticks its whole
+film. Traditional script breakdown (breakDownScriptBlock) unchanged —
+classic pass, sbrow column, global sequential numbers — but now tags
+sc.film/filmSrc from the block's label. NEW avTableFromScript ('→ AV
+table' on script blocks): one AV row per parsed scene, heading+body in
+VIDEO, SC numbers REUSED from an earlier old-way breakdown of the same
+block (parse order = creation order) so the AV sync updates those
+scenes instead of duplicating — that number-reuse plus name-matching
+is what makes mixing both paths safe.
+TEST scar: in javascript_tool payloads '\\n' arrives as literal
+backslash-n, not a newline — join with String.fromCharCode(10) when a
+test needs real multi-line text.
+
 ## v0.58 — AV breakdown syncs by scene number + scene multi-delete
 breakDownAvCard REWRITTEN (06-tabs): rows group by the SC column (same
 number = one scene, empty SC = continuation of the row above) and the

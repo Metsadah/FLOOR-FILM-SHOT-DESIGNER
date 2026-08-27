@@ -646,7 +646,10 @@ function refreshSelBar(){
     }
     if(o.cat === 'script'){
       sbtn('Import\u2026', ()=>importIntoScriptBlock(o));
-      sbtn('Break down', ()=>breakDownScriptBlock(o));
+      sbtn('Break down', ()=>breakDownScriptBlock(o))
+        .title = 'The classic pass: scenes + a storyboard column to the right';
+      sbtn('\u2192 AV table', ()=>avTableFromScript(o))
+        .title = 'One editable AV row per scene \u2014 add rows & columns, then Break down \u2192 scenes syncs the Shot designer';
       sbtn('A\u2212', ()=>{ o.fontSize = Math.max(9, (o.fontSize || 12.5) - 1); markDirty(); render(); })
         .title = 'Smaller script text';
       sbtn('A+', ()=>{ o.fontSize = Math.min(22, (o.fontSize || 12.5) + 1); markDirty(); render(); })

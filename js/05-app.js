@@ -14,7 +14,31 @@ function buildShotList(){
     selBtnEl.style.background = sceneSelMode ? 'var(--accent-soft)' : '';
     selBtnEl.style.color = sceneSelMode ? 'var(--accent)' : '';
   }
+  // several scripts in one production → scenes group under film headers
+  const filmKey = s => s.film || (s.filmSrc ? 'AV script' : '');
+  const showFilms = project.scenes.some(s=>filmKey(s));
+  let prevFilm = null;
   project.scenes.forEach((s, i) => {
+    const fk = filmKey(s);
+    if(showFilms && fk !== prevFilm){
+      prevFilm = fk;
+      const hd = document.createElement('div');
+      hd.textContent = fk || 'Other scenes';
+      hd.style.cssText = 'font-size:9.5px;font-weight:700;letter-spacing:.7px;' +
+        'text-transform:uppercase;color:var(--ink2);padding:9px 10px 3px;';
+      if(sceneSelMode){
+        // in select mode the header ticks / unticks its whole film at once
+        hd.style.cursor = 'pointer';
+        hd.title = 'Select / deselect every scene of this film';
+        const ids = project.scenes.filter(x=>filmKey(x) === fk).map(x=>x.id);
+        hd.addEventListener('click', ()=>{
+          const all = ids.every(id=>sceneSelIds.has(id));
+          ids.forEach(id=> all ? sceneSelIds.delete(id) : sceneSelIds.add(id));
+          buildShotList();
+        });
+      }
+      list.appendChild(hd);
+    }
     const el = document.createElement('div');
     el.className = 'shot-item' + (s.id === project.activeSceneId ? ' active' : '');
     if(sceneSelMode){
