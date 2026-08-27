@@ -319,6 +319,15 @@
           Skip for now</button>` : `
         <div style="border-top:1px solid #E5E3DE;margin-top:16px;padding-top:12px;
                     display:flex;flex-direction:column;gap:8px">
+          <button id="apPassBtn" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
+            padding:9px;font-size:12.5px;cursor:pointer">Change password…</button>
+          <div id="apPassRow" style="display:none;gap:6px">
+            <input id="apPass" type="password" placeholder="New password (6+ characters)"
+              autocomplete="new-password"
+              style="flex:1;border:1px solid #E5E3DE;border-radius:8px;padding:8px 10px;font-size:12.5px">
+            <button id="apPassGo" style="background:#4B6BFB;color:#fff;border:none;border-radius:8px;
+              padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer">Set</button>
+          </div>
           <button id="apExport" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
             padding:9px;font-size:12.5px;cursor:pointer">Download my data (JSON)</button>
           <button id="apSignout" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
@@ -357,6 +366,25 @@
         privacy_version: PRIVACY_VERSION, privacy_accepted_at: new Date().toISOString()});
       el.remove();
     });
+    el.querySelector('#apPassBtn')?.addEventListener('click', ()=>{
+      const row = el.querySelector('#apPassRow');
+      row.style.display = row.style.display === 'none' ? 'flex' : 'none';
+      if(row.style.display === 'flex') el.querySelector('#apPass').focus();
+    });
+    el.querySelector('#apPassGo')?.addEventListener('click', async ()=>{
+      const p = el.querySelector('#apPass').value;
+      if(!p || p.length < 6){ msg.textContent = 'Password needs at least 6 characters.'; return; }
+      msg.textContent = 'Setting password…';
+      const {error} = await sb.auth.updateUser({password: p});
+      if(error){ msg.textContent = 'Could not set the password: ' + error.message; return; }
+      el.querySelector('#apPass').value = '';
+      el.querySelector('#apPassRow').style.display = 'none';
+      msg.textContent = 'Password changed ✓ — use it next time you sign in.';
+    });
+    el.querySelector('#apPass')?.addEventListener('keydown', e=>{
+      if(e.key === 'Enter') el.querySelector('#apPassGo').click();
+      e.stopPropagation();
+    });
     el.querySelector('#apExport')?.addEventListener('click', async ()=>{
       msg.textContent = 'Collecting your data…';
       try{
@@ -393,6 +421,7 @@
   }
 
   window.FLOOR_ACCOUNT = {
+    overlay: accountOverlay, // exposed for the profile prompt + tests
     async open(){
       await ready;
       const {data: p} = await sb.from('profiles').select('*')

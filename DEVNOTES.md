@@ -303,6 +303,21 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.52 — account icon top-right + in-panel password change
+1. `#accountBtn` (person SVG) in the topbar-right, hidden by default;
+   the 05 init shows it in cloud mode (tooltip = the signed-in email)
+   and wires it to FLOOR_ACCOUNT.open(). Local mode: stays hidden.
+   The "Account & privacy…" row in the Production ▾ popover is GONE —
+   one place, top-right.
+2. Account panel gained "Change password…" → inline field + Set →
+   sb.auth.updateUser({password}) — works directly while signed in, no
+   email round-trip (the forgot-password mail flow stays for locked-out
+   users on the login screen). 6-char minimum, Enter submits.
+3. FLOOR_ACCOUNT.overlay exposed (profile prompt + TESTS use it — the
+   panel DOM can be exercised without a live login by mocking
+   FLOOR_USER; that's how this release was verified, since the
+   free-tier mailer rate limit blocks real signups from the harness).
+
 ## v0.51 — drag stills into the AV table, corner-scale for tables/AV
 1. Board image dropped ON an AV script row (pointerup move-case, hit by
    image CENTRE + avRowAt) MOVES it into that row's stills (imgs.push,

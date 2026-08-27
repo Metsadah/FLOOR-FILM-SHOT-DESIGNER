@@ -1554,18 +1554,7 @@ async function openProjectPop(){
     });
     pop.appendChild(del);
   }
-  // account & privacy — profile, data export, sign out, delete account (cloud mode only)
-  if(window.FLOOR_ACCOUNT){
-    const acc = document.createElement('button');
-    acc.className = 'btn';
-    acc.style.cssText = 'width:100%;margin-top:6px;';
-    acc.textContent = 'Account & privacy…';
-    acc.addEventListener('click', ()=>{
-      pop.classList.remove('show');
-      window.FLOOR_ACCOUNT.open();
-    });
-    pop.appendChild(acc);
-  }
+  // account & privacy moved to the top-right account icon (v0.52)
   pop.classList.add('show');
 }
 document.getElementById('projBtn').addEventListener('click', openProjectPop);

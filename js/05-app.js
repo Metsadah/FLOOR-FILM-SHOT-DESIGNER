@@ -901,6 +901,16 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
     const sb2 = document.getElementById('shareBtn');
     if(sb2) sb2.style.display = 'none';
   }
+  // account icon top-right (cloud mode only): profile, password, sign out
+  if(window.FLOOR_ACCOUNT){
+    const ab = document.getElementById('accountBtn');
+    if(ab){
+      ab.style.display = '';
+      if(window.FLOOR_USER && window.FLOOR_USER.email)
+        ab.title = window.FLOOR_USER.email + ' — account & privacy';
+      ab.addEventListener('click', ()=>window.FLOOR_ACCOUNT.open());
+    }
+  }
   // first sign-in on this account? offer the (optional) profile once
   if(window.FLOOR_ACCOUNT) window.FLOOR_ACCOUNT.maybeProfilePrompt().catch(()=>{});
   document.getElementById('loading').remove();
