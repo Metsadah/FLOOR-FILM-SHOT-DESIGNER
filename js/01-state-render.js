@@ -1566,11 +1566,11 @@ function drawObjectShape(o, ghost){
     o._avCols = cols;
     o.w = G.grip + cols.reduce((a,c)=>a+c[2], 0);
     const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
-    ctx.font = (12*S) + 'px -apple-system,Segoe UI,sans-serif';
+    ctx.font = (G.fontPx*S) + 'px -apple-system,Segoe UI,sans-serif';
     const rowHs = o.rows.map(r=>{
       let lines = 1;
       for(const [key,,wd] of cols)
-        if(key==='audio' || key==='video' || key==='notes')
+        if(!avSingle(key) && key !== 'still')
           lines = Math.max(lines, wrapCanvasText(ctx, r[key]||'', wd-16).length);
       let h = Math.max(G.minRowH*S, lines*G.lineH*S + G.rowPad*2);
       if(o.cols.still) h = Math.max(h, SH + 12);
@@ -1586,15 +1586,31 @@ function drawObjectShape(o, ghost){
     ctx.fillRect(-o.w/2, -o.h/2, o.w, G.titleH);
     ctx.globalAlpha = 1;
     ctx.textBaseline = 'middle';
-    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    // title + column headers read a step LARGER than the body text, and scale along
+    ctx.font = '700 ' + (16*S) + 'px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = '#33322E';
     ctx.fillText(o.label || 'AV SCRIPT', -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
     // column headers + separators
-    ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 ' + (14*S) + 'px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = '#8A877F';
+    o._colDels = selMe ? [] : null;
     let hx = -o.w/2 + G.grip;
-    for(const [,label,wd] of cols){
-      ctx.fillText(label, hx + 8, -o.h/2 + G.titleH + G.headH/2 + .5);
+    const headMid = -o.h/2 + G.titleH + G.headH/2 + .5;
+    for(const [key,label,wd] of cols){
+      ctx.fillStyle = '#8A877F';
+      ctx.fillText(trimText(ctx, label, wd - 26), hx + 8, headMid);
+      if(selMe && !['no','time','still','audio','video','notes'].includes(key)){
+        // × in the header removes this custom column (dblclick the header renames)
+        ctx.beginPath(); ctx.arc(hx + wd - 11, headMid - .5, 6, 0, 7);
+        ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fill();
+        ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = '#8A877F'; ctx.textAlign = 'center';
+        ctx.font = '700 9px -apple-system,Segoe UI,sans-serif';
+        ctx.fillText('×', hx + wd - 11, headMid);
+        ctx.textAlign = 'left';
+        ctx.font = '700 ' + (14*S) + 'px -apple-system,Segoe UI,sans-serif';
+        o._colDels.push({colId:key, x:o.x + hx + wd - 11, y:o.y + headMid, r:8});
+      }
       hx += wd;
     }
     ctx.strokeStyle = '#E5E3DE'; ctx.lineWidth = 1;
@@ -1667,19 +1683,19 @@ function drawObjectShape(o, ghost){
           ctx.textAlign = 'left';
           o._stillRects.push({rowId:r.id, idx:'add', x:o.x + ix, y:o.y + iy, w:pw, h:ih});
         } else if(!editing){
-          const multi = key==='audio' || key==='video' || key==='notes';
-          ctx.font = (12*S) + 'px -apple-system,Segoe UI,sans-serif';
+          const multi = !avSingle(key);
+          ctx.font = (G.fontPx*S) + 'px -apple-system,Segoe UI,sans-serif';
           const v = r[key] || '';
           if(multi){
             ctx.fillStyle = v ? (key==='audio' ? shade(o.color, .75) : '#4A4636') : 'rgba(74,70,54,.3)';
             const ph = key==='audio' ? 'lyrics / VO / sfx…' : key==='video' ? 'what we see…' : '…';
             const lines = wrapCanvasText(ctx, v || ph, wd - 16);
             ctx.textBaseline = 'alphabetic';
-            lines.forEach((l, li)=> ctx.fillText(l, x0 + 8, yTop + G.rowPad + 11*S + li*G.lineH*S));
+            lines.forEach((l, li)=> ctx.fillText(l, x0 + 8, yTop + G.rowPad + 12.5*S + li*G.lineH*S));
             ctx.textBaseline = 'middle';
           } else {
             ctx.fillStyle = v ? '#33322E' : 'rgba(74,70,54,.3)';
-            ctx.font = '600 ' + (12*S) + 'px -apple-system,Segoe UI,sans-serif';
+            ctx.font = '600 ' + (G.fontPx*S) + 'px -apple-system,Segoe UI,sans-serif';
             ctx.fillText(trimText(ctx, v || (key==='time' ? '0:00' : '#'), wd - 12), x0 + 8, yTop + rh/2 + .5);
           }
         }
@@ -1699,11 +1715,20 @@ function drawObjectShape(o, ghost){
       ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1.4; ctx.stroke();
       ctx.fillStyle = '#8A877F'; ctx.fillText('+', 0, o.h/2+16);
       o._plusRow = {x:o.x, y:o.y + o.h/2 + 15, r:14};
-      o._rowDels = [];
+      o._rowDels = []; o._rowIns = [];
       ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
       let cy = -o.h/2 + G.titleH + G.headH;
       o.rows.forEach((r, i)=>{
+        // small + ON the row's top boundary inserts a row right there
+        ctx.beginPath(); ctx.arc(o.w/2 + 14, cy, 6, 0, 7);
+        ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1.1; ctx.stroke();
+        ctx.fillStyle = '#8A877F';
+        ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
+        ctx.fillText('+', o.w/2 + 14, cy + .5);
+        o._rowIns.push({idx:i, x:o.x + o.w/2 + 14, y:o.y + cy, r:8});
         const mid = cy + rowHs[i]/2;
+        ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
         ctx.beginPath(); ctx.arc(o.w/2 + 14, mid, 8, 0, 7);
         ctx.fillStyle = '#fff'; ctx.fill();
         ctx.strokeStyle = '#B9B6AE'; ctx.lineWidth = 1.2; ctx.stroke();
@@ -1712,7 +1737,7 @@ function drawObjectShape(o, ghost){
         cy += rowHs[i];
       });
       ctx.textAlign = 'left';
-    } else { o._plusRow = null; o._rowDels = null; }
+    } else { o._plusRow = null; o._rowDels = null; o._rowIns = null; }
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'colcard'){
     // column card: title strip + free text, in the shared card chrome

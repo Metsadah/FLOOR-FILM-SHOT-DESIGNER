@@ -541,6 +541,12 @@ function refreshSelBar(){
       tgl('Scene #', 'no');
       tgl('Stills', 'still');
       tgl('Notes', 'notes');
+      sbtn('+ Column', ()=>{
+        const name = prompt('Column name', '');
+        if(name === null) return;
+        (o.customCols = o.customCols || []).push({id:'c' + uid(), label:name.trim() || 'Column'});
+        markDirty(); render(); refreshSelBar();
+      }).title = 'Add your own text column — × in its header removes it, double-click renames it';
       sbtn('A−', ()=>{ o.fs = Math.max(.8, +((o.fs || 1) - .15).toFixed(2)); markDirty(); render(); refreshSelBar(); })
         .title = 'Smaller script (everything scales)';
       sbtn('A+', ()=>{ o.fs = Math.min(1.8, +((o.fs || 1) + .15).toFixed(2)); markDirty(); render(); refreshSelBar(); })
@@ -550,7 +556,7 @@ function refreshSelBar(){
         ss.title = 'Still size in the script';
         ss.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:#fff;';
         for(const [v, n] of [[72,'Stills S'],[140,'Stills M'],[200,'Stills L'],[280,'Stills XL']])
-          ss.insertAdjacentHTML('beforeend', `<option value="${v}"${(o.stillH||200)===v?' selected':''}>${n}</option>`);
+          ss.insertAdjacentHTML('beforeend', `<option value="${v}"${(o.stillH||AVS.stillH)===v?' selected':''}>${n}</option>`);
         ss.addEventListener('change', ()=>{ o.stillH = +ss.value; markDirty(); render(); });
         ss.addEventListener('pointerdown', e=>e.stopPropagation());
         selBar.appendChild(ss);
@@ -1186,7 +1192,7 @@ function openAvCell(o, rowId, key){
   let x0 = -o.w/2 + G.grip, wd = 100;
   for(const [k,,cw] of cols){ if(k === key){ wd = cw; break; } x0 += cw; }
   openNoteEditor(o, 'avr:' + rowId + ':' + key,
-    {x:x0+3, y:yTop+2, w:wd-6, h:(hs[ri]||G.minRowH)-4}, 12);
+    {x:x0+3, y:yTop+2, w:wd-6, h:(hs[ri]||G.minRowH)-4}, +(G.fontPx*(o.fs||1)).toFixed(1));
 }
 function addAvRow(o, openIt){
   o.rows.push({id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgId:null});

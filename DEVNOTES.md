@@ -303,6 +303,32 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.57 — AV script: typography, column widths, insert row/column
+User asks, all AV-script card. Typography hierarchy fixed: title now
+`700 16*S`, column headers `700 14*S`, body `AVS.fontPx` (13.5)*S with
+lineH 17 — headers finally read LARGER than the text (they were 9.5px
+vs 12px body). titleH 26→30, headH 22→24. Stills default one step down:
+AVS.stillH 200→140 (select checks `o.stillH||AVS.stillH`, never a bare
+number). New: per-column widths — drag any separator (or the card's
+right inner edge, wy kept 24px above the corner-scale handle) →
+`o.colW[key]` in UNSCALED px (÷ drag.S on write, × S in avCols); the
+card re-centres on width change, so the drag pins the LEFT edge by
+recomputing o.x from avCols. Stills column stays automatic. New: insert
+row — small + chips ON each row's top boundary (o._rowIns, radius 8;
+the × delete chips r=11 sit at row middle — 1px zone overlap at
+minRowH, _rowIns is hit-tested first). New: custom columns —
+`o.customCols=[{id:'c'+uid(), label}]`, rendered after video before
+notes at AVS.custW 150; the avr: editor routing is fully generic
+(`r[key]`) so editing/Tab/paste-nav just work — custom ids must NEVER
+contain ':'. × chip in the header deletes (o._colDels), dblclick on the
+header renames (prompt). `avSingle(key)` (00-catalog) decides
+single-line vs wrap — replaces the hardcoded audio/video/notes checks
+in BOTH the rowHs measure and the cell renderer; keep them in sync.
+TEST scar: the browser-pane canvas is only the middle grid column —
+world→pane clicks must land inside cv's rect (238..675 CSS here), or
+they silently hit the sidebar / right panel; pan the card into view
+before real-input tests.
+
 ## v0.56 — iPad pencil flow + iPhone view mode
 Two mobile asks. (1) Pencil: finishing an ink stroke no longer auto-selects
 it (writing a word boxed every letter) — stroke is just pushed, select

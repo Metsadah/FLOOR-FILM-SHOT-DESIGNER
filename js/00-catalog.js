@@ -1310,14 +1310,18 @@ const FIELD_GEO = {titleH:26, rowH:26};
 // Row-based AV script: TIME | AUDIO (what you hear) | VIDEO (what you see),
 // with optional scene-number, still and director-notes columns. The classic
 // free-text two-column AV block grown into the smart-card system.
-const AVS = {titleH:26, headH:22, rowPad:7, lineH:15, minRowH:36, grip:14, stillH:200,
-  w:{no:44, time:64, still:96, audio:215, video:255, notes:170}};
+const AVS = {titleH:30, headH:24, rowPad:7, lineH:17, minRowH:36, grip:14, stillH:140,
+  fontPx:13.5, custW:150, w:{no:44, time:64, still:96, audio:215, video:255, notes:170}};
+// which keys are single-line? everything else (incl. custom columns) wraps
+function avSingle(key){ return key === 'no' || key === 'time'; }
 function avCols(o){
   const c = o.cols || {};
   const S = o.fs || 1; // whole-script scale (A− / A+ in the selection bar)
+  // per-column width overrides (o.colW, unscaled px) come from separator drags
+  const cw = (key, base)=>Math.round(((o.colW && o.colW[key]) || base) * S);
   const out = [];
-  if(c.no) out.push(['no','SC', Math.round(AVS.w.no*S)]);
-  out.push(['time','TIME', Math.round(AVS.w.time*S)]);
+  if(c.no) out.push(['no','SC', cw('no', AVS.w.no)]);
+  out.push(['time','TIME', cw('time', AVS.w.time)]);
   if(c.still){
     // stills column grows with the thumb size AND the fullest row
     const sh = o.stillH || AVS.stillH;
@@ -1326,9 +1330,11 @@ function avCols(o){
     for(const r of (o.rows||[])) maxN = Math.max(maxN, (r.imgs||[]).length);
     out.push(['still','STILLS', 12 + maxN*slot + 22]);
   }
-  out.push(['audio','AUDIO — HEAR', Math.round(AVS.w.audio*S)]);
-  out.push(['video','VIDEO — SEE', Math.round(AVS.w.video*S)]);
-  if(c.notes) out.push(['notes','NOTES', Math.round(AVS.w.notes*S)]);
+  out.push(['audio','AUDIO — HEAR', cw('audio', AVS.w.audio)]);
+  out.push(['video','VIDEO — SEE', cw('video', AVS.w.video)]);
+  for(const cc of (o.customCols || []))
+    out.push([cc.id, (cc.label || 'COLUMN').toUpperCase(), cw(cc.id, AVS.custW)]);
+  if(c.notes) out.push(['notes','NOTES', cw('notes', AVS.w.notes)]);
   return out;
 }
 

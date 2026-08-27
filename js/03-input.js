@@ -508,11 +508,40 @@ cv.addEventListener('pointerdown', e => {
         addAvRow(so);
         return;
       }
+      const ins = (so._rowIns||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
+      if(ins){
+        const nr = {id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgs:[]};
+        so.rows.splice(ins.idx, 0, nr);
+        markDirty(); render();
+        setTimeout(()=>openAvCell(so, nr.id, so.cols && so.cols.no ? 'no' : 'time'), 0);
+        return;
+      }
+      const cdel = (so._colDels||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
+      if(cdel){
+        so.customCols = (so.customCols||[]).filter(c=>c.id !== cdel.colId);
+        if(so.colW) delete so.colW[cdel.colId];
+        markDirty(); render(); refreshSelBar();
+        return;
+      }
       const del = (so._rowDels||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
       if(del){
         so.rows = so.rows.filter(r=>r.id !== del.rowId);
         markDirty(); render(); refreshSelBar();
         return;
+      }
+      // grab a column separator (or the card's right inner edge) to widen a column
+      if(wy >= so.y - so.h/2 + AVS.titleH && wy <= so.y + so.h/2 - 24){
+        const colsA = so._avCols || avCols(so);
+        let sx = so.x - so.w/2 + AVS.grip;
+        for(let ci = 0; ci < colsA.length; ci++){
+          sx += colsA[ci][2];
+          if(colsA[ci][0] === 'still') continue;       // stills width is automatic
+          if(Math.abs(wx - sx) <= 5){
+            drag = {kind:'avcolw', o:so, key:colsA[ci][0], w0:colsA[ci][2], x0:wx,
+                    left:so.x - so.w/2, S:so.fs || 1};
+            return;
+          }
+        }
       }
       const sd = (so._stillDels||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
       if(sd){
@@ -749,6 +778,16 @@ cv.addEventListener('pointermove', e => {
         o.items.splice(idx, 0, row);
         markDirty();
       }
+      break;
+    }
+    case 'avcolw': {
+      // widen / narrow one AV column; the card re-centres, so pin the LEFT edge
+      const o = drag.o;
+      o.colW = o.colW || {};
+      o.colW[drag.key] = Math.round(clamp(drag.w0 + (wx - drag.x0), 40, 800) / drag.S);
+      const total = AVS.grip + avCols(o).reduce((a, c)=>a + c[2], 0);
+      o.x = drag.left + total/2;
+      markDirty();
       break;
     }
     case 'avrow': {
@@ -1452,6 +1491,22 @@ cv.addEventListener('dblclick', e => {
       return;
     }
     if(o.cat === 'avscript'){
+      // dblclick a custom column's header to rename it
+      const hly = wy - o.y + o.h/2;
+      if(hly >= AVS.titleH && hly < AVS.titleH + AVS.headH){
+        const colsH = o._avCols || avCols(o);
+        let cx = o.x - o.w/2 + AVS.grip;
+        for(const [key,,wd] of colsH){
+          if(wx >= cx && wx < cx + wd &&
+             !['no','time','still','audio','video','notes'].includes(key)){
+            const cc = (o.customCols||[]).find(c=>c.id === key);
+            const name = cc && prompt('Column name', cc.label || '');
+            if(name !== null && cc){ cc.label = name.trim() || cc.label; markDirty(); render(); }
+            return;
+          }
+          cx += wd;
+        }
+      }
       const cell = avCellAt(o, wx, wy);
       if(cell && cell.key !== 'still') openAvCell(o, cell.rowId, cell.key);
       return;
