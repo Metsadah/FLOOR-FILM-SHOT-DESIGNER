@@ -303,6 +303,24 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.54 — Safari stale-version fix
+User report: Safari kept loading old versions. ROOT CAUSE: the SW's
+"network-first" `fetch(e.request)` is answered by Safari's own HTTP
+cache before it ever reaches the network — network-first silently
+became stale-first. Fixes:
+1. SW code-like fetches now use `{cache:'no-cache'}` → forced server
+   revalidation (ETag/304 keeps it cheap).
+2. Registration calls `reg.update()` on every launch (Safari is lazy
+   about re-checking the SW script).
+3. `controllerchange` listener: when a NEW SW takes control mid-session
+   (skipWaiting+claim were already in place), toast + one reload —
+   guarded against loops, skipped on first-ever install, and NEVER
+   while `dirty` (no reloading over unsaved work).
+The user-side incantations, for support: Safari Mac = Cmd+Option+R (or
+Shift+click reload); truly stuck = Settings → Privacy → Manage Website
+Data → remove the domain — WARNS: that wipes IndexedDB, so LOCAL-mode
+users must export .floorproj first. iPad PWA: fully close + reopen.
+
 ## v0.53 — two-field password confirm
 Change-password (panel) and the reset-link screen both use the standard
 new + repeat pattern; mismatch and <6 chars are caught client-side

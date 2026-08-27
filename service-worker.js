@@ -5,7 +5,7 @@
 // offline fallback. Icons/manifest are cache-first. Project data lives in
 // IndexedDB / Supabase and is never touched here.
 
-const CACHE = 'floor-shell-v52';
+const CACHE = 'floor-shell-v53';
 const SHELL = [
   './',
   './index.html',
@@ -49,7 +49,10 @@ self.addEventListener('fetch', e => {
 
   if (codeLike) {
     e.respondWith(
-      fetch(e.request)
+      // cache:'no-cache' forces revalidation with the SERVER — without it,
+      // Safari answers this fetch from its own HTTP cache and "network-first"
+      // quietly becomes "stale-first" (the eternal old-version bug)
+      fetch(e.request, {cache: 'no-cache'})
         .then(res => {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, copy));

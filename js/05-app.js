@@ -816,10 +816,24 @@ async function runPDFExport(){
 // ---------------------------------------------------------------- PWA install
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./service-worker.js').catch(err=>{
+    navigator.serviceWorker.register('./service-worker.js').then(reg=>{
+      reg.update(); // check for a fresh shell on every launch (Safari is lazy about this)
+    }).catch(err=>{
       console.warn('[FLOOR] service worker registration failed', err);
     });
   });
+  // a NEW service worker just took control mid-session → the code on screen is
+  // older than what's now cached. Reload once so the user is on the new version.
+  let swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(swReloaded || !navigator.serviceWorker.controller) return;
+    if(!window.__hadSWController){ window.__hadSWController = true; return; } // first install — no reload
+    swReloaded = true;
+    if(typeof dirty !== 'undefined' && dirty) return; // never reload over unsaved work
+    if(typeof toast === 'function') toast('New FLOOR version — refreshing…');
+    setTimeout(()=>location.reload(), 600);
+  });
+  if(navigator.serviceWorker.controller) window.__hadSWController = true;
 }
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e=>{
