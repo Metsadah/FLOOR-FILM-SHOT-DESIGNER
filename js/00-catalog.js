@@ -1334,7 +1334,7 @@ function avCols(o){
   out.push(['video','VIDEO — SEE', cw('video', AVS.w.video)]);
   for(const cc of (o.customCols || []))
     out.push([cc.id, (cc.label || 'COLUMN').toUpperCase(), cw(cc.id, AVS.custW)]);
-  if(c.notes) out.push(['notes','NOTES', cw('notes', AVS.w.notes)]);
+  if(c.notes) out.push(['notes','REGIE NOTES', cw('notes', AVS.w.notes)]);
   return out;
 }
 

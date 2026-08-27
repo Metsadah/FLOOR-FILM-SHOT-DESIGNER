@@ -1365,41 +1365,81 @@ function avPasteOverlay(o){
 // break the AV card down into SCENES — every row (beat) becomes a scene board
 // in the Shot designer, exactly like the film-script breakdown
 function breakDownAvCard(o){
-  const rows = (o.rows||[]).filter(r=>(r.audio||'').trim() || (r.video||'').trim());
+  // v0.58 — the breakdown keys on the SC (scene number) column and SYNCS with
+  // the Shot designer: same number = same scene, re-running updates instead of
+  // duplicating. Row stills join the scene's stills, notes travel as REGIE
+  // lines, and no cards are dropped next to the AV script anymore.
+  const rows = (o.rows||[]).filter(r=>(r.audio||'').trim() || (r.video||'').trim() ||
+    (r.notes||'').trim() || (r.imgs||[]).length);
   if(!rows.length){ toast('No filled rows on this AV script yet'); return; }
-  const durMin = t=>{
+  const durSec = t=>{
     t = String(t||'').trim();
     if(!t) return 0;
     const m = t.match(/^(\d{1,2})[:.](\d{2})$/);
-    if(m) return Math.max(1, Math.ceil((+m[1] + +m[2]/60)));
-    const n = parseInt(t, 10);
-    return n ? Math.max(1, Math.ceil(n/60)) : 0; // bare number = seconds
+    if(m) return (+m[1])*60 + (+m[2]);
+    return parseInt(t, 10) || 0; // bare number = seconds
   };
-  const parsed = rows.map((r, i)=>({
-    heading: (r.video || r.audio).split('\n')[0].slice(0, 60),
-    intExt:'', dayNight:'', characters:[],
-    body: [r.video && 'VIDEO: ' + r.video, r.audio && 'AUDIO: ' + r.audio,
-           r.notes && 'NOTES: ' + r.notes].filter(Boolean).join('\n'),
-  }));
-  const scenes = createScenesFromBreakdown(parsed);
-  scenes.forEach((sc, i)=>{
-    const d = durMin(rows[i].time);
-    if(d) sc.duration = d;
+  // ---- group rows by scene number: same SC = one scene, an empty SC row
+  // continues the scene above it. Rows with no number at all get one WRITTEN
+  // BACK into the card (and the SC column switched on) so the next breakdown
+  // recognises them instead of minting extra scenes.
+  const taken = new Set(project.scenes.map(s=>String(s.scene||'').trim()).filter(Boolean));
+  rows.forEach(r=>{ const n = String(r.no||'').trim(); if(n) taken.add(n); });
+  let nextNo = 1, assigned = false;
+  const freshNo = ()=>{
+    while(taken.has(String(nextNo))) nextNo++;
+    taken.add(String(nextNo));
+    return String(nextNo);
+  };
+  const groups = [], byNo = {};
+  let cur = null;
+  for(const r of rows){
+    let no = String(r.no||'').trim();
+    if(!no && cur){ cur.rows.push(r); continue; } // continuation of the scene above
+    if(!no){ no = freshNo(); r.no = no; assigned = true; }
+    if(byNo[no]){ byNo[no].rows.push(r); cur = byNo[no]; continue; }
+    cur = byNo[no] = {no, rows:[r]};
+    groups.push(cur);
+  }
+  if(assigned){ o.cols = o.cols || {}; o.cols.no = true; }
+  // ---- create or update the scenes
+  const pristine = s => !s.objects.length && !s.walls.length && !s.stills.length &&
+    !s.script && !s.scene && !s.sceneDesc && !(s.shots || []).length &&
+    /^Scene \d+$/.test(s.name || '');
+  let made = 0, updated = 0;
+  groups.forEach(g=>{
+    let sc = project.scenes.find(s=>String(s.scene||'').trim() === g.no);
+    const isNew = !sc;
+    if(isNew){
+      // the untouched newborn "Scene 1" gets replaced instead of joined
+      sc = (project.scenes.length === 1 && pristine(project.scenes[0]))
+        ? project.scenes[0] : null;
+      if(!sc){ sc = newShot(project.scenes.length + 1); project.scenes.push(sc); }
+      sc.scene = g.no;
+      sc.name = 'Sc ' + g.no;
+    }
+    const head = ((g.rows[0].video || g.rows[0].audio || '').split('\n')[0] || '').slice(0, 80);
+    if(isNew || !sc.sceneDesc) sc.sceneDesc = head;
+    sc.script = g.rows.map(r=>[
+      r.video && 'VIDEO: ' + r.video,
+      r.audio && 'AUDIO: ' + r.audio,
+      r.notes && 'REGIE: ' + r.notes,
+    ].filter(Boolean).join('\n')).join('\n\n');
+    const secs = g.rows.reduce((a, r)=>a + durSec(r.time), 0);
+    if(secs) sc.duration = Math.max(1, Math.ceil(secs/60));
+    // references & stills from the rows join the scene's stills (no doubles)
+    for(const r of g.rows) for(const id of (r.imgs||[]))
+      if(!sc.stills.includes(id)) sc.stills.push(id);
+    if(isNew) made++; else updated++;
   });
-  // storyboard rows to the right of the card, like the script-block breakdown
-  const board = activeScene();
-  const x0 = o.x + o.w/2 + 340;
-  let y = o.y - o.h/2 + 60;
-  scenes.forEach((sc, i)=>{
-    board.objects.push({id:uid(), cat:'sbrow', kind:'sbrow',
-      x:x0, y:y + i*140, rot:0, w:560, h:120,
-      title:(sc.scene ? 'Scene ' + sc.scene : sc.name) + (sc.sceneDesc ? ' — ' + sc.sceneDesc : ''),
-      desc:'', imgId:null, sceneId:sc.id,
-      color:COLORS[i % COLORS.length], label:'', path:[]});
-  });
-  markDirty(); render(); refreshSelBar();
-  toast(scenes.length + ' scene' + (scenes.length===1?'':'s') +
-    ' broken down from the AV script — each beat has its own board now');
+  if(!project.activeSceneId && project.scenes.length) project.activeSceneId = project.scenes[0].id;
+  markDirty();
+  buildShotList(); buildInfo(); buildStills();
+  render(); refreshSelBar();
+  const bits = [];
+  if(made) bits.push(made + ' new scene' + (made===1?'':'s'));
+  if(updated) bits.push(updated + ' updated');
+  toast(bits.join(', ') + ' — see the Shot designer scene list');
 }
 
 // ---------------------------------------------------------------- trash can (drop to delete)

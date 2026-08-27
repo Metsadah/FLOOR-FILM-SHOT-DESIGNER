@@ -3,12 +3,30 @@
 // (loaded as classic scripts, in order). True ES modules come with the build step later.
 'use strict';
 // ---------------------------------------------------------------- shots list
+// scene multi-select (SELECT in the side-head): tick scenes, delete them in one go
+let sceneSelMode = false;
+const sceneSelIds = new Set();
 function buildShotList(){
   const list = document.getElementById('shotList');
   list.innerHTML = '';
+  const selBtnEl = document.getElementById('selScenesBtn');
+  if(selBtnEl){
+    selBtnEl.style.background = sceneSelMode ? 'var(--accent-soft)' : '';
+    selBtnEl.style.color = sceneSelMode ? 'var(--accent)' : '';
+  }
   project.scenes.forEach((s, i) => {
     const el = document.createElement('div');
     el.className = 'shot-item' + (s.id === project.activeSceneId ? ' active' : '');
+    if(sceneSelMode){
+      el.innerHTML = `<input type="checkbox" style="pointer-events:none"${sceneSelIds.has(s.id) ? ' checked' : ''}>
+        <span class="num">${i+1}</span><span class="nm">${esc(s.name)}</span>`;
+      el.addEventListener('click', ()=>{
+        if(sceneSelIds.has(s.id)) sceneSelIds.delete(s.id); else sceneSelIds.add(s.id);
+        buildShotList();
+      });
+      list.appendChild(el);
+      return;
+    }
     el.innerHTML = `<span class="num">${i+1}</span><span class="nm">${esc(s.name)}</span>
       <button class="mini" title="Duplicate scene">⧉</button><button class="mini" title="Copy the SET (no cast, no cameras) to a new scene">⌂</button><button class="mini" title="Delete shot">×</button>`;
     el.addEventListener('click', e => {
@@ -105,6 +123,43 @@ function buildShotList(){
     });
     list.appendChild(el);
   });
+  if(sceneSelMode){
+    const bar = document.createElement('div');
+    bar.style.cssText = 'position:sticky;bottom:0;display:flex;gap:5px;padding:7px 4px;' +
+      'background:var(--panel);border-top:1px solid var(--border)';
+    const mk = (label, fn, danger)=>{
+      const b = document.createElement('button');
+      b.className = 'btn';
+      b.style.cssText = 'padding:4px 8px;font-size:10.5px' +
+        (danger ? ';color:#fff;background:var(--danger);border-color:var(--danger)' : '');
+      b.textContent = label;
+      b.addEventListener('click', fn);
+      bar.appendChild(b);
+      return b;
+    };
+    const allOn = sceneSelIds.size === project.scenes.length;
+    mk(allOn ? 'None' : 'All', ()=>{
+      sceneSelIds.clear();
+      if(!allOn) project.scenes.forEach(s=>sceneSelIds.add(s.id));
+      buildShotList();
+    });
+    const db = mk('Delete (' + sceneSelIds.size + ')', ()=>{
+      const n = sceneSelIds.size;
+      if(!n) return;
+      if(!confirm(`Delete ${n} scene${n===1?'':'s'}? This can't be undone.`)) return;
+      project.scenes = project.scenes.filter(s=>!sceneSelIds.has(s.id));
+      if(!project.scenes.length) project.scenes.push(newShot(1));
+      if(!project.scenes.some(s=>s.id === project.activeSceneId))
+        project.activeSceneId = project.scenes[0].id;
+      sceneSelIds.clear(); sceneSelMode = false;
+      sel = null; closeNoteEditor(false); markDirty();
+      buildShotList(); syncTitle(); render(); buildStills(); buildInfo(); refreshSelBar(); syncSunBtn();
+      toast(n + ' scene' + (n===1?'':'s') + ' deleted');
+    }, true);
+    db.disabled = !sceneSelIds.size;
+    mk('Done', ()=>{ sceneSelMode = false; sceneSelIds.clear(); buildShotList(); });
+    list.appendChild(bar);
+  }
 }
 function switchShot(id){
   if(project.activeSceneId === id) return;
@@ -123,6 +178,11 @@ function addMinutes(hhmm, mins){
   const t = (h*60 + m + (mins||0)) % (24*60);
   return String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0');
 }
+document.getElementById('selScenesBtn').addEventListener('click', ()=>{
+  sceneSelMode = !sceneSelMode;
+  sceneSelIds.clear();
+  buildShotList();
+});
 document.getElementById('addShotEnt').addEventListener('click', ()=>addShotEntity());
 document.getElementById('addShot').addEventListener('click', ()=>{
   const prev = activeShot();

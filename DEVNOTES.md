@@ -303,6 +303,31 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.58 — AV breakdown syncs by scene number + scene multi-delete
+breakDownAvCard REWRITTEN (06-tabs): rows group by the SC column (same
+number = one scene, empty SC = continuation of the row above) and the
+breakdown SYNCS with the Shot designer — a scene whose `scene` field
+matches the group number is UPDATED (script always refreshed, sceneDesc
+only if empty, duration = summed row times in SECONDS then ceil'd once,
+row stills appended dedup'd into sc.stills), never duplicated. Rows with
+no number get one minted (skipping every number already used by rows OR
+existing scenes), WRITTEN BACK into r.no, and o.cols.no is switched on —
+that write-back is what makes the next re-run idempotent. User renames
+of matched scenes survive (name untouched on update). The old behaviour
+of dropping sbrow storyboard cards next to the AV card is GONE on
+purpose ("niet meer nodig om er kaarten naast te zetten"). Notes column
+now reads REGIE NOTES (avCols label + selBar toggle); its content joins
+the scene script as REGIE: lines next to VIDEO:/AUDIO:.
+Scene multi-delete: SELECT button in the Scenes side-head (index.html)
+toggles sceneSelMode (05-app) — checkbox rows, sticky footer with
+All/None, Delete (n) (confirm once), Done. Delete repairs
+activeSceneId, never leaves zero scenes, and exits the mode.
+TEST scars: (1) top-level `let project` is NOT window.project — probe
+`project` unqualified, `!!window.project` lies. (2) A browser-pane tab
+can wedge an origin's IndexedDB backend (indexedDB.open never calls
+back, boot hangs on loadProject): switch the test server to a fresh
+port instead of debugging the app.
+
 ## v0.57 — AV script: typography, column widths, insert row/column
 User asks, all AV-script card. Typography hierarchy fixed: title now
 `700 16*S`, column headers `700 14*S`, body `AVS.fontPx` (13.5)*S with

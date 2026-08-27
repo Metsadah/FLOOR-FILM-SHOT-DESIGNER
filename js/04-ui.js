@@ -532,7 +532,7 @@ function refreshSelBar(){
       sbtn('Paste rows…', ()=>avPasteOverlay(o))
         .title = 'Import an AV script copied from Excel / Google Sheets (tab-separated columns)';
       sbtn('Break down → scenes', ()=>breakDownAvCard(o))
-        .title = 'Every filled row becomes a scene board in the Shot designer (+ a storyboard row)';
+        .title = 'Rows become Shot-designer scenes by their SC number — re-running updates them (stills & regie notes travel along)';
       o.cols = o.cols || {no:false, still:false, notes:false};
       const tgl = (label, key)=>sbtn((o.cols[key] ? '✓ ' : '') + label, ()=>{
         o.cols[key] = !o.cols[key];
@@ -540,7 +540,7 @@ function refreshSelBar(){
       });
       tgl('Scene #', 'no');
       tgl('Stills', 'still');
-      tgl('Notes', 'notes');
+      tgl('Regie notes', 'notes');
       sbtn('+ Column', ()=>{
         const name = prompt('Column name', '');
         if(name === null) return;
