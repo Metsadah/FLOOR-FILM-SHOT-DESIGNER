@@ -303,6 +303,11 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.53 — two-field password confirm
+Change-password (panel) and the reset-link screen both use the standard
+new + repeat pattern; mismatch and <6 chars are caught client-side
+before any auth call.
+
 ## v0.52 — account icon top-right + in-panel password change
 1. `#accountBtn` (person SVG) in the topbar-right, hidden by default;
    the 05 init shows it in cloud mode (tooltip = the signed-in email)

@@ -114,6 +114,7 @@
             <div style="color:#8A877F;font-size:12.5px;margin-bottom:4px">
               Set a new password for your account.</div>
             ${field('flPass','password','New password (6+ characters)')}
+            ${field('flPass2','password','Repeat new password')}
             ${btn('flGo','Set password & continue',true)}` :
           /* magiclink */ `
             <div style="color:#8A877F;font-size:12.5px;margin-bottom:4px">
@@ -182,6 +183,8 @@
             : 'Check your inbox for a password reset link and open it on this device.';
         } else if(mode === 'reset'){
           if(!pass || pass.length < 6){ msg().textContent = 'Password needs at least 6 characters.'; return; }
+          const pass2 = el.querySelector('#flPass2')?.value;
+          if(pass !== pass2){ msg().textContent = 'The two passwords don’t match.'; return; }
           msg().textContent = 'Setting password…';
           const {error} = await sb.auth.updateUser({password: pass});
           if(error){ msg().textContent = 'Could not set the password: ' + error.message; return; }
@@ -321,12 +324,15 @@
                     display:flex;flex-direction:column;gap:8px">
           <button id="apPassBtn" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
             padding:9px;font-size:12.5px;cursor:pointer">Change password…</button>
-          <div id="apPassRow" style="display:none;gap:6px">
+          <div id="apPassRow" style="display:none;flex-direction:column;gap:6px">
             <input id="apPass" type="password" placeholder="New password (6+ characters)"
               autocomplete="new-password"
-              style="flex:1;border:1px solid #E5E3DE;border-radius:8px;padding:8px 10px;font-size:12.5px">
+              style="border:1px solid #E5E3DE;border-radius:8px;padding:8px 10px;font-size:12.5px">
+            <input id="apPass2" type="password" placeholder="Repeat new password"
+              autocomplete="new-password"
+              style="border:1px solid #E5E3DE;border-radius:8px;padding:8px 10px;font-size:12.5px">
             <button id="apPassGo" style="background:#4B6BFB;color:#fff;border:none;border-radius:8px;
-              padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer">Set</button>
+              padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer">Set new password</button>
           </div>
           <button id="apExport" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
             padding:9px;font-size:12.5px;cursor:pointer">Download my data (JSON)</button>
@@ -373,18 +379,22 @@
     });
     el.querySelector('#apPassGo')?.addEventListener('click', async ()=>{
       const p = el.querySelector('#apPass').value;
+      const p2 = el.querySelector('#apPass2').value;
       if(!p || p.length < 6){ msg.textContent = 'Password needs at least 6 characters.'; return; }
+      if(p !== p2){ msg.textContent = 'The two passwords don’t match.'; return; }
       msg.textContent = 'Setting password…';
       const {error} = await sb.auth.updateUser({password: p});
       if(error){ msg.textContent = 'Could not set the password: ' + error.message; return; }
       el.querySelector('#apPass').value = '';
+      el.querySelector('#apPass2').value = '';
       el.querySelector('#apPassRow').style.display = 'none';
       msg.textContent = 'Password changed ✓ — use it next time you sign in.';
     });
-    el.querySelector('#apPass')?.addEventListener('keydown', e=>{
-      if(e.key === 'Enter') el.querySelector('#apPassGo').click();
-      e.stopPropagation();
-    });
+    for(const id of ['#apPass', '#apPass2'])
+      el.querySelector(id)?.addEventListener('keydown', e=>{
+        if(e.key === 'Enter') el.querySelector('#apPassGo').click();
+        e.stopPropagation();
+      });
     el.querySelector('#apExport')?.addEventListener('click', async ()=>{
       msg.textContent = 'Collecting your data…';
       try{
