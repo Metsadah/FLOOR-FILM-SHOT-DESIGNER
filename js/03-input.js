@@ -324,7 +324,9 @@ cv.addEventListener('wheel', e => {
   render();
 }, {passive:false});
 
+let lastPenAt = 0; // pencil activity timestamp — powers the palm rejection
 cv.addEventListener('pointerdown', e => {
+  if(e.pointerType === 'pen') lastPenAt = performance.now();
   cv.setPointerCapture(e.pointerId);
   hideCustomPop();
   closeDrawers();
@@ -369,6 +371,9 @@ cv.addEventListener('pointerdown', e => {
     return;
   }
   if(tool === 'draw'){
+    // palm rejection light: while the pencil is writing, a stray touch (the
+    // resting hand) must not start its own stroke
+    if(e.pointerType === 'touch' && performance.now() - lastPenAt < 800) return;
     drag = {kind:'ink', pts:[{x:wx, y:wy}]};
     return;
   }
@@ -634,6 +639,7 @@ cv.addEventListener('pointerdown', e => {
 });
 
 cv.addEventListener('pointermove', e => {
+  if(e.pointerType === 'pen') lastPenAt = performance.now();
   if(ptrs.has(e.pointerId)) ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if(pinch){
     if(ptrs.size >= 2){
@@ -1121,8 +1127,9 @@ cv.addEventListener('pointerup', e => {
         x:(mnx+mxx)/2, y:(mny+mxy)/2, w:Math.max(20,mxx-mnx), h:Math.max(20,mxy-mny),
         rot:0, color:inkColor, weight:inkWeight, label:'', path:[]};
       shot.objects.push(o);
-      sel = {type:'object', id:o.id};
-      markDirty(); refreshSelBar();
+      // NO auto-select: selecting every stroke boxes each letter while you're
+      // handwriting with a pencil — keep the flow, select later with V
+      markDirty();
     }
     drag = null;
     if(histPushed) histSettle();

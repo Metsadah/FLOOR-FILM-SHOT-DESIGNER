@@ -379,6 +379,7 @@
   #selBar{max-width:96vw; flex-wrap:wrap;}
 }
 
+
 /* ---------------- app tabs ---------------- */
 #tabbar{
   display:flex; gap:2px; padding:5px 10px 0;
@@ -579,3 +580,45 @@ body.tab-mood #shotTitle, body.tab-write #shotTitle, body.tab-org #shotTitle{ di
 .helpSec{ display:none; }
 .helpSec.on{ display:block; }
 #verChip{ font-size:10px; color:var(--ink2); letter-spacing:.6px; align-self:center; margin-right:4px; }
+
+/* ---------------- phone (iPhone) — VIEW mode ----------------
+   Small screens reorganise around reading & browsing: compact chrome,
+   icon-only tabs, no drawing toolbar. Pan, pinch, tap and the drawers
+   all keep working; nothing changes for desktop or iPad.
+   (Lives at the END of the file so it wins the cascade.) */
+@media (max-width: 600px){
+  /* the single grid column must never grow past the viewport — otherwise the
+     topbar's min-content width (~460px) widens EVERY row and the whole app
+     scrolls sideways on a 375px phone */
+  #app{ grid-template-columns:minmax(0,1fr); }
+  #topbar{
+    gap:6px; padding:0 8px; overflow:hidden;
+    padding-top:env(safe-area-inset-top); /* PWA under the notch */
+  }
+  .logo, #sceneLbl, #verChip, #helpBtn, #installBtn,
+  #undoBtn, #redoBtn, #setupChips{ display:none !important; }
+  #shotTitle{ flex:1 1 50px; min-width:0; max-width:none; font-size:13px; }
+  #projBtn{
+    padding:5px 8px; font-size:11.5px; max-width:30vw;
+    overflow:hidden; white-space:nowrap; text-overflow:ellipsis; flex:none;
+  }
+  #saveState{ font-size:9.5px; max-width:64px; overflow:hidden; white-space:nowrap; }
+  #shareBtn, #exportBtn{ display:none !important; } /* phones are for viewing */
+  /* icon-only app tabs */
+  #tabbar{ padding:4px 4px 0; justify-content:space-around; }
+  #tabbar button{ font-size:0; padding:9px 12px; flex:1; }
+  #tabbar button svg{ width:21px; height:21px; }
+  /* no drawing tools on a phone — look, pan, zoom, tap */
+  #toolbar, #inkBar{ display:none !important; }
+  /* selection bar: one scrollable strip instead of a half-screen block */
+  #selBar{
+    max-width:100vw; left:0; right:0; border-radius:0;
+    flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom));
+  }
+  #selBar .sbtn{ flex:none; }
+  /* drawers span (almost) the whole phone screen */
+  #sidebar, #rightPanel{ width:88vw; top:96px; }
+  #zoomCtl{ bottom:calc(10px + env(safe-area-inset-bottom)); }
+  #boardCrumb{ max-width:80% !important; }
+}

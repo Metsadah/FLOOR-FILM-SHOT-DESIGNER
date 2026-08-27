@@ -303,6 +303,24 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.56 — iPad pencil flow + iPhone view mode
+Two mobile asks. (1) Pencil: finishing an ink stroke no longer auto-selects
+it (writing a word boxed every letter) — stroke is just pushed, select
+later with V. Plus light palm rejection: a `touch` pointerdown on the draw
+tool is ignored for 800ms after the last `pen` event (`lastPenAt` in
+03-input) so the resting hand doesn't scribble. (2) Phone view mode:
+`@media (max-width:600px)` in styles.css — compact topbar (logo/undo/
+share/export/help/verChip hidden, projBtn ellipsised, shotTitle flexes),
+icon-only tabbar (`font-size:0` + 21px svg), toolbar/inkBar hidden
+(phones are for viewing), selBar = one horizontal scroll strip, drawers
+88vw, safe-area insets. TWO scars: (a) the block MUST live at the END of
+styles.css — the `#tabbar button` base rules come later in the file and
+win the same-specificity cascade, so a mid-file media query silently does
+nothing to them; (b) `#app{grid-template-columns:minmax(0,1fr)}` is
+load-bearing — without it the topbar's min-content (~460px) widens the
+single grid column and EVERY row scrolls sideways on a 375px phone.
+Desktop/iPad ≥601px completely untouched.
+
 ## v0.55 — AV stills 4× bigger
 AVS.stillH default 52 → 200 (user: column too small); size select now
 72/140/200/280 (S/M/L/XL, L = default — keep the `o.stillH||200`
