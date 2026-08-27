@@ -549,8 +549,8 @@ function refreshSelBar(){
         const ss = document.createElement('select');
         ss.title = 'Still size in the script';
         ss.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:#fff;';
-        for(const [v, n] of [[44,'Stills S'],[72,'Stills M'],[110,'Stills L'],[160,'Stills XL']])
-          ss.insertAdjacentHTML('beforeend', `<option value="${v}"${(o.stillH||52)===v?' selected':''}>${n}</option>`);
+        for(const [v, n] of [[72,'Stills S'],[140,'Stills M'],[200,'Stills L'],[280,'Stills XL']])
+          ss.insertAdjacentHTML('beforeend', `<option value="${v}"${(o.stillH||200)===v?' selected':''}>${n}</option>`);
         ss.addEventListener('change', ()=>{ o.stillH = +ss.value; markDirty(); render(); });
         ss.addEventListener('pointerdown', e=>e.stopPropagation());
         selBar.appendChild(ss);

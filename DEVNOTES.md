@@ -303,6 +303,11 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.55 — AV stills 4× bigger
+AVS.stillH default 52 → 200 (user: column too small); size select now
+72/140/200/280 (S/M/L/XL, L = default — keep the `o.stillH||200`
+selected-check in sync with the AVS default).
+
 ## v0.54 — Safari stale-version fix
 User report: Safari kept loading old versions. ROOT CAUSE: the SW's
 "network-first" `fetch(e.request)` is answered by Safari's own HTTP

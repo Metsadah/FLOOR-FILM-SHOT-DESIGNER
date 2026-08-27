@@ -1310,7 +1310,7 @@ const FIELD_GEO = {titleH:26, rowH:26};
 // Row-based AV script: TIME | AUDIO (what you hear) | VIDEO (what you see),
 // with optional scene-number, still and director-notes columns. The classic
 // free-text two-column AV block grown into the smart-card system.
-const AVS = {titleH:26, headH:22, rowPad:7, lineH:15, minRowH:36, grip:14, stillH:52,
+const AVS = {titleH:26, headH:22, rowPad:7, lineH:15, minRowH:36, grip:14, stillH:200,
   w:{no:44, time:64, still:96, audio:215, video:255, notes:170}};
 function avCols(o){
   const c = o.cols || {};
