@@ -333,6 +333,29 @@ function refreshSelBar(){
         fsel.addEventListener('pointerdown', e=>e.stopPropagation());
         selBar.appendChild(fsel);
       }
+      if(o.kind === 'cstand'){
+        // the LED light: wattage (throw scales along) + lantern / dome modifiers
+        const selCss2 = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:#fff;';
+        const ws = document.createElement('select');
+        ws.style.cssText = selCss2;
+        ws.title = 'Light output — the throw scales with it';
+        for(const w of [60, 100, 200, 300, 600, 1200])
+          ws.insertAdjacentHTML('beforeend',
+            `<option value="${w}"${(o.watt || 300) === w ? ' selected' : ''}>${w} W</option>`);
+        ws.addEventListener('change', ()=>{ o.watt = +ws.value; markDirty(); render(); });
+        ws.addEventListener('pointerdown', e=>e.stopPropagation());
+        selBar.appendChild(ws);
+        const ms = document.createElement('select');
+        ms.style.cssText = selCss2;
+        ms.title = 'Modifier — a lantern throws all around, a dome softens & widens';
+        for(const [v, n] of [['', 'Direct (bare)'], ['lantern', 'Lantern'],
+                             ['dome100', 'Dome 100 cm'], ['dome150', 'Dome 150 cm']])
+          ms.insertAdjacentHTML('beforeend',
+            `<option value="${v}"${(o.lmod || '') === v ? ' selected' : ''}>${n}</option>`);
+        ms.addEventListener('change', ()=>{ o.lmod = ms.value || null; markDirty(); render(); refreshSelBar(); });
+        ms.addEventListener('pointerdown', e=>e.stopPropagation());
+        selBar.appendChild(ms);
+      }
       sbtn(o.beam === false ? (LIGHT_BEAMS[o.kind].haze ? 'Haze: off' : 'Beam: off')
                             : (LIGHT_BEAMS[o.kind].haze ? 'Haze: on' : 'Beam: on'), ()=>{
         o.beam = o.beam === false;
@@ -1055,7 +1078,7 @@ function editorSetValue(o, field, v){
   if(field && field.startsWith('avr:')){
     const [,rid,key] = field.split(':');
     const r = (o.rows||[]).find(x=>x.id===rid);
-    if(r) r[key] = (key==='time' || key==='no') ? v.replace(/\n/g,' ').trim() : v;
+    if(r) r[key] = (key==='time' || key==='dur' || key==='no') ? v.replace(/\n/g,' ').trim() : v;
     return;
   }
   if(field && field.startsWith('cc:')){
@@ -1186,6 +1209,7 @@ function avCellAt(o, wx, wy){
 }
 function openAvCell(o, rowId, key){
   const G = AVS;
+  if(key === 'time') key = 'dur'; // TIME is computed — edits go to the SEC cell
   const cols = o._avCols || avCols(o);
   const hs = o._rowHs || [];
   const ri = o.rows.findIndex(r=>r.id===rowId);
@@ -1198,11 +1222,11 @@ function openAvCell(o, rowId, key){
     {x:x0+3, y:yTop+2, w:wd-6, h:(hs[ri]||G.minRowH)-4}, +(G.fontPx*(o.fs||1)).toFixed(1));
 }
 function addAvRow(o, openIt){
-  o.rows.push({id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgId:null});
+  o.rows.push({id:uid(), no:'', time:'', dur:'', audio:'', video:'', notes:'', imgId:null});
   markDirty(); render();
   if(openIt !== false){
     const r = o.rows[o.rows.length-1];
-    setTimeout(()=>openAvCell(o, r.id, o.cols && o.cols.no ? 'no' : 'time'), 0);
+    setTimeout(()=>openAvCell(o, r.id, o.cols && o.cols.no ? 'no' : 'dur'), 0);
   }
 }
 
@@ -1386,11 +1410,12 @@ function openNoteEditor(o, field, rect, fs){
     }
     if(fld.startsWith('avr:')){
       const [,rid,key] = fld.split(':');
-      const single = key === 'time' || key === 'no';
-      // Enter = newline in the text cells; Tab (or Enter in time/sc) navigates
+      const single = key === 'dur' || key === 'no';
+      // Enter = newline in the text cells; Tab (or Enter in sec/sc) navigates
       if(e.key === 'Tab' || (e.key === 'Enter' && single)){
         e.preventDefault();
-        const keys = (o._avCols || avCols(o)).map(c=>c[0]).filter(k=>k !== 'still');
+        const keys = (o._avCols || avCols(o)).map(c=>c[0])
+          .filter(k=>k !== 'still' && k !== 'time'); // time is computed
         let ri = o.rows.findIndex(r=>r.id === rid);
         let ci = keys.indexOf(key);
         closeNoteEditor(true);

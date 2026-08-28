@@ -418,7 +418,7 @@ const PROPS = {
     ctx.beginPath(); ctx.arc(w*.26,-h*.14,w*.15,rad(200),rad(340)); ctx.stroke();
   }},
   // ---- grip & light ----
-  cstand:{w:45,h:45,name:'C-stand light',round:1,draw(ctx,w,h,c){
+  cstand:{w:45,h:45,name:'LED light',round:1,draw(ctx,w,h,c){
     const r=Math.min(w,h)/2;
     ctx.strokeStyle=c;
     ctx.beginPath(); ctx.arc(0,0,r*.6,0,7); ctx.fillStyle=c; ctx.globalAlpha=.3; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
@@ -1189,6 +1189,7 @@ const CATS = [
 // o.beamRange (set by dragging the amber beam handles), o.beam === false hides.
 const BEAM_TINT = '255,206,64'; // yellowish stage light
 const LIGHT_BEAMS = {
+  cstand:       {spread:40,  range:320, axis:0,           tint:BEAM_TINT}, // LED COB on a stand
   fresnel:      {spread:34,  range:330, axis:0,           tint:BEAM_TINT},
   hmi:          {spread:38,  range:400, axis:0,           tint:BEAM_TINT},
   kino:         {spread:85,  range:210, axis:Math.PI/2,   tint:BEAM_TINT},
@@ -1205,6 +1206,18 @@ const LIGHT_BEAMS = {
 };
 // beam softening per diffusion choice (spread widens, intensity drops)
 const DIFF_F = {opal:{sp:1.08, a:.85}, half:{sp:1.16, a:.7}, full:{sp:1.25, a:.55}};
+// the LED light (kind cstand): wattage scales the throw, a lantern turns it
+// omni, a dome (100 / 150 cm softbox) widens and softens the beam
+function cstandBeam(o){
+  const wf = Math.sqrt((o.watt || 300) / 300);
+  if(o.lmod === 'lantern')
+    return {omni: Math.round(120*wf), tint:BEAM_TINT};
+  if(o.lmod === 'dome100')
+    return {spread:58, range:Math.round(280*wf), axis:0, tint:BEAM_TINT, soft:.75};
+  if(o.lmod === 'dome150')
+    return {spread:66, range:Math.round(260*wf), axis:0, tint:BEAM_TINT, soft:.65};
+  return {spread:40, range:Math.round(320*wf), axis:0, tint:BEAM_TINT};
+}
 // '#rrggbb' → 'r,g,b' (the beam gradients want raw components)
 function hexRgb(h){
   const n = parseInt(String(h).replace('#',''), 16);
@@ -1311,9 +1324,20 @@ const FIELD_GEO = {titleH:26, rowH:26};
 // with optional scene-number, still and director-notes columns. The classic
 // free-text two-column AV block grown into the smart-card system.
 const AVS = {titleH:30, headH:24, rowPad:7, lineH:17, minRowH:36, grip:14, stillH:140,
-  fontPx:13.5, custW:150, w:{no:44, time:64, still:96, audio:215, video:255, notes:170}};
+  fontPx:13.5, custW:150, w:{no:44, time:58, dur:52, still:96, audio:215, video:255, notes:170}};
 // which keys are single-line? everything else (incl. custom columns) wraps
-function avSingle(key){ return key === 'no' || key === 'time'; }
+function avSingle(key){ return key === 'no' || key === 'time' || key === 'dur'; }
+// shot length: "30", "30s" or "0:30" → seconds
+function avDurSec(t){
+  t = String(t || '').trim();
+  if(!t) return 0;
+  const m = t.match(/^(\d{1,2})[:.](\d{2})$/);
+  if(m) return (+m[1])*60 + (+m[2]);
+  return parseInt(t, 10) || 0;
+}
+function avFmtTime(sec){
+  return Math.floor(sec/60) + ':' + String(sec % 60).padStart(2, '0');
+}
 function avCols(o){
   const c = o.cols || {};
   const S = o.fs || 1; // whole-script scale (A− / A+ in the selection bar)
@@ -1321,7 +1345,10 @@ function avCols(o){
   const cw = (key, base)=>Math.round(((o.colW && o.colW[key]) || base) * S);
   const out = [];
   if(c.no) out.push(['no','SC', cw('no', AVS.w.no)]);
+  // TIME adds the SEC durations up (start time per shot, computed); SEC is
+  // the editable shot length in seconds
   out.push(['time','TIME', cw('time', AVS.w.time)]);
+  out.push(['dur','SEC', cw('dur', AVS.w.dur)]);
   if(c.still){
     // stills column grows with the thumb size AND the fullest row
     const sh = o.stillH || AVS.stillH;

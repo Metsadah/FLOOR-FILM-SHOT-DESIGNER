@@ -303,6 +303,41 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.60 — SEC/TIME columns, "old" scenes, camera frames, LED light
+Four asks in one release.
+(1) AV timing: the old TIME column was really a duration → split. SEC
+(key 'dur') is the editable shot length ("30", "30s" or "0:30" —
+avDurSec in 00-catalog parses all three); TIME (key 'time') is COMPUTED
+each render as the running start time (avFmtTime). Renderer migration:
+`r.dur === undefined → r.dur = r.time` once, then r.time is overwritten
+every render. Time cells are not editable — openAvCell redirects
+'time'→'dur', Tab-keys filter drops 'time'. SCARS: any "is this row
+blank" check must use dur, NOT time (time is always "0:00"+ now — the
+paste-overlay's pristine check bit this); breakdown durations read
+`r.dur !== undefined ? r.dur : r.time` for unmigrated JSON.
+(2) Breakdown safety: updates never touched sc.shots/objects (still
+true), and scenes whose number VANISHED from the script are kept and
+renamed `<name> old` (guard: skip names already ending in "old" —
+re-runs must not stack " old old"). Their numbers stay in `taken`, so
+a later new beat can't silently steal an old scene's number.
+(3) Cameras: the label chip now composes shot name (looked up in
+activeShot().shots by o.shotId) · label · framing · lens "35mm" ·
+support; chips were already draggable (drag kind 'label'). Dragging a
+board image onto a camera (<55 world units) sets cam.imgId — the
+existing director's-viewfinder frame — and consumes the image card;
+the branch sits BEFORE the AV-row image-drop in pointerup, as an
+if/else chain (an early return there would skip the shared drag
+cleanup at the bottom of pointerup).
+(4) kind 'cstand' is now the LED light: renamed, given a LIGHT_BEAMS
+entry, and the renderer swaps in cstandBeam(o) — wattage (o.watt,
+60→1200, default 300) scales throw by sqrt(watt/300); o.lmod
+'lantern' → omni, 'dome100'/'dome150' → wider+softer beam (beam.soft
+multiplies alpha) + dashed dome circle on the icon (50/75 r).
+selBar: watt + modifier selects, cstand-gated inside the light block.
+TEST scar: a hand-made test camera without `range` NaN-poisons
+contentBounds → zoomFit → "NaN%" zoom. Not a product bug — library
+cameras always carry range. Give test cameras range+fov.
+
 ## v0.59 — multiple films per production + script→AV bridge
 A production can hold several scripts, each with its own breakdown, and
 scene numbers repeat across films ("twee keer scene 1"). The FILM NAME

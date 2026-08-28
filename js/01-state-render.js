@@ -1561,6 +1561,11 @@ function drawObjectShape(o, ghost){
     o.rows = (o.rows && o.rows.length) ? o.rows
       : [{id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgs:[]}];
     o.rows.forEach(r=>{ if(!r.imgs) r.imgs = r.imgId ? [r.imgId] : []; }); // v0.50 migration
+    // v0.60: TIME split into SEC (editable shot length) + TIME (adds up) —
+    // an old time value was really a duration, so it moves to dur once
+    o.rows.forEach(r=>{ if(r.dur === undefined){ r.dur = r.time || ''; } });
+    let runSec = 0;
+    o.rows.forEach(r=>{ r.time = avFmtTime(runSec); runSec += avDurSec(r.dur); });
     o.cols = o.cols || {no:false, still:false, notes:false};
     const cols = avCols(o);
     o._avCols = cols;
@@ -1694,9 +1699,9 @@ function drawObjectShape(o, ghost){
             lines.forEach((l, li)=> ctx.fillText(l, x0 + 8, yTop + G.rowPad + 12.5*S + li*G.lineH*S));
             ctx.textBaseline = 'middle';
           } else {
-            ctx.fillStyle = v ? '#33322E' : 'rgba(74,70,54,.3)';
+            ctx.fillStyle = (v && !(key === 'time')) ? '#33322E' : (key === 'time' ? '#8A877F' : 'rgba(74,70,54,.3)');
             ctx.font = '600 ' + (G.fontPx*S) + 'px -apple-system,Segoe UI,sans-serif';
-            ctx.fillText(trimText(ctx, v || (key==='time' ? '0:00' : '#'), wd - 12), x0 + 8, yTop + rh/2 + .5);
+            ctx.fillText(trimText(ctx, v || (key==='time' ? '0:00' : key==='dur' ? 's' : '#'), wd - 12), x0 + 8, yTop + rh/2 + .5);
           }
         }
         x0 += wd;
@@ -2604,7 +2609,8 @@ function drawObjectShape(o, ghost){
       : null;
     // lights throw a beam / glow (under the icon); Beam toggle in selBar,
     // amber handles adjust spread + throw (stored as o.beamSpread/o.beamRange)
-    const beam = (!def && o.beam !== false) ? LIGHT_BEAMS[o.kind] : null;
+    let beam = (!def && o.beam !== false) ? LIGHT_BEAMS[o.kind] : null;
+    if(beam && o.kind === 'cstand') beam = cstandBeam(o); // wattage + lantern/dome
     if(beam && !ghost){
       const selMe = sel && sel.type==='object' && sel.id===o.id;
       ctx.save();
@@ -2612,6 +2618,7 @@ function drawObjectShape(o, ghost){
       const df = DIFF_F[o.diff] || null;
       let {tint, a: a0} = beamTintFor(o, beam);
       if(df) a0 *= df.a;
+      if(beam.soft) a0 *= beam.soft;
       if(beam.omni){
         const rg = o.beamRange || beam.omni;
         const g = ctx.createRadialGradient(0,0,6, 0,0,rg);
@@ -2648,12 +2655,33 @@ function drawObjectShape(o, ghost){
         o.hob === null ? null : (o.hob ?? .72));
     } else
     (def ? PROPS.custom.draw : (PROPS[o.kind]||PROPS.custom).draw)(ctx, o.w, o.h, o.color, def);
+    if(o.kind === 'cstand' && o.lmod && !def){
+      // the modifier shows on the icon: paper lantern ball or softbox dome
+      ctx.save();
+      ctx.strokeStyle = o.color; ctx.fillStyle = o.color;
+      if(o.lmod === 'lantern'){
+        ctx.globalAlpha = .22; ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7); ctx.fill();
+        ctx.globalAlpha = .9; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7); ctx.stroke();
+      } else {
+        const r = o.lmod === 'dome150' ? 75 : 50; // 150 / 100 cm dome
+        ctx.globalAlpha = .1; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+        ctx.globalAlpha = .5; ctx.lineWidth = 1.2; ctx.setLineDash([6, 5]);
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      }
+      ctx.restore();
+    }
   }
   ctx.restore();
   // todo + avscript already show their label in the title strip — no floating chip
   const chipText = !ghost && !['note','text','link','todo','avscript'].includes(o.cat)
     ? (o.cat==='camera'
-        ? [o.label, o.framing, o.support].filter(Boolean).join(' \u00b7 ')
+        ? (()=>{ // camera chips carry the SHOT and the focal length too
+            const sh = o.shotId && typeof activeShot === 'function'
+              ? ((activeShot().shots || []).find(x=>x.id === o.shotId) || null) : null;
+            return [sh && sh.name, o.label, o.framing, o.lens ? o.lens + 'mm' : null,
+                    o.support].filter(Boolean).join(' \u00b7 ');
+          })()
         : o.label)
     : '';
   if(chipText){

@@ -974,7 +974,7 @@ function avTableFromScript(o){
   // duplicating; otherwise plain 1..n
   const prev = project.scenes.filter(s=>s.filmSrc === o.id);
   const rows = parsed.map((s, i)=>({id:uid(),
-    no: prev[i] ? String(prev[i].scene || (i + 1)) : String(i + 1), time:'',
+    no: prev[i] ? String(prev[i].scene || (i + 1)) : String(i + 1), time:'', dur:'',
     audio:'', video:(s.heading ? s.heading + '\n' : '') + (s.body || ''),
     notes:'', imgs:[]}));
   const card = {id:uid(), cat:'avscript', kind:'avscript',
@@ -1375,16 +1375,17 @@ function avPasteOverlay(o){
     for(const line of lines){
       let cells = line.includes('\t') ? line.split('\t') : line.split(/\s{2,}|\s\|\s/);
       cells = cells.map(c=>c.trim());
-      let time = '';
-      if(cells.length > 1 && isTime(cells[0])) time = cells.shift();
+      let dur = '';
+      if(cells.length > 1 && isTime(cells[0])) dur = cells.shift();
       const a = cells.length > 1 ? (vFirst ? cells[1] : cells[0]) : '';
       const v = cells.length > 1 ? (vFirst ? cells[0] : cells[1]) : cells[0] || '';
       if(!a && !v) continue;
-      made.push({id:uid(), no:'', time, audio:a, video:v, notes:'', imgId:null});
+      made.push({id:uid(), no:'', time:'', dur, audio:a, video:v, notes:'', imgId:null});
     }
     if(!made.length){ el.querySelector('#avPasteMsg').textContent = 'Could not find any rows in that.'; return; }
     // pristine starter rows get replaced; otherwise the import appends
-    const blank = r=>!((r.no||'')+(r.time||'')+(r.audio||'')+(r.video||'')+(r.notes||'')).trim();
+    // NB: r.time is computed (always "0:00"+) — dur is the editable one
+    const blank = r=>!((r.no||'')+(r.dur||'')+(r.audio||'')+(r.video||'')+(r.notes||'')).trim();
     if((o.rows||[]).every(blank)) o.rows = made;
     else o.rows = o.rows.concat(made);
     markDirty(); render(); refreshSelBar();
@@ -1403,13 +1404,7 @@ function breakDownAvCard(o){
   const rows = (o.rows||[]).filter(r=>(r.audio||'').trim() || (r.video||'').trim() ||
     (r.notes||'').trim() || (r.imgs||[]).length);
   if(!rows.length){ toast('No filled rows on this AV script yet'); return; }
-  const durSec = t=>{
-    t = String(t||'').trim();
-    if(!t) return 0;
-    const m = t.match(/^(\d{1,2})[:.](\d{2})$/);
-    if(m) return (+m[1])*60 + (+m[2]);
-    return parseInt(t, 10) || 0; // bare number = seconds
-  };
+  const durSec = r => avDurSec(r.dur !== undefined ? r.dur : r.time); // SEC column (pre-v0.60: time)
   // ---- which film is this? A production can hold several scripts; scenes
   // group under the card's label in the Shot designer, and numbering/matching
   // stays INSIDE the film — two films can both have a scene 1.
@@ -1480,12 +1475,23 @@ function breakDownAvCard(o){
       r.audio && 'AUDIO: ' + r.audio,
       r.notes && 'REGIE: ' + r.notes,
     ].filter(Boolean).join('\n')).join('\n\n');
-    const secs = g.rows.reduce((a, r)=>a + durSec(r.time), 0);
+    const secs = g.rows.reduce((a, r)=>a + durSec(r), 0);
     if(secs) sc.duration = Math.max(1, Math.ceil(secs/60));
     // references & stills from the rows join the scene's stills (no doubles)
     for(const r of g.rows) for(const id of (r.imgs||[]))
       if(!sc.stills.includes(id)) sc.stills.push(id);
     if(isNew) made++; else updated++;
+  });
+  // a scene that vanished from the script is NOT deleted — prepared boards,
+  // shots and stills are precious. It gets marked "old" instead.
+  let retired = 0;
+  const liveNos = new Set(groups.map(g=>g.no));
+  project.scenes.forEach(s=>{
+    if(mine(s) && String(s.scene||'').trim() && !liveNos.has(String(s.scene||'').trim()) &&
+       !/\bold$/i.test(s.name || '')){
+      s.name = (s.name || ('Sc ' + s.scene)) + ' old';
+      retired++;
+    }
   });
   if(!project.activeSceneId && project.scenes.length) project.activeSceneId = project.scenes[0].id;
   markDirty();
@@ -1494,6 +1500,7 @@ function breakDownAvCard(o){
   const bits = [];
   if(made) bits.push(made + ' new scene' + (made===1?'':'s'));
   if(updated) bits.push(updated + ' updated');
+  if(retired) bits.push(retired + ' no longer in the script — kept as "old"');
   toast(bits.join(', ') + ' — see the Shot designer scene list');
 }
 

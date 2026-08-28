@@ -1295,10 +1295,20 @@ cv.addEventListener('pointerup', e => {
   // stills (the image card moves INTO the table); on a storyboard row → frame
   if(drag.kind === 'move' && drag.o.cat === 'image' && drag.o.imgId){
     const im = drag.o;
-    const av = [...shot.objects].reverse().find(ob=>ob.cat === 'avscript' && ob.id !== im.id &&
-      Math.abs(im.x - ob.x) <= ob.w/2 && Math.abs(im.y - ob.y) <= ob.h/2);
+    // dropped on a camera → it becomes that camera's viewfinder frame
+    const cam = shot.objects.find(ob=>ob.cat === 'camera' &&
+      dist(im.x, im.y, ob.x, ob.y) < 55);
+    const av = cam ? null
+      : [...shot.objects].reverse().find(ob=>ob.cat === 'avscript' && ob.id !== im.id &&
+        Math.abs(im.x - ob.x) <= ob.w/2 && Math.abs(im.y - ob.y) <= ob.h/2);
     const row = (av && typeof avRowAt === 'function') ? avRowAt(av, im.y) : null;
-    if(av && row){
+    if(cam){
+      cam.imgId = im.imgId;
+      shot.objects = shot.objects.filter(x=>x.id !== im.id);
+      sel = {type:'object', id:cam.id};
+      toast('Frame attached to the camera — drag the frame card to reposition it');
+      markDirty(); render(); refreshSelBar();
+    } else if(av && row){
       row.imgs = row.imgs || [];
       row.imgs.push(im.imgId);
       av.cols.still = true;
