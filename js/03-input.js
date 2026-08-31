@@ -170,22 +170,29 @@ function linePts(o){
   return pts;
 }
 function hitObject(shot, wx, wy){
-  for(let i = shot.objects.length-1; i >= 0; i--){
-    const o = shot.objects[i];
-    if(o.kind === 'track') continue;
+  const test = o => {
+    if(o.kind === 'track') return false;
     if(o.cat === 'line'){
       const thr = Math.max(10/view.scale, (o.weight||3)/2 + 6);
       const lp = linePts(o);
       for(let j=0;j<lp.length-1;j++)
-        if(ptSeg(wx,wy,lp[j].x,lp[j].y,lp[j+1].x,lp[j+1].y).d <= thr) return o;
-      continue;
+        if(ptSeg(wx,wy,lp[j].x,lp[j].y,lp[j+1].x,lp[j+1].y).d <= thr) return true;
+      return false;
     }
     const c = Math.cos(-o.rot), s = Math.sin(-o.rot);
     const dx = wx-o.x, dy = wy-o.y;
     const lx = dx*c - dy*s, ly = dx*s + dy*c;
     const pad = 6/view.scale;
-    if(Math.abs(lx) <= o.w/2+pad && Math.abs(ly) <= o.h/2+pad) return o;
-  }
+    return Math.abs(lx) <= o.w/2+pad && Math.abs(ly) <= o.h/2+pad;
+  };
+  // cast & cameras first: they draw on top and must stay clickable even when
+  // a rug, image or big card covers them
+  for(const prio of [true, false])
+    for(let i = shot.objects.length-1; i >= 0; i--){
+      const o = shot.objects[i];
+      if((o.cat === 'actor' || o.cat === 'camera') !== prio) continue;
+      if(test(o)) return o;
+    }
   return null;
 }
 function hitTrack(shot, wx, wy){
@@ -590,6 +597,20 @@ cv.addEventListener('pointerdown', e => {
     drag = {kind:'sunMove', su, ox:su.x-wx, oy:su.y-wy};
     refreshSelBar(); render();
     return;
+  }
+  // a camera's / actor's movement points are grabbable WITHOUT selecting the
+  // owner first — clicking one selects it and drags the point right away
+  const wpR = (H_R + 4)/view.scale;
+  for(let wi = shot.objects.length-1; wi >= 0; wi--){
+    const wo = shot.objects[wi];
+    if((wo.cat !== 'camera' && wo.cat !== 'actor') || wo.locked || !(wo.path||[]).length) continue;
+    const pi = wo.path.findIndex(p=>dist(wx, wy, p.x, p.y) <= wpR);
+    if(pi > -1){
+      sel = {type:'object', id:wo.id};
+      drag = {kind:'point', o:wo, i:pi};
+      refreshSelBar(); render();
+      return;
+    }
   }
   const obj = hitObject(shot, wx, wy);
   // grouped items: a click on any member selects & moves the whole group

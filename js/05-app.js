@@ -52,7 +52,7 @@ function buildShotList(){
       return;
     }
     el.innerHTML = `<span class="num">${i+1}</span><span class="nm">${esc(s.name)}</span>
-      <button class="mini" title="Duplicate scene">⧉</button><button class="mini" title="Copy the SET (no cast, no cameras) to a new scene">⌂</button><button class="mini" title="Delete shot">×</button>`;
+      <button class="mini" title="Duplicate scene">⧉</button><button class="mini" title="Copy the SET (no cast, no cameras) to a new scene">⌂</button><button class="mini" title="Copy the SET (no cast, no cameras) into the NEXT scene">⇣</button><button class="mini" title="Delete shot">×</button>`;
     el.addEventListener('click', e => {
       if(e.target.classList.contains('mini')) return;
       switchShot(s.id);
@@ -110,7 +110,27 @@ function buildShotList(){
       inp.addEventListener('blur', done);
       inp.addEventListener('keydown', ev => { if(ev.key==='Enter') inp.blur(); ev.stopPropagation(); });
     });
-    const [dupB, setB, delB] = el.querySelectorAll('.mini');
+    const [dupB, setB, nextB, delB] = el.querySelectorAll('.mini');
+    // the SET travels into the scene BELOW (walls + props, no cast/cameras) —
+    // for when the next scene already exists (say, from a breakdown)
+    nextB.addEventListener('click', e => {
+      e.stopPropagation();
+      const nxt = project.scenes[i+1];
+      if(!nxt){ toast('No next scene — ⌂ copies the set into a new one'); return; }
+      const walls = JSON.parse(JSON.stringify(s.walls || []));
+      const objs = JSON.parse(JSON.stringify(
+        (s.objects || []).filter(ob=>ob.cat !== 'camera' && ob.cat !== 'actor')));
+      const gidMap = {};
+      const regrp = x => { if(x.grp) x.grp = gidMap[x.grp] || (gidMap[x.grp] = 'g' + uid()); };
+      walls.forEach(w=>{ w.id = uid(); (w.openings||[]).forEach(op=>op.id = uid()); regrp(w); });
+      objs.forEach(ob=>{ ob.id = uid(); ob.shotId = null; ob.mount = null; ob.rail = null; regrp(ob); });
+      nxt.walls.push(...walls);
+      nxt.objects.push(...objs);
+      if(!nxt.sun && s.sun) nxt.sun = JSON.parse(JSON.stringify(s.sun));
+      markDirty();
+      if(nxt.id === project.activeSceneId) render();
+      toast('Set copied into "' + nxt.name + '" — cast & cameras stayed behind');
+    });
     dupB.addEventListener('click', e => {
       e.stopPropagation();
       const n = JSON.parse(JSON.stringify(s));
@@ -734,7 +754,10 @@ document.getElementById('exportBtn').addEventListener('click', ()=>showExportPop
 
 // ---- PDF shot list ----
 function pdfEsc(s){
-  return String(s).replace(/[\\()]/g, m=>'\\'+m).replace(/[^\x20-\xFF]/g,'?');
+  return String(s)
+    .replace(/[—–]/g, '-').replace(/[’‘]/g, "'").replace(/[“”]/g, '"')
+    .replace(/…/g, '...')
+    .replace(/[\\()]/g, m=>'\\'+m).replace(/[^\x20-\xFF]/g,'?');
 }
 function pdfWrap(s, n){
   const out=[];

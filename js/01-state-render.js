@@ -778,8 +778,11 @@ function render(){
   for(const o of shot.objects) if(o.path && o.path.length && o.kind!=='track') drawPath(o);
   framePoses = {};
   const animT = (typeof anim !== 'undefined' && anim.playing) ? animProgress() : 0;
-  for(const o of shot.objects){
+  // cast & cameras draw LAST — they must never disappear under set pieces
+  const onTop = o => o.cat === 'actor' || o.cat === 'camera';
+  for(const pass of [0, 1]) for(const o of shot.objects){
     if(o.cat==='image' && o.underlay) continue;
+    if(onTop(o) !== !!pass) continue;
     drawObject((typeof anim !== 'undefined' && anim.playing) ? poseOf(o, shot, animT) : o);
   }
   drawSun(shot);

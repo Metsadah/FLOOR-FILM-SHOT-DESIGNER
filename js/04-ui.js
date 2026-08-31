@@ -573,8 +573,8 @@ function refreshSelBar(){
         .title = 'Import an AV script copied from Excel / Google Sheets (tab-separated columns)';
       sbtn('Break down → scenes', ()=>breakDownAvCard(o))
         .title = 'Rows become Shot-designer scenes by their SC number — re-running updates them (stills & regie notes travel along)';
-      sbtn('PDF', ()=>exportAvPDF(o)).title = 'Export this AV script as a PDF';
-      sbtn('.doc', ()=>exportAvDoc(o)).title = 'Export this AV script as a Word table (stills included)';
+      sbtn('PDF', ()=>exportAvPDF(o)).title = 'Export this AV script as a PDF table — the board’s columns, stills included';
+      sbtn('.docx', ()=>exportAvDocx(o)).title = 'Export this AV script as a Word table (opens in Word & Pages, stills included)';
       o.cols = o.cols || {no:false, still:false, notes:false};
       const tgl = (label, key)=>sbtn((o.cols[key] ? '✓ ' : '') + label, ()=>{
         o.cols[key] = !o.cols[key];
@@ -708,7 +708,7 @@ function refreshSelBar(){
         setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
       });
       sbtn('PDF', ()=>exportScriptPDF(o)).title = 'Export this script as a PDF';
-      sbtn('.doc', ()=>exportScriptDoc(o)).title = 'Export this script as a Word document';
+      sbtn('.docx', ()=>exportScriptDocx(o)).title = 'Export this script as a Word document (opens in Word & Pages)';
     }
     if(o.cat === 'sbrow'){
       sbtn('+ Row below', ()=>addSbRowBelow(o));

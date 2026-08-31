@@ -303,6 +303,31 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.62 — cast/cameras on top, direct waypoints, set→next, real exports
+(1) Actors + cameras ALWAYS win: render() draws them in a second pass
+(onTop), and hitObject() got a prio loop (actors/cameras tested before
+everything else) — an actor under a rug/image/card stays clickable.
+(2) Movement points are grabbable WITHOUT selecting the owner: a
+pointerdown scan (before hitObject) checks every camera/actor's
+o.path points within (H_R+4)/scale and starts drag kind 'point'
+directly, selecting the owner. Selected-object handles still win
+(hitHandle runs earlier).
+(3) Scene list: 4th mini button ⇣ merges the SET (walls + props, no
+cast/cameras, sun if target has none) into the NEXT scene — fresh ids,
+grp remapped per copy so repeat-copies don't cross-group.
+(4) Exports REWRITTEN after Pages refused HTML-as-.doc: real .docx =
+STORED zip (hand-rolled: CRC32 table + local/central headers in
+zipBlob) of OOXML parts (docxBlob: [Content_Types], _rels/.rels,
+document.xml + rels, media/*). AV .docx = landscape w:tbl with the
+BOARD's columns (avCols order incl. custom) + stills as wp:inline
+images (EMU = px*9525, rels rImgN). Validated with unzip -t, xmllint
+AND `textutil -convert txt` (Apple's own importer = the Pages code
+path). AV PDF also rewritten: A4-landscape TABLE mirroring the board
+(column widths = avCols scaled to page, wrapped cells, JPEG stills as
+DCTDecode XObjects, header repeats per page); proven by rendering with
+`qlmanage -t`. pdfEsc now maps — – ’ ‘ “ ” … to Latin-1 lookalikes
+instead of '?'. Script exports: textPDF (portrait) + exportScriptDocx.
+
 ## v0.61 — group/ungroup + script/AV exports (PDF & Word)
 Grouping: `o.grp` / `w.grp` (shared gid, 'g'+uid()) on objects AND
 walls. A pointerdown on any member (object, track, wall — three hooks

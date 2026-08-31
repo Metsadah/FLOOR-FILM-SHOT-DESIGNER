@@ -1016,12 +1016,111 @@ function textPDF(title, blocks){
   for(let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 0xFF;
   return new Blob([bytes], {type:'application/pdf'});
 }
-// Word-compatible .doc = an HTML file with the msword mime type
-function docBlob(title, bodyHtml){
-  const html = '\ufeff<html xmlns:w="urn:schemas-microsoft-com:office:word"><head>' +
-    '<meta charset="utf-8"><title>' + esc(title) + '</title></head>' +
-    '<body style="font-family:Helvetica,Arial,sans-serif;font-size:11pt">' + bodyHtml + '</body></html>';
-  return new Blob([html], {type:'application/msword'});
+// ---- real .docx (Pages refused the HTML-as-.doc trick) ----
+// a .docx is a ZIP of OOXML parts; STORED zip entries need only a CRC32
+const CRC_T = (()=>{
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = (c & 1) ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(u8){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipBlob(files){ // [{name, data: string|Uint8Array}] \u2192 stored zip
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let off = 0;
+  const le16 = v=>[v & 255, (v >> 8) & 255];
+  const le32 = v=>[v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255];
+  for(const f of files){
+    const data = typeof f.data === 'string' ? enc.encode(f.data) : f.data;
+    const name = enc.encode(f.name);
+    const crc = crc32(data);
+    const head = new Uint8Array([0x50,0x4B,3,4, ...le16(20), 0,0, 0,0, 0,0, 0,0,
+      ...le32(crc), ...le32(data.length), ...le32(data.length),
+      ...le16(name.length), 0,0]);
+    parts.push(head, name, data);
+    central.push({name, crc, size:data.length, off});
+    off += head.length + name.length + data.length;
+  }
+  const cd = [];
+  for(const c of central)
+    cd.push(new Uint8Array([0x50,0x4B,1,2, ...le16(20), ...le16(20), 0,0, 0,0, 0,0, 0,0,
+      ...le32(c.crc), ...le32(c.size), ...le32(c.size), ...le16(c.name.length),
+      0,0, 0,0, 0,0, 0,0, ...le32(0), ...le32(c.off)]), c.name);
+  const cdLen = cd.reduce((a, u)=>a + u.length, 0);
+  cd.push(new Uint8Array([0x50,0x4B,5,6, 0,0, 0,0, ...le16(central.length),
+    ...le16(central.length), ...le32(cdLen), ...le32(off), 0,0]));
+  return new Blob([...parts, ...cd],
+    {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+function xmlEsc(s){
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');
+}
+function dataUrlBytes(src){
+  const b64 = src.split(',')[1];
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+// wrap paragraphs/runs; bodyXml goes inside <w:body>, images as media entries
+function docxBlob(bodyXml, media, landscape){
+  const rels = media.map((m, i)=>
+    `<Relationship Id="rImg${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${m.name}"/>`).join('');
+  const sect = landscape
+    ? '<w:sectPr><w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/></w:sectPr>'
+    : '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr>';
+  const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
+    'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" ' +
+    'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+    'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    '<w:body>' + bodyXml + sect + '</w:body></w:document>';
+  return zipBlob([
+    {name:'[Content_Types].xml', data:'<?xml version="1.0"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Default Extension="jpeg" ContentType="image/jpeg"/>' +
+      '<Default Extension="png" ContentType="image/png"/>' +
+      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'},
+    {name:'_rels/.rels', data:'<?xml version="1.0"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'},
+    {name:'word/_rels/document.xml.rels', data:'<?xml version="1.0"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + rels + '</Relationships>'},
+    {name:'word/document.xml', data:doc},
+    ...media.map(m=>({name:'word/media/' + m.name, data:m.data})),
+  ]);
+}
+function docxP(text, opts){ // paragraph, \n \u2192 separate runs with breaks
+  const o = opts || {};
+  const rpr = '<w:rPr>' + (o.bold ? '<w:b/>' : '') +
+    `<w:sz w:val="${(o.pt || 10) * 2}"/></w:rPr>`;
+  const runs = String(text ?? '').split('\n').map((l, i)=>
+    (i ? '<w:r><w:br/></w:r>' : '') +
+    '<w:r>' + rpr + '<w:t xml:space="preserve">' + xmlEsc(l) + '</w:t></w:r>').join('');
+  return '<w:p>' + runs + '</w:p>';
+}
+function docxImgRun(idx, wPx, hPx){
+  const cx = Math.round(wPx * 9525), cy = Math.round(hPx * 9525);
+  return '<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">' +
+    `<wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${idx}" name="img${idx}"/>` +
+    '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    `<pic:pic><pic:nvPicPr><pic:cNvPr id="${idx}" name="img${idx}"/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip r:embed="rImg${idx}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>' +
+    '</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
 }
 function scriptExportBlocks(o){
   const blocks = [];
@@ -1039,60 +1138,157 @@ function exportScriptPDF(o){
   const name = exportName(o, 'script');
   dlBlob(name + '.pdf', textPDF(name, scriptExportBlocks(o)));
 }
-function exportScriptDoc(o){
+function exportScriptDocx(o){
   const name = exportName(o, 'script');
-  const para = t=>'<p style="white-space:pre-wrap;margin:0 0 8pt">' + esc(t || '\u2014') + '</p>';
-  const body = '<h1 style="font-size:15pt">' + esc(name) + '</h1>' +
-    (o.mode === 'av'
-      ? '<h2 style="font-size:12pt">VIDEO</h2>' + para(o.text) +
-        '<h2 style="font-size:12pt">AUDIO</h2>' + para(o.textR)
-      : para(o.text));
-  dlBlob(name + '.doc', docBlob(name, body));
+  let body = docxP(name, {bold:true, pt:15});
+  if(o.mode === 'av'){
+    body += docxP('VIDEO', {bold:true, pt:12}) + docxP(o.text || '\u2014') +
+            docxP('AUDIO', {bold:true, pt:12}) + docxP(o.textR || '\u2014');
+  } else {
+    body += docxP(o.text || '\u2014');
+  }
+  dlBlob(name + '.docx', docxBlob(body, [], false));
 }
 // the AV table exports row by row: header line (SC \u00b7 time \u00b7 sec), then every
 // filled text column \u2014 custom columns included via avCols
-function avExportCols(o){
-  return (o._avCols || avCols(o)).filter(c=>!['no','time','dur','still'].includes(c[0]));
+// the AV exports mirror the BOARD: every visible column (incl. custom ones),
+// in board order, with the stills in their own column
+function avExportLayout(o){
+  return (o._avCols || avCols(o)).map(([key, label, w])=>({key, label, w}));
 }
 function exportAvPDF(o){
+  // A4 landscape table, exactly the board's columns; stills embedded as JPEGs
   const name = exportName(o, 'AV script');
-  const blocks = [];
-  (o.rows || []).forEach(r=>{
-    const head = [(r.no ? 'SC ' + r.no : null), r.time, (r.dur ? r.dur + 's' : null)]
-      .filter(Boolean).join('  \u00b7  ');
-    blocks.push({t:head || '\u2014', bold:true, gap:1});
-    for(const [key, label] of avExportCols(o))
-      if((r[key] || '').trim()) blocks.push({t:label + ':  ' + r[key], gap:1});
-    blocks.push({t:' ', gap:4});
-  });
-  dlBlob(name + '.pdf', textPDF(name, blocks));
-}
-function exportAvDoc(o){
-  const name = exportName(o, 'AV script');
-  const cols = avExportCols(o);
-  const hasStills = !!(o.cols && o.cols.still);
-  const td = 'style="border:1px solid #ccc;padding:5pt;vertical-align:top;font-size:10pt"';
-  const tdw = 'style="border:1px solid #ccc;padding:5pt;vertical-align:top;font-size:10pt;white-space:pre-wrap"';
-  let body = '<h1 style="font-size:15pt">' + esc(name) + '</h1>' +
-    '<table style="border-collapse:collapse;width:100%"><tr>' +
-    ['SC','TIME','SEC'].map(h=>'<th ' + td + '>' + h + '</th>').join('') +
-    (hasStills ? '<th ' + td + '>STILLS</th>' : '') +
-    cols.map(c=>'<th ' + td + '>' + esc(c[1]) + '</th>').join('') + '</tr>';
+  const W = 842, H = 595, M = 36, FS = 8, LH = 10.5, PAD = 5;
+  const lay = avExportLayout(o);
+  const k = (W - M*2) / lay.reduce((a, c)=>a + c.w, 0);
+  const colW = lay.map(c=>c.w * k);
+  const objs = [], kids = [];
+  const add = b => { objs.push(b); return objs.length; };
+  add(null); add(null);
+  const f1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const f2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  const pages = [];
+  let c = '', xobjs = {}, imgN = 0, y = 0;
+  const headRow = ()=>{
+    let x = M;
+    c += `BT /F2 8 Tf 0.45 0.43 0.4 rg\n`;
+    lay.forEach((col, ci)=>{ c += `1 0 0 1 ${(x+PAD).toFixed(1)} ${(y-11).toFixed(1)} Tm (${pdfEsc(col.label)}) Tj\n`; x += colW[ci]; });
+    c += 'ET\n';
+    y -= 16;
+  };
+  const page = ()=>{
+    if(c) pages.push({c, xobjs});
+    c = ''; xobjs = {}; y = H - M;
+    c += `BT /F2 13 Tf ${M} ${(y-10).toFixed(1)} Td 0.2 0.2 0.18 rg (${pdfEsc(name)}) Tj ET\n`;
+    y -= 26;
+    headRow();
+  };
+  page();
   for(const r of (o.rows || [])){
-    body += '<tr>' +
-      [r.no, r.time, r.dur].map(v=>'<td ' + td + '>' + esc(v || '') + '</td>').join('');
-    if(hasStills){
-      const imgs = (r.imgs || [])
-        .map(id=>imgCache[id])
-        .filter(im=>im && im.src && im.src.startsWith('data:'))
-        .map(im=>'<img src="' + im.src + '" style="height:60pt;margin:0 3pt 3pt 0">').join('');
-      body += '<td ' + td + '>' + imgs + '</td>';
-    }
-    body += cols.map(c=>'<td ' + tdw + '>' + esc(r[c[0]] || '') + '</td>').join('') +
-      '</tr>';
+    // measure the row first: wrapped lines per text column + still height
+    const cells = lay.map((col, ci)=>{
+      if(col.key === 'still') return null;
+      return pdfWrap(r[col.key] || '', Math.max(4, Math.floor((colW[ci] - PAD*2) / (FS * .52))));
+    });
+    const stills = (o.cols && o.cols.still)
+      ? (r.imgs || []).map(id=>imgCache[id])
+          .filter(im=>im && im.complete && im.naturalWidth && im.src.startsWith('data:image/jpeg'))
+      : [];
+    const IH = 44;
+    let rh = Math.max(LH + PAD*2,
+      Math.max(...cells.map(l=>l ? l.length : 0)) * LH + PAD*2,
+      stills.length ? IH + PAD*2 : 0);
+    if(y - rh < M){ page(); }
+    // grid line above the row
+    c += `0.85 0.84 0.82 RG 0.5 w ${M} ${y.toFixed(1)} m ${(W-M).toFixed(1)} ${y.toFixed(1)} l S\n`;
+    let x = M;
+    lay.forEach((col, ci)=>{
+      if(col.key === 'still'){
+        let ix = x + PAD;
+        for(const im of stills){
+          const iw = IH * (im.naturalWidth / im.naturalHeight);
+          if(ix + iw > x + colW[ci] - PAD) break;
+          const nm = 'I' + (++imgN);
+          xobjs[nm] = {data:atob(im.src.split(',')[1]), w:im.naturalWidth, h:im.naturalHeight};
+          c += `q ${iw.toFixed(1)} 0 0 ${IH} ${ix.toFixed(1)} ${(y - PAD - IH).toFixed(1)} cm /${nm} Do Q\n`;
+          ix += iw + 4;
+        }
+      } else {
+        const bold = col.key === 'no';
+        c += `BT /F${bold ? 2 : 1} ${FS} Tf ${bold ? '0.2 0.2 0.18' : '0.27 0.26 0.24'} rg\n`;
+        (cells[ci] || []).forEach((l, li)=>{
+          c += `1 0 0 1 ${(x+PAD).toFixed(1)} ${(y - PAD - FS - li*LH).toFixed(1)} Tm (${pdfEsc(l)}) Tj\n`;
+        });
+        c += 'ET\n';
+      }
+      x += colW[ci];
+    });
+    y -= rh;
   }
-  body += '</table>';
-  dlBlob(name + '.doc', docBlob(name, body));
+  pages.push({c, xobjs});
+  pages.forEach(p=>{
+    const xo = Object.entries(p.xobjs).map(([nm, im])=>{
+      const n = add({stream:im.data, dict:
+        `<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.data.length} >>`});
+      return `/${nm} ${n} 0 R`;
+    }).join(' ');
+    const cn = add({stream:p.c, dict:`<< /Length ${p.c.length} >>`});
+    kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] ` +
+      `/Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >>${xo ? ' /XObject << ' + xo + ' >>' : ''} >> /Contents ${cn} 0 R >>`));
+  });
+  objs[0] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objs[1] = `<< /Type /Pages /Kids [${kids.map(k2=>k2+' 0 R').join(' ')}] /Count ${kids.length} >>`;
+  let out = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+  const offs = [];
+  objs.forEach((ob, i)=>{
+    offs.push(out.length);
+    out += `${i+1} 0 obj\n`;
+    out += (typeof ob === 'string') ? ob + '\nendobj\n'
+      : ob.dict + '\nstream\n' + ob.stream + '\nendstream\nendobj\n';
+  });
+  const xr = out.length;
+  out += `xref\n0 ${objs.length+1}\n0000000000 65535 f \n`;
+  offs.forEach(of=>{ out += String(of).padStart(10, '0') + ' 00000 n \n'; });
+  out += `trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;
+  const bytes = new Uint8Array(out.length);
+  for(let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 0xFF;
+  dlBlob(name + '.pdf', new Blob([bytes], {type:'application/pdf'}));
+}
+function exportAvDocx(o){
+  const name = exportName(o, 'AV script');
+  const lay = avExportLayout(o);
+  const total = lay.reduce((a, c)=>a + c.w, 0);
+  const gridW = 15400; // landscape A4 minus margins, in twips
+  const colTw = lay.map(c=>Math.round(c.w / total * gridW));
+  const media = [];
+  const borders = '<w:tblBorders>' +
+    ['top','left','bottom','right','insideH','insideV']
+      .map(s=>`<w:${s} w:val="single" w:sz="4" w:color="CCCCCC"/>`).join('') + '</w:tblBorders>';
+  const tc = (inner, tw)=>`<w:tc><w:tcPr><w:tcW w:w="${tw}" w:type="dxa"/></w:tcPr>` +
+    (inner || '<w:p/>') + '</w:tc>';
+  let body = docxP(name, {bold:true, pt:15}) +
+    '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>' + borders + '</w:tblPr>' +
+    '<w:tblGrid>' + colTw.map(w=>`<w:gridCol w:w="${w}"/>`).join('') + '</w:tblGrid>' +
+    '<w:tr>' + lay.map((c2, ci)=>tc(docxP(c2.label, {bold:true, pt:9}), colTw[ci])).join('') + '</w:tr>';
+  for(const r of (o.rows || [])){
+    body += '<w:tr>' + lay.map((col, ci)=>{
+      if(col.key === 'still'){
+        const runs = (r.imgs || []).map(id=>imgCache[id])
+          .filter(im=>im && im.src && im.src.startsWith('data:image/'))
+          .map(im=>{
+            const ext = /png/.test(im.src.slice(0, 22)) ? 'png' : 'jpeg';
+            media.push({name:'image' + (media.length + 1) + '.' + ext, data:dataUrlBytes(im.src)});
+            const h = 70, w = Math.round(h * (im.naturalWidth || 16) / (im.naturalHeight || 9));
+            return docxImgRun(media.length, w, h);
+          }).join('');
+        return tc(runs, colTw[ci]);
+      }
+      return tc(docxP(r[col.key] || '', {pt:9}), colTw[ci]);
+    }).join('') + '</w:tr>';
+  }
+  body += '</w:tbl>';
+  dlBlob(name + '.docx', docxBlob(body, media, true));
 }
 
 // screenplay \u2192 editable AV table: one row per scene (SC number + the scene's
