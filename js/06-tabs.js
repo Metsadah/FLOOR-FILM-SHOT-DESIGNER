@@ -958,6 +958,143 @@ function breakDownScriptBlock(o){
   markDirty(); render(); refreshSelBar();
   toast(scenes.length + ' scenes broken down \u2014 storyboard rows added to the right');
 }
+// ---------------------------------------------------------------- script / AV exports (PDF + Word)
+function dlBlob(name, blob){
+  const a = document.createElement('a');
+  a.download = name;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+function exportName(o, fallback){
+  return ((o.label || '').trim() || fallback).replace(/[^\w\u00c0-\u024f -]+/g, '').slice(0, 60) || fallback;
+}
+// minimal A4-portrait text PDF: blocks of {t, bold, dim, size, gap}, auto-paginating
+function textPDF(title, blocks){
+  const W = 595, H = 842, M = 54;
+  const objs = [], kids = [];
+  const add = b => { objs.push(b); return objs.length; };
+  add(null); add(null);
+  const f1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const f2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  const pagesC = [];
+  let c = '', y = H - M;
+  const page = ()=>{ if(c) pagesC.push(c); c = ''; y = H - M; };
+  c += `BT /F2 15 Tf ${M} ${y - 12} Td 0.2 0.2 0.18 rg (${pdfEsc(title)}) Tj ET\n`;
+  y -= 36;
+  for(const b of (blocks || [])){
+    const size = b.size || 10, lh = size * 1.35;
+    for(const l of pdfWrap(b.t || ' ', Math.floor((W - M*2) / (size * .52)))){
+      if(y < M + lh) page();
+      c += `BT /F${b.bold ? 2 : 1} ${size} Tf ${M} ${(y - size).toFixed(1)} Td ` +
+        `${b.dim ? '0.55 0.53 0.5' : '0.27 0.26 0.24'} rg (${pdfEsc(l)}) Tj ET\n`;
+      y -= lh;
+    }
+    y -= b.gap || 0;
+  }
+  pagesC.push(c);
+  pagesC.forEach(cc=>{
+    const cn = add({stream:cc, dict:`<< /Length ${cc.length} >>`});
+    kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] ` +
+      `/Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${cn} 0 R >>`));
+  });
+  objs[0] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objs[1] = `<< /Type /Pages /Kids [${kids.map(k=>k+' 0 R').join(' ')}] /Count ${kids.length} >>`;
+  let out = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+  const offs = [];
+  objs.forEach((ob, i)=>{
+    offs.push(out.length);
+    out += `${i+1} 0 obj\n`;
+    out += (typeof ob === 'string') ? ob + '\nendobj\n'
+      : ob.dict + '\nstream\n' + ob.stream + '\nendstream\nendobj\n';
+  });
+  const xr = out.length;
+  out += `xref\n0 ${objs.length+1}\n0000000000 65535 f \n`;
+  offs.forEach(of=>{ out += String(of).padStart(10, '0') + ' 00000 n \n'; });
+  out += `trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;
+  const bytes = new Uint8Array(out.length);
+  for(let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 0xFF;
+  return new Blob([bytes], {type:'application/pdf'});
+}
+// Word-compatible .doc = an HTML file with the msword mime type
+function docBlob(title, bodyHtml){
+  const html = '\ufeff<html xmlns:w="urn:schemas-microsoft-com:office:word"><head>' +
+    '<meta charset="utf-8"><title>' + esc(title) + '</title></head>' +
+    '<body style="font-family:Helvetica,Arial,sans-serif;font-size:11pt">' + bodyHtml + '</body></html>';
+  return new Blob([html], {type:'application/msword'});
+}
+function scriptExportBlocks(o){
+  const blocks = [];
+  if(o.mode === 'av'){
+    blocks.push({t:'VIDEO', bold:true, gap:2});
+    blocks.push({t:o.text || '\u2014', gap:12});
+    blocks.push({t:'AUDIO', bold:true, gap:2});
+    blocks.push({t:o.textR || '\u2014'});
+  } else {
+    blocks.push({t:o.text || '\u2014'});
+  }
+  return blocks;
+}
+function exportScriptPDF(o){
+  const name = exportName(o, 'script');
+  dlBlob(name + '.pdf', textPDF(name, scriptExportBlocks(o)));
+}
+function exportScriptDoc(o){
+  const name = exportName(o, 'script');
+  const para = t=>'<p style="white-space:pre-wrap;margin:0 0 8pt">' + esc(t || '\u2014') + '</p>';
+  const body = '<h1 style="font-size:15pt">' + esc(name) + '</h1>' +
+    (o.mode === 'av'
+      ? '<h2 style="font-size:12pt">VIDEO</h2>' + para(o.text) +
+        '<h2 style="font-size:12pt">AUDIO</h2>' + para(o.textR)
+      : para(o.text));
+  dlBlob(name + '.doc', docBlob(name, body));
+}
+// the AV table exports row by row: header line (SC \u00b7 time \u00b7 sec), then every
+// filled text column \u2014 custom columns included via avCols
+function avExportCols(o){
+  return (o._avCols || avCols(o)).filter(c=>!['no','time','dur','still'].includes(c[0]));
+}
+function exportAvPDF(o){
+  const name = exportName(o, 'AV script');
+  const blocks = [];
+  (o.rows || []).forEach(r=>{
+    const head = [(r.no ? 'SC ' + r.no : null), r.time, (r.dur ? r.dur + 's' : null)]
+      .filter(Boolean).join('  \u00b7  ');
+    blocks.push({t:head || '\u2014', bold:true, gap:1});
+    for(const [key, label] of avExportCols(o))
+      if((r[key] || '').trim()) blocks.push({t:label + ':  ' + r[key], gap:1});
+    blocks.push({t:' ', gap:4});
+  });
+  dlBlob(name + '.pdf', textPDF(name, blocks));
+}
+function exportAvDoc(o){
+  const name = exportName(o, 'AV script');
+  const cols = avExportCols(o);
+  const hasStills = !!(o.cols && o.cols.still);
+  const td = 'style="border:1px solid #ccc;padding:5pt;vertical-align:top;font-size:10pt"';
+  const tdw = 'style="border:1px solid #ccc;padding:5pt;vertical-align:top;font-size:10pt;white-space:pre-wrap"';
+  let body = '<h1 style="font-size:15pt">' + esc(name) + '</h1>' +
+    '<table style="border-collapse:collapse;width:100%"><tr>' +
+    ['SC','TIME','SEC'].map(h=>'<th ' + td + '>' + h + '</th>').join('') +
+    (hasStills ? '<th ' + td + '>STILLS</th>' : '') +
+    cols.map(c=>'<th ' + td + '>' + esc(c[1]) + '</th>').join('') + '</tr>';
+  for(const r of (o.rows || [])){
+    body += '<tr>' +
+      [r.no, r.time, r.dur].map(v=>'<td ' + td + '>' + esc(v || '') + '</td>').join('');
+    if(hasStills){
+      const imgs = (r.imgs || [])
+        .map(id=>imgCache[id])
+        .filter(im=>im && im.src && im.src.startsWith('data:'))
+        .map(im=>'<img src="' + im.src + '" style="height:60pt;margin:0 3pt 3pt 0">').join('');
+      body += '<td ' + td + '>' + imgs + '</td>';
+    }
+    body += cols.map(c=>'<td ' + tdw + '>' + esc(r[c[0]] || '') + '</td>').join('') +
+      '</tr>';
+  }
+  body += '</table>';
+  dlBlob(name + '.doc', docBlob(name, body));
+}
+
 // screenplay \u2192 editable AV table: one row per scene (SC number + the scene's
 // text in VIDEO). From there rows, custom columns, stills and regie notes are
 // free, and "Break down \u2192 scenes" keeps the Shot designer in sync.

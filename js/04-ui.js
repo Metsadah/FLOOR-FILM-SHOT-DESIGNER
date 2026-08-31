@@ -131,6 +131,23 @@ function refreshSelBar(){
     lab.textContent = (sel.ids.length + nW) + ' selected' + (nW ? ' (incl. ' + nW + ' walls)' : '') +
       ' — drag to move, ⌘C to copy';
     selBar.appendChild(lab);
+    const mObjs = sel.ids.map(id=>shot.objects.find(x=>x.id===id)).filter(Boolean);
+    const mWalls = (sel.wallIds||[]).map(id=>shot.walls.find(w=>w.id===id)).filter(Boolean);
+    const gids = new Set([...mObjs, ...mWalls].map(x=>x.grp).filter(Boolean));
+    const oneGroup = gids.size === 1 && [...mObjs, ...mWalls].every(x=>x.grp);
+    if(!oneGroup)
+      sbtn('Group', ()=>{
+        const gid = 'g' + uid();
+        [...mObjs, ...mWalls].forEach(x=>x.grp = gid);
+        markDirty(); refreshSelBar();
+        toast('Grouped — click any member to move them as one');
+      }).title = 'Lock these items together: clicking one selects and moves them all';
+    if(gids.size)
+      sbtn('Ungroup', ()=>{
+        [...mObjs, ...mWalls].forEach(x=>{ delete x.grp; });
+        markDirty(); refreshSelBar();
+        toast('Ungrouped — items move on their own again');
+      });
     sbtn('Duplicate', duplicateSelection);
     sbtn('→ Sub-board', groupIntoSubboard)
       .title = 'Tuck this selection into its own named sub-board (double-click it to open)';
@@ -556,6 +573,8 @@ function refreshSelBar(){
         .title = 'Import an AV script copied from Excel / Google Sheets (tab-separated columns)';
       sbtn('Break down → scenes', ()=>breakDownAvCard(o))
         .title = 'Rows become Shot-designer scenes by their SC number — re-running updates them (stills & regie notes travel along)';
+      sbtn('PDF', ()=>exportAvPDF(o)).title = 'Export this AV script as a PDF';
+      sbtn('.doc', ()=>exportAvDoc(o)).title = 'Export this AV script as a Word table (stills included)';
       o.cols = o.cols || {no:false, still:false, notes:false};
       const tgl = (label, key)=>sbtn((o.cols[key] ? '✓ ' : '') + label, ()=>{
         o.cols[key] = !o.cols[key];
@@ -688,6 +707,8 @@ function refreshSelBar(){
         a.click();
         setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
       });
+      sbtn('PDF', ()=>exportScriptPDF(o)).title = 'Export this script as a PDF';
+      sbtn('.doc', ()=>exportScriptDoc(o)).title = 'Export this script as a Word document';
     }
     if(o.cat === 'sbrow'){
       sbtn('+ Row below', ()=>addSbRowBelow(o));
@@ -885,6 +906,9 @@ function refreshSelBar(){
       if(i>-1){ shot.objects.splice(i,1); shot.objects.unshift(o); markDirty(); render(); }
     }).title = 'Send to back';
     sbtn('Lock', ()=>{ o.locked = true; markDirty(); render(); refreshSelBar(); });
+    if(o.grp)
+      sbtn('Ungroup', ()=>{ delete o.grp; markDirty(); refreshSelBar(); toast('Out of the group — it moves on its own now'); })
+        .title = 'Take just this item out of its group';
     sbtn('Duplicate', duplicateSelection);
     sbtn('Delete', deleteSelection, true);
   }

@@ -416,18 +416,7 @@ cv.addEventListener('pointerdown', e => {
     const hitW = !hitO && hitWall(shot, wx, wy);
     if((hitO && sel.ids.includes(hitO.id)) ||
        (hitW && (sel.wallIds||[]).includes(hitW.wall.id))){
-      drag = {kind:'moveMulti', wx, wy,
-        items: sel.ids
-          .map(id=>shot.objects.find(x=>x.id===id))
-          .filter(ob=>ob && !ob.locked)
-          .map(ob=>({o:ob, x:ob.x, y:ob.y,
-            p1:ob.p1?{...ob.p1}:null, p2:ob.p2?{...ob.p2}:null, mid:ob.mid?{...ob.mid}:null,
-            pts:ob.pts?ob.pts.map(p=>({...p})):null,
-            path:(ob.path&&ob.path.length)?ob.path.map(p=>({...p})):null})),
-        wallItems: (sel.wallIds||[])
-          .map(id=>shot.walls.find(x=>x.id===id))
-          .filter(w=>w && !w.locked)
-          .map(w=>({w, x1:w.x1, y1:w.y1, x2:w.x2, y2:w.y2, mid:w.mid?{...w.mid}:null}))};
+      drag = multiMoveDrag(shot, wx, wy);
       return;
     }
     sel = null; refreshSelBar(); render(); // clicked outside the group — fall through
@@ -603,6 +592,8 @@ cv.addEventListener('pointerdown', e => {
     return;
   }
   const obj = hitObject(shot, wx, wy);
+  // grouped items: a click on any member selects & moves the whole group
+  if(obj && obj.grp && groupSelect(shot, obj.grp, wx, wy)) return;
   if(obj){
     sel = {type:'object', id:obj.id};
     if(obj.locked){ drag = null; refreshSelBar(); render(); return; }
@@ -618,6 +609,7 @@ cv.addEventListener('pointerdown', e => {
     return;
   }
   const trk = hitTrack(shot, wx, wy);
+  if(trk && trk.grp && groupSelect(shot, trk.grp, wx, wy)) return;
   if(trk){
     sel = {type:'object', id:trk.id};
     if(trk.locked){ refreshSelBar(); render(); return; }
@@ -634,6 +626,7 @@ cv.addEventListener('pointerdown', e => {
     return;
   }
   const wl = hitWall(shot, wx, wy);
+  if(wl && wl.wall.grp && groupSelect(shot, wl.wall.grp, wx, wy)) return;
   if(wl){
     sel = {type:'wall', id:wl.wall.id};
     if(wl.wall.locked){ refreshSelBar(); render(); return; }
@@ -1757,6 +1750,12 @@ function duplicateSelection(){
         return n;
       });
     if(!copies.length && !wallCopies.length) return;
+    // grouped originals → the copies form their own fresh group(s), so
+    // dragging a copy never tows the originals along
+    const gidMap = {};
+    [...copies, ...wallCopies].forEach(n=>{
+      if(n.grp) n.grp = gidMap[n.grp] || (gidMap[n.grp] = 'g' + uid());
+    });
     shot.objects.push(...copies);
     shot.walls.push(...wallCopies);
     sel = {type:'multi', ids:copies.map(c=>c.id), wallIds:wallCopies.map(w=>w.id)};
@@ -1766,6 +1765,7 @@ function duplicateSelection(){
   if(sel.type !== 'object') return;
   const o = shot.objects.find(x=>x.id===sel.id); if(!o) return;
   const n = copyOf(o);
+  delete n.grp; // a lone duplicate steps out of its group
   shot.objects.push(n);
   sel = {type:'object', id:n.id};
   markDirty(); render(); refreshSelBar();
@@ -1983,6 +1983,33 @@ function frameExtents(o){
   if(o.cat !== 'camera' || !o.imgId) return null;
   const fx = o.x + (o.frameDX ?? 70), fy = o.y + (o.frameDY ?? -85);
   return {minX:fx-75, minY:fy-48, maxX:fx+75, maxY:fy+48};
+}
+// ---------------------------------------------------------------- grouping
+// the drag record that moves every selected object + wall as one rigid set
+function multiMoveDrag(shot, wx, wy){
+  return {kind:'moveMulti', wx, wy,
+    items: sel.ids
+      .map(id=>shot.objects.find(x=>x.id===id))
+      .filter(ob=>ob && !ob.locked)
+      .map(ob=>({o:ob, x:ob.x, y:ob.y,
+        p1:ob.p1?{...ob.p1}:null, p2:ob.p2?{...ob.p2}:null, mid:ob.mid?{...ob.mid}:null,
+        pts:ob.pts?ob.pts.map(p=>({...p})):null,
+        path:(ob.path&&ob.path.length)?ob.path.map(p=>({...p})):null})),
+    wallItems: (sel.wallIds||[])
+      .map(id=>shot.walls.find(x=>x.id===id))
+      .filter(w=>w && !w.locked)
+      .map(w=>({w, x1:w.x1, y1:w.y1, x2:w.x2, y2:w.y2, mid:w.mid?{...w.mid}:null}))};
+}
+// click on a grouped member → select the WHOLE group and start moving it.
+// Returns false for a degenerate one-member group (caller falls through).
+function groupSelect(shot, gid, wx, wy){
+  const ids = shot.objects.filter(x=>x.grp === gid).map(x=>x.id);
+  const wallIds = shot.walls.filter(w=>w.grp === gid).map(w=>w.id);
+  if(ids.length + wallIds.length < 2) return false;
+  sel = {type:'multi', ids, wallIds};
+  drag = multiMoveDrag(shot, wx, wy);
+  refreshSelBar(); render();
+  return true;
 }
 function contentBounds(shot){
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;

@@ -303,6 +303,30 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.61 — group/ungroup + script/AV exports (PDF & Word)
+Grouping: `o.grp` / `w.grp` (shared gid, 'g'+uid()) on objects AND
+walls. A pointerdown on any member (object, track, wall — three hooks
+in the select-tool branch) calls groupSelect() → whole-group multi
+selection + multiMoveDrag() (the moveMulti construction, factored out
+of the sel.type==='multi' branch). Degenerate 1-member groups return
+false and fall through to single selection. Group/Ungroup buttons live
+in the MULTI selBar (Group hidden when the selection already is exactly
+one whole group); a marquee'd single member also gets Ungroup next to
+Lock. Duplicates: multi-duplicate remaps gids (old→fresh per gid) so a
+copy never tows the originals; single duplicate drops grp entirely.
+Scene-duplicate keeps gids verbatim — fine, lookups are per-scene.
+Dblclick still edits INSIDE grouped cards (dblclick does its own
+hitObject → single sel).
+Exports: textPDF(title, blocks) in 06-tabs — A4 portrait, blocks of
+{t,bold,dim,size,gap}, auto-paginating, same hand-rolled PDF assembly
+as makePDF (Latin-1 bytes; pdfEsc strips non-Latin1 to '?'). docBlob =
+BOM + HTML with application/msword mime — Word/Pages open it; AV .doc
+is a real <table> (SC/TIME/SEC + text cols incl. custom) and embeds
+row stills as data-URI <img> when imgCache has them. Script block:
+'PDF' / '.doc' next to Export .txt (AV-mode blocks = VIDEO + AUDIO
+sections). AV card: 'PDF' / '.doc' after Break down. All go through
+dlBlob(name, blob) — tests stub window.dlBlob to intercept.
+
 ## v0.60 — SEC/TIME columns, "old" scenes, camera frames, LED light
 Four asks in one release.
 (1) AV timing: the old TIME column was really a duration → split. SEC
