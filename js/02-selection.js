@@ -3,7 +3,8 @@
 // (loaded as classic scripts, in order). True ES modules come with the build step later.
 'use strict';
 // ---------------------------------------------------------------- handles & selection
-const H_R = 6;
+// touch screens get fatter handles — same code path, easier to grab
+const H_R = (navigator.maxTouchPoints || 0) > 1 ? 9 : 6;
 function handleList(){
   if(!sel) return [];
   const shot = activeShot();

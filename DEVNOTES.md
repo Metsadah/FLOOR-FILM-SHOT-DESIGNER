@@ -303,6 +303,28 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.63 — iPad mode (browser-detected)
+Detection at 05-app top-level: `window.IS_TOUCH = maxTouchPoints > 1`
+(iPadOS Safari masquerades as macOS — touch points are the tell),
+`IS_PAD = IS_TOUCH && min(screen dims) >= 600`; body gets .touch/.pad.
+Panels: the existing #libToggle/#panelToggle drawer buttons now do
+double duty — ≤900px unchanged (slide-in drawers), >900px they toggle
+body.hideL/.hideR which display:none the panel and re-template #main
+(CSS at END of styles.css, min-width:901 block; tab-mood+hideL needs
+its own 1fr rule). Collapsed state persists in
+localStorage.floorHideL/R (pad only). Canvas re-sizes itself via the
+existing ResizeObserver. Buttons visible on body.touch only — desktop
+mouse users see nothing new.
+selBar: on IS_TOUCH it prefers ABOVE the selection (hand covers the
+area below), falling back below when there's no room.
+Touch targets: H_R 6→9 on touch (handle draw + hit share it), 40px
+toolbar buttons, fatter sbtn/sw/select/lbl paddings, and — hover does
+not exist on glass — .shot-item .mini and .lib-item .del-custom render
+at ~.55 opacity instead of opacity:0. #cv gets -webkit-touch-callout /
+user-select none (long-press magnifier suppressed).
+NB: the browser-pane tablet preset does NOT emulate touch (only
+width<768 does) — test by forcing body classes + window.IS_TOUCH.
+
 ## v0.62 — cast/cameras on top, direct waypoints, set→next, real exports
 (1) Actors + cameras ALWAYS win: render() draws them in a second pass
 (onTop), and hitObject() got a prio loop (actors/cameras tested before

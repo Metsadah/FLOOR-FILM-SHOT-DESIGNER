@@ -1010,8 +1010,15 @@ function updateSelBarPos(){
   const p = toScreen(wx, wy);
   const bw = selBar.offsetWidth, bh = selBar.offsetHeight;
   let left = clamp(p.x - bw/2, 8, wrap.clientWidth - bw - 8);
-  let top = p.y + r*view.scale + 26;
-  if(top + bh > wrap.clientHeight - 8) top = p.y - r*view.scale - bh - 26;
+  let top;
+  if(window.IS_TOUCH){
+    // on glass the bar sits ABOVE the item — your hand is below it
+    top = p.y - r*view.scale - bh - 26;
+    if(top < 8) top = p.y + r*view.scale + 26;
+  } else {
+    top = p.y + r*view.scale + 26;
+    if(top + bh > wrap.clientHeight - 8) top = p.y - r*view.scale - bh - 26;
+  }
   top = clamp(top, 8, wrap.clientHeight - bh - 8);
   selBar.style.left = left+'px';
   selBar.style.top = top+'px';

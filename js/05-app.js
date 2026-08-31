@@ -962,14 +962,39 @@ document.getElementById('installBtn')?.addEventListener('click', async ()=>{
   document.getElementById('installBtn').style.display = 'none';
 });
 
-// ---------------------------------------------------------------- mobile drawers
+// ---------------------------------------------------------------- touch / iPad
+// iPadOS Safari masquerades as macOS, but the touch points give it away
+window.IS_TOUCH = (navigator.maxTouchPoints || 0) > 1;
+window.IS_PAD = window.IS_TOUCH && Math.min(screen.width, screen.height) >= 600;
+if(window.IS_TOUCH) document.body.classList.add('touch');
+if(window.IS_PAD){
+  document.body.classList.add('pad');
+  try{ // collapsed panels survive a relaunch
+    if(localStorage.floorHideL === '1') document.body.classList.add('hideL');
+    if(localStorage.floorHideR === '1') document.body.classList.add('hideR');
+  }catch(_){}
+}
+
+// ---------------------------------------------------------------- panel toggles
+// ≤900px: slide-in drawers (phones). Wider (iPad/desktop): the same buttons
+// COLLAPSE the panels so the canvas gets the room.
 document.getElementById('libToggle').addEventListener('click', ()=>{
+  if(window.innerWidth > 900){
+    const on = document.body.classList.toggle('hideL');
+    try{ localStorage.floorHideL = on ? '1' : '0'; }catch(_){}
+    return;
+  }
   const sb = document.getElementById('sidebar');
   const rp = document.getElementById('rightPanel');
   rp.classList.remove('open');
   sb.classList.toggle('open');
 });
 document.getElementById('panelToggle').addEventListener('click', ()=>{
+  if(window.innerWidth > 900){
+    const on = document.body.classList.toggle('hideR');
+    try{ localStorage.floorHideR = on ? '1' : '0'; }catch(_){}
+    return;
+  }
   const sb = document.getElementById('sidebar');
   const rp = document.getElementById('rightPanel');
   sb.classList.remove('open');
