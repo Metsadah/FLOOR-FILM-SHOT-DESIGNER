@@ -303,6 +303,26 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.64 — the interface always FITS (iPad/PWA overflow fixed)
+User report: on iPad (browser AND installed PWA) the Scene info panel
+fell half off-screen. Same root cause as the v0.56 phone bug, one
+level up: the full topbar's min-content (~1100px) widened #app's
+single grid column past the viewport, dragging every row with it.
+Fixes: #app gets grid-template-columns:minmax(0,1fr) in the BASE css
+(not just the phone query), #topbar min-width:0, #shotTitle became
+flexible (flex:0 1 auto, min-width 70), and a new
+@media (max-width:1180px) hides .logo-txt/#sceneLbl/#verChip and
+ellipsises #projBtn. LESSON: every fixed-min-width flex child in the
+topbar is a future overflow — check appScroll<=innerWidth at 1024 AND
+834 when touching the topbar.
+#panelToggle MOVED to the far right of the topbar (after helpBtn) so
+it sits directly above the Scene info panel it controls; both toggles
+got explicit "Show / hide …" titles and a pressed look
+(body.hideL/#libToggle, body.hideR/#panelToggle → accent tint).
+Setup chips: the bare "+" confused people — it now reads "+ Setup"
+when the scene has no variants yet, with a tooltip + toast explaining
+A/B setups are optional scene variants.
+
 ## v0.63 — iPad mode (browser-detected)
 Detection at 05-app top-level: `window.IS_TOUCH = maxTouchPoints > 1`
 (iPadOS Safari masquerades as macOS — touch points are the tell),

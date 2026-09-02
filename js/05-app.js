@@ -278,10 +278,11 @@ function syncTitle(){
       markDirty(); render(); syncTitle(); refreshSelBar();
     }, 'Delete the active setup');
   }
-  mk('+', false, ()=>{
+  mk(s.setups && s.setups.length > 1 ? '+' : '+ Setup', false, ()=>{
     addSetup(s); syncTitle(); refreshSelBar();
-    toast('New setup — starts as a copy; changes stay in this setup');
-  }, 'Add a lighting/blocking setup (variant of this scene)');
+    toast('Setup B added — an A/B variant of this scene (lighting or blocking). ' +
+      'Switch with the chips; × removes one. Ignore this if one version is all you need.');
+  }, 'Setups: A/B variants of this scene (e.g. two lighting plans). Optional — skip it if one version is enough.');
 }
 document.getElementById('shotTitle').addEventListener('input', e => {
   activeShot().name = e.target.value;

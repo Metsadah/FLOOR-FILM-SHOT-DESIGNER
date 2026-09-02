@@ -15,17 +15,21 @@
   ::selection{background:var(--accent-soft);}
 
   /* ---------- layout ---------- */
-  #app{display:grid; grid-template-rows:60px auto 1fr; height:100%;}
+  /* minmax(0,1fr): the topbar's min-content width must NEVER widen the app
+     past the viewport (it silently pushed the Scene info panel off-screen
+     on iPad — every row overflows together) */
+  #app{display:grid; grid-template-rows:60px auto 1fr; grid-template-columns:minmax(0,1fr); height:100%;}
   #topbar{
     display:flex; align-items:center; gap:10px; padding:0 14px;
-    background:var(--panel); border-bottom:1px solid var(--border);
+    background:var(--panel); border-bottom:1px solid var(--border); min-width:0;
   }
   #main{display:grid; grid-template-columns:238px 1fr 266px; min-height:0;}
 
   .logo{display:flex; align-items:center; gap:8px; font-weight:600; letter-spacing:.2px;}
   .logo .dot{width:10px; height:10px; border-radius:3px; background:var(--accent);}
   #shotTitle{
-    border:1px solid transparent; border-radius:2px; padding:4px 8px; min-width:120px; max-width:300px;
+    border:1px solid transparent; border-radius:2px; padding:4px 8px;
+    width:220px; min-width:70px; max-width:300px; flex:0 1 auto;
     font-weight:600; background:transparent;
   }
   #shotTitle:hover{border-color:var(--border);}
@@ -646,3 +650,17 @@ body.touch #selBar input.lbl{ padding:7px 9px; }
 body.touch .shot-item .mini{ opacity:.55; }
 body.touch .lib-item .del-custom{ display:block; opacity:.6; }
 body.touch .side-head button{ min-width:26px; min-height:26px; }
+
+/* ---------------- medium screens (iPad & small laptops) ----------------
+   The full topbar wants ~1100px; below that the decorative bits go so the
+   whole interface — Scene info included — always fits the screen. */
+@media (max-width: 1180px){
+  #topbar{ gap:6px; }
+  .logo-txt, #sceneLbl, #verChip{ display:none !important; }
+  #projBtn{ max-width:130px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; flex:none; }
+  #saveState{ min-width:0; }
+}
+/* the panel toggles read as pressed while their panel is hidden */
+body.hideL #libToggle, body.hideR #panelToggle{
+  background:var(--accent-soft); color:var(--accent); border-color:var(--accent);
+}

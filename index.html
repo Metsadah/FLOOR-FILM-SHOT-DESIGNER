@@ -30,7 +30,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
 
 <div id="app">
   <div id="topbar">
-    <button class="btn drawer-btn" id="libToggle" title="Shots &amp; library">☰</button>
+    <button class="btn drawer-btn" id="libToggle" title="Show / hide the scenes &amp; library panel">☰</button>
   <div class="logo">
     <svg class="logo-mark" viewBox="0 0 24 24">
       <path d="M3.5 20.5V3.5h17" fill="none"/>
@@ -44,7 +44,6 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
   <div id="planPop"></div>
     <span id="sceneLbl">SCENE</span><input id="shotTitle" title="Rename scene" spellcheck="false"><span id="setupChips" style="display:none;gap:4px;align-items:center;margin-left:6px"></span>
     <div class="topbar-right">
-      <button class="btn drawer-btn" id="panelToggle" title="Scene info">☷</button>
       <button class="btn" id="installBtn" title="Install FLOOR as an app" style="display:none">Install app</button>
       <button class="hbtn" id="undoBtn" title="Undo (Ctrl/⌘ Z)" disabled>↩</button>
       <button class="hbtn" id="redoBtn" title="Redo (Ctrl/⌘ ⇧ Z)" disabled>↪</button>
@@ -58,7 +57,8 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="sharePop"></div>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <span id="verChip" title="FLOOR Studio version">v0.63</span><button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="FLOOR Studio version">v0.64</span><button id="helpBtn" title="How to use">?</button>
+      <button class="btn drawer-btn" id="panelToggle" title="Show / hide the Scene info panel">☷</button>
     </div>
   </div>
 
