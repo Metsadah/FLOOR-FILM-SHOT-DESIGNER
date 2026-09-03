@@ -303,6 +303,18 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.65 — setups moved into the Scene info panel
+The topbar setup chips read as an app-wide mystery ("what is this +
+with A and B?"). They now live in the Scene info panel as their own
+SETUPS side-head (before "Shots in this scene") — the panel only
+exists on the design tab, so the feature is visibly Shot-designer-only
+now. #setupChips just MOVED in index.html (same id, syncTitle keeps
+rendering into it); new #setupHint div gets a one-line explanation
+that flips wording depending on whether the scene has variants yet.
+Also dropped #setupChips from the phone-query hide list (it sits in
+the drawer now). The chips code still guards on activeTab==='design' —
+belt and suspenders.
+
 ## v0.64 — the interface always FITS (iPad/PWA overflow fixed)
 User report: on iPad (browser AND installed PWA) the Scene info panel
 fell half off-screen. Same root cause as the v0.56 phone bug, one

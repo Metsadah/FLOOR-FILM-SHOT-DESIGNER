@@ -42,7 +42,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
   <button class="btn" id="projBtn" title="Switch or create productions">Production ▾</button>
   <div id="projPop"></div>
   <div id="planPop"></div>
-    <span id="sceneLbl">SCENE</span><input id="shotTitle" title="Rename scene" spellcheck="false"><span id="setupChips" style="display:none;gap:4px;align-items:center;margin-left:6px"></span>
+    <span id="sceneLbl">SCENE</span><input id="shotTitle" title="Rename scene" spellcheck="false">
     <div class="topbar-right">
       <button class="btn" id="installBtn" title="Install FLOOR as an app" style="display:none">Install app</button>
       <button class="hbtn" id="undoBtn" title="Undo (Ctrl/⌘ Z)" disabled>↩</button>
@@ -57,7 +57,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="sharePop"></div>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <span id="verChip" title="FLOOR Studio version">v0.64</span><button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="FLOOR Studio version">v0.65</span><button id="helpBtn" title="How to use">?</button>
       <button class="btn drawer-btn" id="panelToggle" title="Show / hide the Scene info panel">☷</button>
     </div>
   </div>
@@ -159,6 +159,8 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
             <div style="flex:1"><label>Duration</label><select id="iDur"></select></div>
             <div style="flex:1"><label>Pref. weather</label><select id="iWeather"></select></div>
           </div>
+          <div class="side-head" style="margin-top:14px">Setups <span id="setupChips" style="display:none;gap:4px;align-items:center"></span></div>
+          <div id="setupHint" style="font-size:10.5px;color:var(--ink2);line-height:1.45;margin-top:2px"></div>
           <div class="side-head" style="margin-top:14px">Shots in this scene <button id="addShotEnt" title="Add shot">+</button></div>
           <div id="shotEntList"></div>
           <div style="font-size:10.5px;color:var(--ink2);margin-top:4px;line-height:1.45">

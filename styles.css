@@ -600,7 +600,7 @@ body.tab-mood #shotTitle, body.tab-write #shotTitle, body.tab-org #shotTitle{ di
     padding-top:env(safe-area-inset-top); /* PWA under the notch */
   }
   .logo, #sceneLbl, #verChip, #helpBtn, #installBtn,
-  #undoBtn, #redoBtn, #setupChips{ display:none !important; }
+  #undoBtn, #redoBtn{ display:none !important; }
   #shotTitle{ flex:1 1 50px; min-width:0; max-width:none; font-size:13px; }
   #projBtn{
     padding:5px 8px; font-size:11.5px; max-width:30vw;

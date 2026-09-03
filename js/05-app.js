@@ -244,13 +244,18 @@ document.getElementById('addShot').addEventListener('click', ()=>{
 function syncTitle(){
   document.getElementById('shotTitle').value = activeShot().name;
   // setup chips (A · B · + ) — lighting/blocking variants of the active scene
+  // setups live in the Scene info panel — Shot designer only, with a hint
   const wrapEl = document.getElementById('setupChips');
+  const hintEl = document.getElementById('setupHint');
   if(!wrapEl) return;
   wrapEl.innerHTML = '';
   const s = activeScene();
   const isScene = activeTab === 'design' && project.scenes.includes(s);
-  if(!isScene){ wrapEl.style.display = 'none'; return; }
+  if(!isScene){ wrapEl.style.display = 'none'; if(hintEl) hintEl.textContent = ''; return; }
   wrapEl.style.display = 'inline-flex';
+  if(hintEl) hintEl.textContent = (s.setups && s.setups.length > 1)
+    ? 'A/B are variants of this scene — the chips switch, × deletes the active one. Everything you place lands in the active setup.'
+    : 'Optional: variants of this scene (say, two lighting plans). + Setup starts a copy you can rearrange; the original stays untouched.';
   const mk = (txt, on, fn, tip)=>{
     const b = document.createElement('button');
     b.textContent = txt; b.title = tip || '';
