@@ -195,3 +195,26 @@ grant execute on function public.delete_my_account() to authenticated;
 -- Authentication → URL Configuration → Site URL = where you host the app
 -- (magic links redirect there). Optionally set up custom SMTP for branded
 -- login mails (Authentication → Emails).
+
+-- ---- 6 · billing (hosted edition only, optional) ----------------------------
+-- One row per user, written ONLY by the billing-webhook edge function with the
+-- service role. Users may read their own row; there are deliberately no
+-- insert/update/delete policies, so nobody can upgrade themselves.
+-- Deploy supabase/functions/billing-webhook and follow BILLING.md.
+create table if not exists public.subscriptions (
+  user_id            uuid primary key references auth.users(id) on delete cascade,
+  plan               text not null default 'free' check (plan in ('free','pro','studio')),
+  status             text not null default 'active',
+  provider           text not null default '',
+  customer_id        text not null default '',
+  subscription_id    text not null default '',
+  current_period_end timestamptz,
+  update_url         text not null default '',
+  cancel_url         text not null default '',
+  updated_at         timestamptz not null default now()
+);
+alter table public.subscriptions enable row level security;
+drop policy if exists "own subscription readable" on public.subscriptions;
+create policy "own subscription readable" on public.subscriptions
+  for select using (auth.uid() = user_id);
+grant select on public.subscriptions to authenticated;

@@ -322,6 +322,8 @@
           Skip for now</button>` : `
         <div style="border-top:1px solid #E5E3DE;margin-top:16px;padding-top:12px;
                     display:flex;flex-direction:column;gap:8px">
+          <div id="apPlan" style="display:none;border:1px solid #E5E3DE;border-radius:10px;
+            padding:10px 12px;font-size:12.5px;line-height:1.5"></div>
           <button id="apPassBtn" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
             padding:9px;font-size:12.5px;cursor:pointer">Change password…</button>
           <div id="apPassRow" style="display:none;flex-direction:column;gap:6px">
@@ -346,6 +348,30 @@
     document.body.appendChild(el);
     el.addEventListener('pointerdown', e=>{ if(e.target === el) el.remove(); });
     const msg = el.querySelector('#apMsg');
+    // plan box (hosted edition with billing configured only)
+    const planBox = el.querySelector('#apPlan');
+    const renderPlan = ()=>{
+      const B = window.FLOOR_BILLING;
+      if(!planBox || !B || !B.enabled) return;
+      planBox.style.display = 'block';
+      const plan = B.plan(), row = B.row();
+      const until = row && row.current_period_end
+        ? new Date(row.current_period_end).toLocaleDateString() : '';
+      planBox.innerHTML = plan === 'free'
+        ? `<b>Free plan</b> — one cloud production, no co-editing.<br>
+           <button id="apUpgrade" style="margin-top:8px;background:#4B6BFB;color:#fff;border:none;
+             border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer">
+             Upgrade to Pro${B.label ? ' · ' + B.label : ''}</button>`
+        : `<b>${plan.toUpperCase()} plan</b> ✓ — unlimited productions & co-editing.` +
+          (row && row.status === 'canceled' ? `<br>Cancelled — works until ${until}.`
+            : until ? `<br>Renews ${until}.` : '') +
+          `<br><button id="apManage" style="margin-top:8px;background:#fff;border:1px solid #E5E3DE;
+             border-radius:8px;padding:7px 11px;font-size:12px;cursor:pointer">Manage subscription</button>`;
+      planBox.querySelector('#apUpgrade')?.addEventListener('click', ()=>B.upgrade());
+      planBox.querySelector('#apManage')?.addEventListener('click', ()=>B.manage());
+    };
+    renderPlan();
+    document.addEventListener('floor-plan-changed', renderPlan);
 
     async function save(){
       msg.textContent = 'Saving…';
@@ -429,6 +455,100 @@
       location.reload();
     });
   }
+
+  // ---- billing (optional) ---------------------------------------------
+  // config.billing empty → billing OFF → everything unlocked (self-host edition,
+  // local dev). With a provider configured, the plan comes from the
+  // subscriptions row the billing-webhook edge function maintains.
+  const BILL = (window.FLOOR_CONFIG && window.FLOOR_CONFIG.billing) || {};
+  const billingOn = !!(BILL.provider &&
+    (BILL.provider === 'paddle' ? (BILL.token && BILL.priceId) : BILL.checkoutUrl));
+  let subRow = null;
+  function effectivePlan(row){
+    if(!row) return 'free';
+    const until = row.current_period_end ? Date.parse(row.current_period_end) : null;
+    // a cancelled plan keeps working until the paid period runs out
+    const live = row.status === 'active' || row.status === 'past_due' ||
+      (row.status === 'canceled' && until && until > Date.now());
+    return live ? (row.plan || 'pro') : 'free';
+  }
+  async function loadPlan(){
+    if(!billingOn || !window.FLOOR_USER) return;
+    const {data} = await sb.from('subscriptions').select('*')
+      .eq('user_id', FLOOR_USER.id).maybeSingle();
+    subRow = data || null;
+  }
+  ready.then(loadPlan);
+  let pollTimer = null;
+  function pollPlan(){
+    // after a checkout the webhook lands within seconds — watch for it
+    clearInterval(pollTimer);
+    const was = effectivePlan(subRow);
+    let n = 0;
+    pollTimer = setInterval(async ()=>{
+      await loadPlan();
+      if(effectivePlan(subRow) !== was || ++n > 36){
+        clearInterval(pollTimer);
+        if(effectivePlan(subRow) !== 'free' && typeof toast === 'function')
+          toast('Welcome to FLOOR ' + effectivePlan(subRow).toUpperCase() + ' — everything is unlocked');
+        document.dispatchEvent(new CustomEvent('floor-plan-changed'));
+      }
+    }, 5000);
+  }
+  window.FLOOR_BILLING = {
+    enabled: billingOn,
+    label: BILL.priceLabel || '',
+    plan(){ return billingOn ? effectivePlan(subRow) : 'pro'; },
+    isPro(){ return this.plan() !== 'free'; },
+    row(){ return subRow; },
+    refresh: loadPlan,
+    // true = go ahead; false = shown the upsell (and maybe opened checkout)
+    gate(feature){
+      if(!billingOn || this.isPro()) return true;
+      const why = {
+        productions: 'The free plan holds one cloud production.',
+        coedit: 'Co-editing — inviting others to work in your production — is a Pro feature.',
+      }[feature] || 'This is a Pro feature.';
+      if(confirm(why + '\n\nUpgrade to Pro' + (BILL.priceLabel ? ' (' + BILL.priceLabel + ')' : '') + '?'))
+        this.upgrade();
+      return false;
+    },
+    async upgrade(){
+      await ready;
+      if(!billingOn) return;
+      if(BILL.provider === 'lemonsqueezy'){
+        const u = new URL(BILL.checkoutUrl);
+        u.searchParams.set('checkout[custom][user_id]', FLOOR_USER.id);
+        u.searchParams.set('checkout[custom][plan]', BILL.plan || 'pro');
+        if(FLOOR_USER.email) u.searchParams.set('checkout[email]', FLOOR_USER.email);
+        window.open(u.toString(), '_blank');
+        pollPlan();
+        return;
+      }
+      if(!window.Paddle){
+        await new Promise((ok, bad)=>{
+          const s = document.createElement('script');
+          s.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
+          s.onload = ok; s.onerror = bad;
+          document.head.appendChild(s);
+        });
+        if(BILL.environment === 'sandbox') window.Paddle.Environment.set('sandbox');
+        window.Paddle.Initialize({token: BILL.token});
+      }
+      window.Paddle.Checkout.open({
+        items: [{priceId: BILL.priceId, quantity: 1}],
+        customer: FLOOR_USER.email ? {email: FLOOR_USER.email} : undefined,
+        customData: {user_id: FLOOR_USER.id, plan: BILL.plan || 'pro'},
+      });
+      pollPlan();
+    },
+    manage(){
+      const url = (subRow && (subRow.cancel_url || subRow.update_url)) || BILL.portalUrl;
+      if(url) window.open(url, '_blank');
+      else alert('Manage your subscription via the e-mail receipt from ' +
+        (BILL.provider === 'paddle' ? 'Paddle' : 'Lemon Squeezy') + '.');
+    },
+  };
 
   window.FLOOR_ACCOUNT = {
     overlay: accountOverlay, // exposed for the profile prompt + tests

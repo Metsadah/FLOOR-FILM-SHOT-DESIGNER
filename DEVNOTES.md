@@ -303,6 +303,38 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.66 — billing plumbing (hosted plans), landing page, terms
+Sell-ready scaffolding; all OFF unless config.billing.provider is set.
+DB (live + setup/schema.sql §6): public.subscriptions — one row per
+user, RLS select-own ONLY, no write policies → only the service role
+(the webhook) can change a plan. Edge Function `billing-webhook`
+(repo copy in supabase/functions/, deployed verify_jwt:false because
+providers authenticate with an HMAC header, not a JWT): handles Paddle
+Billing (`paddle-signature: ts=…;h1=…`, HMAC over `${ts}:${body}`) AND
+Lemon Squeezy (`x-signature`, HMAC over body); maps subscription.*
+events to {plan,status,current_period_end,urls}; user comes from
+custom_data.user_id set at checkout. Missing secret → 401 "…not set"
+(WebCrypto rejects an empty HMAC key with a confusing "Key length is
+zero" otherwise). Secrets to set in the dashboard: PADDLE_WEBHOOK_SECRET
+/ LS_WEBHOOK_SECRET. Client (supabase-adapter): FLOOR_BILLING
+{enabled, plan(), isPro(), gate(feature), upgrade(), manage(), refresh}
+— effectivePlan() treats canceled-but-paid-until as live; upgrade()
+lazy-loads paddle.js (overlay, customData) or opens the LS checkout URL
+with checkout[custom][user_id]; pollPlan() re-reads the row every 5s
+for 3 min after checkout and fires 'floor-plan-changed'. Gates (2,
+deliberately few): '+ New production' when idx.length>=1
+(free = one cloud production) and convertToShared() (co-editing).
+Share links/exports stay free — growth loop. Account panel got a plan
+box (Upgrade / Manage). BILLING.md = operator checklist incl. the
+Resend custom-SMTP steps (Supabase mailer is rate-limited; Auth →
+Emails → SMTP, host smtp.resend.com:465, user `resend`).
+landing.html (two-column: self-host free vs hosted €9) and terms.html
+(ToS + art.28 DPA paragraph, [FILL IN] placeholders like privacy.html)
+are static pages next to index.html. Self-host/local unaffected:
+billing empty → plan() returns 'pro' everywhere.
+TEST scar: no `node` on this Mac — syntax-check by booting in the
+pane (cloudtest.html = index.html with SW off, keeps the adapter).
+
 ## v0.65 — setups moved into the Scene info panel
 The topbar setup chips read as an app-wide mystery ("what is this +
 with A and B?"). They now live in the Scene info panel as their own

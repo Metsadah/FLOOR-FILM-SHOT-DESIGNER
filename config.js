@@ -14,4 +14,19 @@
 window.FLOOR_CONFIG = {
   supabaseUrl: 'https://jcasjylzosgtitaxbrjo.supabase.co',
   supabaseKey: 'sb_publishable_Hon-GqliiypoM52l6uuUaA_w4UFkfdB',
+
+  // BILLING (hosted edition only — see BILLING.md). Leave provider '' to run
+  // without plans: every feature unlocked (self-host, local, development).
+  billing: {
+    provider: '',              // 'paddle' | 'lemonsqueezy' | ''
+    priceLabel: '€9 / month',  // shown on the Upgrade button
+    plan: 'pro',               // plan name the webhook stores for this checkout
+    // Paddle Billing
+    token: '',                 // client-side token (Paddle → Developer tools → Authentication)
+    priceId: '',               // pri_… of the Pro price
+    environment: 'production', // 'sandbox' while testing
+    // Lemon Squeezy
+    checkoutUrl: '',           // https://YOURSTORE.lemonsqueezy.com/buy/…
+    portalUrl: '',             // optional customer-portal link for "Manage subscription"
+  },
 };

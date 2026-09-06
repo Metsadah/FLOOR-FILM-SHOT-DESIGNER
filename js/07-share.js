@@ -396,6 +396,7 @@ function forceOverwriteSave(){
 async function convertToShared(){
   const sb = shareClient();
   if(!window.FLOOR_USER || !sb){ toast('Co-editing needs the cloud version — sign in first'); return false; }
+  if(window.FLOOR_BILLING && !window.FLOOR_BILLING.gate('coedit')) return false; // Pro feature on the hosted plan
   toast('Enabling co-editing — copying the production to the shared space…');
   try{
     await saveProject();

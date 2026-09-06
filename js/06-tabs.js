@@ -1947,6 +1947,9 @@ async function openProjectPop(){
   nw.style.cssText = 'width:100%;margin-top:8px;';
   nw.textContent = '+ New production';
   nw.addEventListener('click', async ()=>{
+    // hosted free plan: one cloud production (billing off = unlimited)
+    if(window.FLOOR_BILLING && window.FLOOR_BILLING.enabled && idx.length >= 1 &&
+       !window.FLOOR_BILLING.gate('productions')) return;
     await flushSave();
     const id = uid();
     const fresh = {v:4, scenes:[newShot(1)], activeSceneId:null, customProps:[], shootName:''};
