@@ -303,6 +303,26 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.73 — pastel palette, default colour per type, colourful tiles
+Feedback on v0.72: "I miss the colours for actors" — a real regression:
+the v0.72 hex→var(--…) sweep also rewrote canvas colour STRINGS in
+04-ui/06-tabs (libTile colour, board-tile object specs, dayheader,
+callsheet, colorcard hex, gel picker) and the canvas silently drew
+nothing. Fixed by naming the palette: PAL {slate, sky, coral, olive,
+sand, lilac, teal} in 00-catalog, COLORS = those seven (pastel,
+complementary, CVD-distinct by lightness AND hue), TYPE_COLOR per
+object type (camera sky, actor coral, lights sand, to-do olive, AV
+script lilac, schedule teal…) and CAT_TINT per library category.
+migrateShot heals any stored 'var(' colour to TYPE_COLOR. RULE: never
+put a css var in a value that can reach a canvas — object.color,
+tile colours, hex fields. Tiles: tileCanvas(drawFn,w,h,c,def,tint) draws
+a soft rounded square (alpha .16 light / .28 dark) in the category tint
+behind every icon; libTile gets the tint from buildLibrary. Library
+category headers carry a hue dot; tab icons carry their floor's hue
+(mood lilac, script sky, shot designer coral, production olive) via
+--pal-* tokens (tokens.css mirrors PAL — keep both in sync). Gel picker
+compares against '#ffffff' again (input[type=color] can't hold a var).
+
 ## v0.72 — design language, step 1: tokens + light/dark
 Floorboard groundwork. tokens.css is now the ONE source for colour,
 radius and size; styles.css has ZERO hex left (all var(--…)), and the

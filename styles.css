@@ -669,3 +669,16 @@ body.lite #app{ grid-template-rows:60px 1fr; } /* tabbar is display:none → it 
 
 /* touch: no drop-to-delete target (fingers land on the bottom edge constantly) */
 body.touch #trashCan{ display:none !important; }
+
+/* ---------------- colour in the chrome (Floorboard) ----------------
+   Each floor has a hue; the icon carries it, the label stays ink. */
+#tabbar button svg{ color:var(--ink3); }
+#tabbar button[data-tab="mood"] svg{ color:var(--pal-lilac); }
+#tabbar button[data-tab="write"] svg{ color:var(--pal-sky); }
+#tabbar button[data-tab="design"] svg{ color:var(--pal-coral); }
+#tabbar button[data-tab="org"] svg{ color:var(--pal-olive); }
+#tabbar button.on svg{ filter:saturate(1.15); }
+/* library category headers get a small hue dot */
+.cat-head .dot{ width:8px; height:8px; border-radius:50%; flex:none; margin-right:2px; }
+/* tool buttons: soft tinted pill when active */
+#toolbar button.on, #toolbar button.active{ background:var(--accent-soft); color:var(--accent); border-radius:var(--r-sm); }

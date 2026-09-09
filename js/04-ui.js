@@ -192,10 +192,10 @@ function refreshSelBar(){
     if(o.cat === 'note' || o.cat === 'text'){
       const bB = sbtn('B', ()=>{ o.bold=!o.bold; markDirty(); render(); positionNoteEditor(); refreshSelBar(); });
       bB.style.fontWeight='800';
-      if(o.bold){ bB.style.background='var(--accent-soft)'; bB.style.color='var(--accent)'; }
+      if(o.bold){ bB.style.background='var(--accent-soft)'; bB.style.color=PAL.sky; }
       const bI = sbtn('I', ()=>{ o.italic=!o.italic; markDirty(); render(); positionNoteEditor(); refreshSelBar(); });
       bI.style.fontStyle='italic';
-      if(o.italic){ bI.style.background='var(--accent-soft)'; bI.style.color='var(--accent)'; }
+      if(o.italic){ bI.style.background='var(--accent-soft)'; bI.style.color=PAL.sky; }
       const sz = document.createElement('select');
       sz.title = 'Text size';
       for(const f of [11,13,15,18,22,28,36]) sz.insertAdjacentHTML('beforeend', `<option value="${f}">${f}px</option>`);
@@ -258,7 +258,7 @@ function refreshSelBar(){
       const pick = document.createElement('input');
       pick.type = 'color';
       pick.title = 'Pick any color';
-      pick.value = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(o.hex||'') ? expand(o.hex) : 'var(--danger)';
+      pick.value = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(o.hex||'') ? expand(o.hex) : PAL.coral;
       pick.style.cssText = 'width:34px;height:26px;border:1px solid var(--border);' +
         'border-radius:2px;padding:1px;background:var(--panel);cursor:pointer;';
       selBar.appendChild(pick);
@@ -407,11 +407,11 @@ function refreshSelBar(){
         // RGB — standard WHITE; white = no color, temperature rules
         const cw = document.createElement('input');
         cw.type = 'color';
-        cw.value = o.gel || 'var(--panel)';
+        cw.value = o.gel || '#ffffff';
         cw.title = 'Light color (RGB) — white = no color, the temperature applies';
         cw.style.cssText = 'width:22px;height:20px;padding:0;border:none;background:none;cursor:pointer;';
         cw.addEventListener('input', ()=>{
-          o.gel = cw.value.toLowerCase() === 'var(--panel)' ? null : cw.value;
+          o.gel = cw.value.toLowerCase() === '#ffffff' ? null : cw.value;
           markDirty(); render();
         });
         cw.addEventListener('change', ()=>refreshSelBar());
@@ -1563,38 +1563,46 @@ function closeNoteEditor(save){
 }
 
 // ---------------------------------------------------------------- library
-function tileCanvas(drawFn, w, h, c, def){
-  // the neutral slate icon colour is invisible on the dark hover tile — lift it
-  if(THEME.dark && (!c || c === '#5B6472')) c = THEME.body;
+// tint → the soft rounded square behind a library icon (Floorboard tiles)
+function tileBg(tc, s, tint){
+  if(!tint) return;
+  tc.save();
+  tc.fillStyle = tint; tc.globalAlpha = THEME.dark ? .28 : .16;
+  tc.beginPath(); tc.roundRect(-s/2, -s/2, s, s, 11); tc.fill();
+  tc.restore();
+}
+function tileCanvas(drawFn, w, h, c, def, tint){
+  if(!c || c === '#5B6472') c = PAL.slate;
   const t = document.createElement('canvas');
   const s = 44, d = window.devicePixelRatio||1;
   t.width = s*d; t.height = s*d; t.style.width = s+'px'; t.style.height = s+'px';
   const tc = t.getContext('2d');
   tc.setTransform(d,0,0,d,0,0);
   tc.translate(s/2, s/2);
-  const k = Math.min((s-12)/w, (s-12)/h);
+  tileBg(tc, s, tint === undefined ? c : tint);
+  const k = Math.min((s-16)/w, (s-16)/h);
   tc.scale(k, k);
   tc.lineWidth = 2/k;
   drawFn(tc, w, h, c, def);
   return t;
 }
-function libTile(spec){
+function libTile(spec, tint){
   const el = document.createElement('div');
   el.className = 'lib-item';
-  let drawFn, w, h, name, color = '#5B6472';
+  let drawFn, w, h, name, color = (spec.cat === 'prop' && LIGHT_BEAMS[spec.kind]) ? TYPE_COLOR.light : PAL.slate;
   if(spec.cat === 'camera'){
     const d = CAMS[spec.kind];
     drawFn = (tc,tw,th,tcol)=>drawCameraKind(tc, spec.kind, tw, th, tcol);
-    w=d.w; h=d.h; name=d.name; color='var(--ink)';
+    w=d.w; h=d.h; name=d.name; color=TYPE_COLOR.camera;
   } else if(spec.cat === 'actor'){
     const d = ACTORS[spec.kind] || ACTORS.actor;
     drawFn = (tc,tw,th,tcol)=>drawActorIcon(tc, tw, th, tcol, spec.kind);
-    w=d.w; h=d.h; name=d.name; color='var(--accent)';
+    w=d.w; h=d.h; name=d.name; color=TYPE_COLOR.actor;
   } else {
     const d = PROPS[spec.kind];
     drawFn = d.draw; w=d.w; h=d.h; name=d.name;
   }
-  el.appendChild(tileCanvas(drawFn, w, h, color));
+  el.appendChild(tileCanvas(drawFn, w, h, color, null, tint || color));
   el.insertAdjacentHTML('beforeend', `<span>${esc(name)}</span>`);
   el.addEventListener('pointerdown', e => {
     const base = {cat:spec.cat, kind:spec.kind, w, h, color};
@@ -1609,7 +1617,7 @@ function buildLibrary(){
   for(const cat of (BOARD_TABS.has(activeTab) ? [] : CATS)){
     const head = document.createElement('div');
     head.className = 'cat-head' + (cat.open ? '' : ' closed');
-    head.innerHTML = `<span class="arr">▼</span>${esc(cat.name)}`;
+    head.innerHTML = `<span class="arr">▼</span><span class="dot" style="background:${CAT_TINT[cat.name] || PAL.slate}"></span>${esc(cat.name)}`;
     const grid = document.createElement('div');
     grid.className = 'lib-grid' + (cat.open ? '' : ' hidden');
     head.addEventListener('click', ()=>{
@@ -1617,12 +1625,12 @@ function buildLibrary(){
       head.classList.toggle('closed', !cat.open);
       grid.classList.toggle('hidden', !cat.open);
     });
-    for(const it of cat.items) grid.appendChild(libTile(it));
+    for(const it of cat.items) grid.appendChild(libTile(it, CAT_TINT[cat.name] || PAL.slate));
     lib.appendChild(head); lib.appendChild(grid);
   }
   // Board section
   const bh = document.createElement('div');
-  bh.className='cat-head'; bh.innerHTML='<span class="arr">▼</span>Board';
+  bh.className='cat-head'; bh.innerHTML='<span class="arr">▼</span><span class="dot" style="background:'+PAL.lilac+'"></span>Board';
   const bg = document.createElement('div');
   bg.className='lib-grid';
   bh.addEventListener('click', ()=>{ bg.classList.toggle('hidden'); bh.classList.toggle('closed'); });
@@ -1659,12 +1667,12 @@ function buildLibrary(){
     tc.textAlign='center'; tc.textBaseline='middle';
     tc.fillStyle=c; tc.fillText('T', 0, 2);
     tc.textAlign='left'; tc.textBaseline='alphabetic';
-  }, 60, 60, 'var(--ink)', {cat:'text', kind:'text', w:240, h:40, color:'#5B6472'});
+  }, 60, 60, PAL.slate, {cat:'text', kind:'text', w:240, h:40, color:PAL.slate});
   boardTile('Line / arrow', (tc,w2,h2,c)=>{
     tc.strokeStyle=c; tc.lineWidth=5; tc.lineCap='round';
     tc.beginPath(); tc.moveTo(-w2/2,h2/2); tc.lineTo(w2*.3,-h2*.3); tc.stroke();
     tc.beginPath(); tc.moveTo(w2*.3,-h2*.3); tc.lineTo(w2*.05,-h2*.32); tc.moveTo(w2*.3,-h2*.3); tc.lineTo(w2*.33,-h2*.05); tc.stroke();
-  }, 90, 90, 'var(--danger)', {cat:'line', kind:'line', w:220, h:14, color:'var(--danger)'});
+  }, 90, 90, PAL.coral, {cat:'line', kind:'line', w:220, h:14, color:PAL.coral});
   boardTile('Sub-board', (tc,w2,h2,c)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2*.42,w2,h2*.84,5);
     tc.fillStyle = THEME.card; tc.fill(); tc.strokeStyle=c; tc.lineWidth=2.5; tc.stroke();
@@ -1684,7 +1692,7 @@ function buildLibrary(){
     tc.strokeStyle=c; tc.lineWidth=6; tc.lineCap='round';
     tc.beginPath(); tc.ellipse(-w2*.14,h2*.14,w2*.24,h2*.15,-Math.PI/4,0,7); tc.stroke();
     tc.beginPath(); tc.ellipse(w2*.14,-h2*.14,w2*.24,h2*.15,-Math.PI/4,0,7); tc.stroke();
-  }, 90, 90, 'var(--accent)', {cat:'link', kind:'link', w:130, h:34, color:'var(--accent)'});
+  }, 90, 90, PAL.sky, {cat:'link', kind:'link', w:130, h:34, color:PAL.sky});
   // shot info card mirrors the Shot info panel — only meaningful on the designer
   if(activeTab === 'design'){
     boardTile('Scene info card', (tc,w2,h2,c)=>{
@@ -1695,7 +1703,7 @@ function buildLibrary(){
       tc.globalAlpha=.55;
       for(const y2 of [h2*.02,h2*.18,h2*.34]) tc.fillRect(-w2*.34,y2,w2*.68,3);
       tc.globalAlpha=1;
-    }, 90, 70, 'var(--accent)', {cat:'infocard', kind:'infocard', w:260, h:180, color:'var(--accent)'});
+    }, 90, 70, PAL.sky, {cat:'infocard', kind:'infocard', w:260, h:180, color:PAL.sky});
   }
   boardTile('Column', (tc,w2,h2,c)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
@@ -1705,7 +1713,7 @@ function buildLibrary(){
     tc.globalAlpha=.5;
     for(const y2 of [h2*.04,h2*.18,h2*.32]) tc.fillRect(-w2*.34,y2,w2*.68,2.5);
     tc.globalAlpha=1;
-  }, 90, 110, 'var(--accent)', {cat:'colcard', kind:'colcard', w:240, h:120, color:'var(--accent)'});
+  }, 90, 110, PAL.sky, {cat:'colcard', kind:'colcard', w:240, h:120, color:PAL.sky});
   boardTile('Production', (tc,w2,h2)=>{
     drawNoteShape(tc, {w:w2, h:h2, color:'#5B6472', text:''}, true);
     tc.fillStyle='#5B6472'; tc.globalAlpha=.7;
@@ -1720,7 +1728,7 @@ function buildLibrary(){
       tc.strokeRect(-w2*.32, y2-6, 12, 12);
       tc.beginPath(); tc.moveTo(-w2*.06, y2); tc.lineTo(w2*.34, y2); tc.stroke();
     }
-  }, 90, 90, '#3E9B6E', {cat:'todo', kind:'todo', w:230, h:120, color:'#3E9B6E'});
+  }, 90, 90, PAL.olive, {cat:'todo', kind:'todo', w:230, h:120, color:PAL.olive});
   boardTile('Table', (tc,w2,h2,c2)=>{
     tc.strokeStyle=c2; tc.lineWidth=3;
     tc.strokeRect(-w2*.38,-h2*.3,w2*.76,h2*.6);
@@ -1729,12 +1737,12 @@ function buildLibrary(){
     tc.moveTo(-w2*.38,h2*.1); tc.lineTo(w2*.38,h2*.1);
     tc.moveTo(0,-h2*.3); tc.lineTo(0,h2*.3);
     tc.stroke();
-  }, 90, 90, '#5B6472', {cat:'table', kind:'table', w:340, h:90, color:'var(--accent)'});
+  }, 90, 90, PAL.slate, {cat:'table', kind:'table', w:340, h:90, color:PAL.slate});
   boardTile('Color', (tc,w2,h2)=>{
     tc.fillStyle = THEME.danger; tc.beginPath(); tc.roundRect(-w2*.36,-h2*.36,w2*.72,h2*.5,6); tc.fill();
     tc.fillStyle = THEME.ink2;
     tc.fillRect(-w2*.3, h2*.22, w2*.6, 3);
-  }, 90, 90, 'var(--danger)', {cat:'colorcard', kind:'colorcard', w:160, h:130, color:'var(--danger)'});
+  }, 90, 90, PAL.coral, {cat:'colorcard', kind:'colorcard', w:160, h:130, color:PAL.coral});
   boardTile('Audio\u2026', (tc,w2,h2,c2)=>{
     tc.strokeStyle=c2; tc.lineWidth=3.4; tc.lineCap='round';
     tc.beginPath(); tc.arc(-w2*.14,h2*.2,h2*.11,0,7); tc.stroke();
@@ -1757,7 +1765,7 @@ function buildLibrary(){
   // Custom section (shot designer only)
   if(activeTab !== 'design') return;
   const ch = document.createElement('div');
-  ch.className='cat-head'; ch.innerHTML='<span class="arr">▼</span>Custom props';
+  ch.className='cat-head'; ch.innerHTML='<span class="arr">▼</span><span class="dot" style="background:'+PAL.teal+'"></span>Custom props';
   const cg = document.createElement('div');
   cg.className='lib-grid';
   ch.addEventListener('click', ()=>{ cg.classList.toggle('hidden'); ch.classList.toggle('closed'); });
@@ -1870,7 +1878,7 @@ function dropLib(e){
       }
     } else if(libDrag.cat === 'table'){
       o = {id:uid(), cat:'table', kind:'table', x, y, rot:0, w:340, h:90,
-           cells:[['Column A','Column B'],['','']], color:libDrag.color||'var(--accent)', label:'', path:[]};
+           cells:[['Column A','Column B'],['','']], color:libDrag.color||PAL.sky, label:'', path:[]};
     } else if(libDrag.cat === 'listcard'){
       o = {id:uid(), cat:'listcard', kind:libDrag.kind, x, y, rot:0, w:360, h:74,
            color:(LIST_CARDS[libDrag.kind] || LIST_CARDS.crew).color, label:'', path:[]};
@@ -1887,11 +1895,11 @@ function dropLib(e){
     } else if(libDrag.cat === 'colcard'){
       o = {id:uid(), cat:'colcard', kind:'colcard', x, y, rot:0, w:libDrag.cw || 240, h:120,
            title:libDrag.title || '', text:libDrag.text || '',
-           color:libDrag.color || 'var(--accent)', label:'', path:[]};
+           color:libDrag.color || PAL.sky, label:'', path:[]};
     } else if(libDrag.cat === 'callsheet'){
       o = {id:uid(), cat:'callsheet', kind:'callsheet', x, y, rot:0, w:380, h:300,
            inc:{location:true, schedule:true, props:true, crew:true, cast:true, client:true, weather:true},
-           color:libDrag.color || 'var(--accent)', label:'', path:[]};
+           color:libDrag.color || PAL.sky, label:'', path:[]};
       // multi-day production → ask which day this sheet covers
       if(boardDays().length > 1) setTimeout(()=>showCallsheetDayPicker(o, e.clientX, e.clientY), 60);
     } else if(libDrag.cat === 'schedule'){
@@ -1910,7 +1918,7 @@ function dropLib(e){
     } else if(libDrag.cat === 'dayheader'){
       o = {id:uid(), cat:'dayheader', kind:'dayheader', x, y, rot:0, w:DAYH.w, h:140,
            date:new Date().toISOString().slice(0,10), call:'', shootCall:'', wrap:'',
-           place:'', lat:null, lon:null, color:'var(--danger)', label:'', path:[]};
+           place:'', lat:null, lon:null, color:PAL.coral, label:'', path:[]};
       setTimeout(()=>dayheaderSunFetch(o), 100); // auto-pull sun from the location card if one exists
     } else if(libDrag.cat === 'fieldcard'){
       o = {id:uid(), cat:'fieldcard', kind:libDrag.kind, x, y, rot:0, w:280, h:130,
@@ -1935,7 +1943,7 @@ function dropLib(e){
            place:'', date:'', data:[], color:'#4CA6E8', label:'', path:[]};
     } else if(libDrag.cat === 'colorcard'){
       o = {id:uid(), cat:'colorcard', kind:'colorcard', x, y, rot:0, w:160, h:130,
-           hex:'var(--danger)', label:'', color:'var(--danger)', path:[]};
+           hex:PAL.coral, label:'', color:PAL.coral, path:[]};
     } else if(libDrag.cat === 'script'){
       o = {id:uid(), cat:'script', kind:'script', x, y, rot:0,
            w: libDrag.mode==='av' ? 560 : 430, h:300,
@@ -1943,7 +1951,7 @@ function dropLib(e){
            color:'#5B6472', label:'', path:[]};
     } else if(libDrag.cat === 'sbrow'){
       o = {id:uid(), cat:'sbrow', kind:'sbrow', x, y, rot:0, w:560, h:120,
-           title:'Scene', desc:'', imgId:null, sceneId:null, color:'var(--accent)', label:'', path:[]};
+           title:'Scene', desc:'', imgId:null, sceneId:null, color:PAL.sky, label:'', path:[]};
     } else if(libDrag.cat === 'text'){
       o = {id:uid(), cat:'text', kind:'text', x, y, rot:0, w:240, h:40,
            fontSize:18, bold:false, italic:false, text:'', color:'#5B6472', label:'', path:[]};
@@ -1955,10 +1963,10 @@ function dropLib(e){
            color:libDrag.color||(isDim ? '#5B6472' : 'var(--danger)'), label:'', path:[]};
     } else if(libDrag.cat === 'link'){
       o = {id:uid(), cat:'link', kind:'link', x, y, rot:0, w:180, h:218,
-           label:'', url:'', color:libDrag.color||'var(--accent)', path:[]};
+           label:'', url:'', color:libDrag.color||PAL.sky, path:[]};
     } else if(libDrag.cat === 'infocard'){
       o = {id:uid(), cat:'infocard', kind:'infocard', x, y, rot:0, w:260, h:180,
-           color:libDrag.color||'var(--accent)', label:'', path:[]};
+           color:libDrag.color||PAL.sky, label:'', path:[]};
     } else if(libDrag.kind === 'track'){
       o = {id:uid(), cat:'prop', kind:'track', x, y, rot:0, w:30, h:30,
            color:libDrag.color||'#5B6472', label:'', path:[],

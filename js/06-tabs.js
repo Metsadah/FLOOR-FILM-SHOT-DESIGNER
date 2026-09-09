@@ -86,7 +86,7 @@ function buildMoodLibSection(lib){
   preset('Idea', '#E2A93B', 'Idea');
   preset('Question', '#8B5CF6', 'Question');
   preset('Theme', '#3E9B6E', 'Theme');
-  preset('Do / Don’t', 'var(--danger)', 'Do / don’t');
+  preset('Do / Don’t', PAL.coral, 'Do / don’t');
   lib.appendChild(grid);
   const tip = document.createElement('div');
   tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 10px;line-height:1.5;';
@@ -198,9 +198,9 @@ function buildProdLibSection(lib){
       tc.textAlign='left'; tc.textBaseline='alphabetic';
       tc.fillStyle='#E8934C'; tc.globalAlpha=.7;
       tc.fillRect(-w2*.36, h2*.24, w2*.3, 2.5); tc.globalAlpha=1;
-    }, 100, 100, 'var(--danger)'));
+    }, 100, 100, PAL.coral));
     el.insertAdjacentHTML('beforeend', '<span>Day header</span>');
-    el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'dayheader', kind:'dayheader', w:320, h:140, color:'var(--danger)'}));
+    el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'dayheader', kind:'dayheader', w:320, h:140, color:PAL.coral}));
     grid.appendChild(el);
   }
   // registry cards first — Crew / Cast / Client, live views of one People list
@@ -359,10 +359,10 @@ function buildProdLibSection(lib){
       for(const y2 of [-h2*.18, -h2*.06, h2*.1, h2*.22, h2*.34])
         tc.fillRect(-w2*.36, y2, w2*(y2===-h2*.18||y2===h2*.1 ? .34 : .72), 2.5);
       tc.globalAlpha=1;
-    }, 100, 100, 'var(--accent)'));
+    }, 100, 100, PAL.sky));
     el.insertAdjacentHTML('beforeend', '<span>Call sheet</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e,
-      {cat:'callsheet', kind:'callsheet', w:380, h:300, color:'var(--accent)'}));
+      {cat:'callsheet', kind:'callsheet', w:380, h:300, color:PAL.sky}));
     grid.appendChild(el);
   }
   lib.appendChild(grid);

@@ -21,9 +21,30 @@ function ptSeg(px,py,x1,y1,x2,y2){
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // ---------------------------------------------------------------- palette
-// colour-blind safe (Okabe–Ito based): slate · blue · vermillion · teal · amber · purple —
-// every pair stays distinct for deutan/protan/tritan vision
-const COLORS = ['#5B6472','#4B6BFB','#D55E00','#009E73','#E69F00','#9B5DE5'];
+// Floorboard palette — pastel, complementary, still distinct for colour-blind
+// viewers (hue AND lightness differ between neighbours). Named so code can
+// say what it means (PAL.coral) instead of quoting a hex.
+const PAL = {
+  slate:'#7A8194',  // neutral: furniture, tables, lines
+  sky:'#6FA3E8',    // cameras, links, info cards
+  coral:'#E58A6F',  // cast, colour cards, day headers
+  olive:'#9BA85A',  // to-dos, outdoor, set dressing
+  sand:'#E1B46A',   // lights & grip, notes
+  lilac:'#A98BE0',  // AV script, audio, storyboard
+  teal:'#6DBBAF',   // schedule, bathroom
+};
+const COLORS = [PAL.slate, PAL.sky, PAL.coral, PAL.olive, PAL.sand, PAL.lilac, PAL.teal];
+// default colour per object type — every camera starts sky, every actor coral;
+// the swatches in the selection bar still recolour anything
+const TYPE_COLOR = {camera:PAL.sky, actor:PAL.coral, light:PAL.sand, prop:PAL.slate, note:PAL.sand,
+  text:PAL.slate, line:PAL.coral, dim:PAL.slate, link:PAL.sky, todo:PAL.olive, table:PAL.slate,
+  colorcard:PAL.coral, infocard:PAL.sky, colcard:PAL.sky, subboard:PAL.slate, dayheader:PAL.coral,
+  callsheet:PAL.sky, avscript:PAL.lilac, sbrow:PAL.lilac, audio:PAL.lilac, schedule:PAL.teal,
+  proplist:PAL.olive, gearlist:PAL.sand, image:PAL.slate, file:PAL.slate};
+// library category → tile tint (the soft square behind each icon)
+const CAT_TINT = {'Cameras':PAL.sky, 'Cast':PAL.coral, 'Grip & light':PAL.sand, 'Practicals':PAL.sand,
+  'Furniture':PAL.slate, 'Bathroom':PAL.teal, 'Vehicles':PAL.lilac, 'Outdoor':PAL.olive,
+  'Set dressing':PAL.olive, 'Tech':PAL.slate};
 const WALL_COLOR = '#3B3A36';
 
 // lens presets (full-frame horizontal FOV)

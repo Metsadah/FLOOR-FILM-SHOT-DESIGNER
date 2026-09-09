@@ -61,6 +61,8 @@ function newShot(n){
     scene:'', sceneDesc:'', script:'', date:'', time:'', duration:60, weather:'Any', sun:null};
 }
 function migrateShot(s){
+  // heal css-var colours (a v0.72 slip): the canvas cannot draw var(--x)
+  for(const o of (s.objects||[])) if(typeof o.color === 'string' && o.color.startsWith('var(')) o.color = TYPE_COLOR[o.cat] || PAL.slate;
   if(s.scene===undefined) s.scene='';
   if(s.sceneDesc===undefined) s.sceneDesc='';
   if(s.script===undefined) s.script='';

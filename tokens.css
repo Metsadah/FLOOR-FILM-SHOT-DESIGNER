@@ -89,3 +89,9 @@
     color-scheme:dark;
   }
 }
+
+/* ---------- Floorboard object palette (mirrors PAL in js/00-catalog.js) ---------- */
+:root{
+  --pal-slate:#7A8194; --pal-sky:#6FA3E8; --pal-coral:#E58A6F; --pal-olive:#9BA85A;
+  --pal-sand:#E1B46A; --pal-lilac:#A98BE0; --pal-teal:#6DBBAF;
+}
