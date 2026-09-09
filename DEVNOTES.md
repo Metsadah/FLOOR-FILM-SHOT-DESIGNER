@@ -303,6 +303,17 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.67 — landing page for first-time visitors + launch plan
+Cloud mode only: in the adapter's `ready` IIFE, no session AND no
+localStorage.floorSeen AND no ?view/?join/?start → location.replace
+('landing.html') and a never-resolving promise (the page is leaving).
+Anyone who ever signed in on that browser has floorSeen and goes straight
+to the login box; landing.html links back with `index.html?start=1`,
+which sets the flag. Share/invite links untouched; local/self-host
+never redirects (adapter returns before this). LANCERING.md = the Dutch
+step-by-step launch plan (KvK → custom domain on Netlify → Resend → legal
+→ MoR → launch → ops) — the operator-facing companion to BILLING.md.
+
 ## v0.66 — billing plumbing (hosted plans), landing page, terms
 Sell-ready scaffolding; all OFF unless config.billing.provider is set.
 DB (live + setup/schema.sql §6): public.subscriptions — one row per

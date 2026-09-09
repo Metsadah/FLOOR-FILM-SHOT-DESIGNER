@@ -218,7 +218,16 @@
       await new Promise(r => document.addEventListener('DOMContentLoaded', r, {once:true}));
     }
     const {data} = await sb.auth.getSession();
-    if(data.session) return data.session.user;
+    if(data.session){ try{ localStorage.floorSeen = '1'; }catch(_){} return data.session.user; }
+    // first-time visitors (never signed in here, no share/invite link) land on
+    // the landing page instead of a bare login box; ?start=1 comes back from it
+    const q = new URLSearchParams(location.search);
+    let seen = false; try{ seen = localStorage.floorSeen === '1'; }catch(_){}
+    if(!seen && !q.has('view') && !q.has('join') && !q.has('start')){
+      location.replace('landing.html');
+      return new Promise(()=>{}); // the page is leaving — never resolve
+    }
+    try{ localStorage.floorSeen = '1'; }catch(_){}
     return loginOverlay();
   })();
   ready.then(u=>{ window.FLOOR_USER = u; });
