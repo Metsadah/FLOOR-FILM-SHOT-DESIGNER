@@ -43,54 +43,82 @@ Shared features (lights, cameras, breakdown, exports) are identical by
 construction. Big-screen-only features (co-editing, moodboards, call-sheet
 PDFs) are merely hidden in Lite — still in the bundle, so nothing diverges.
 
-## 3 · Next steps with the Apple developer account
+## 3 · The native shell (built — repo: ~/Documents/GitHub/floor-ipad)
 
-Node.js is needed once for the Capacitor tooling (not on this Mac yet):
-install the LTS from https://nodejs.org or `brew install node`.
+Already in place there:
+
+| | |
+|---|---|
+| `package.json` + Capacitor 8 | core, cli, ios, filesystem, share installed |
+| `capacitor.config.json` | app id `com.zoutwater.floorshot`, name "FLOOR Shot Designer", webDir `www`, iOS background `#F2F1EE`, no bounce-scroll |
+| `config.ios.js` | copied over `www/config.js` on every sync: `mode:'shot'`, no billing, sign-in off |
+| `sync.sh` | web repo → `www/`, apply iOS config, strip the service worker, `cap sync` |
+| `finish-setup.sh` | checks the toolchain, runs `cap add ios`, opens Xcode |
+| `www/` | filled from the current web build |
+
+Plus, in the web repo: **`js/08-native.js`** — the bridge (§4).
+
+### What is still missing on this Mac
+
+`xcode-select -p` points at `/Library/Developer/CommandLineTools`: only the
+Command Line Tools are installed, **not Xcode itself**. Three steps, in order
+(they need your password, so run them in Terminal yourself):
+
+1. **Xcode** — Mac App Store → search "Xcode" → Get (7–10 GB, takes a while).
+   Open it once so it installs its components, and in *Settings → Platforms*
+   add the **iOS** platform.
+2. **Point the tools at Xcode and accept the licence:**
+   ```bash
+   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+   sudo xcodebuild -license accept
+   ```
+   (Until this is done even `python3` refuses to run — same licence prompt.)
+3. **CocoaPods** — Capacitor needs it to assemble the iOS project:
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"   # Homebrew, if missing
+   brew install cocoapods
+   ```
+   (Without Homebrew: `sudo gem install cocoapods`.)
+
+Then:
 
 ```bash
-# 1 · the native shell lives NEXT to the web repo, not inside it
-mkdir ~/Documents/GitHub/floor-ipad && cd ~/Documents/GitHub/floor-ipad
-npm init @capacitor/app@latest .   # name: FLOOR Shot Designer · id: com.zoutwater.floor
-npm install @capacitor/ios @capacitor/filesystem @capacitor/share
-
-# 2 · point it at the web files (a copy, refreshed per release)
-#    capacitor.config.json → "webDir": "www"
-rm -rf www && mkdir www
-rsync -a --exclude '.git' --exclude '*.zip' --exclude 'supabase' \
-  ~/Documents/GitHub/FLOOR-FILM-SHOT-DESIGNER/ www/
-#    www/config.js → mode:'shot' (Supabase keys optional, no billing block)
-
-# 3 · create + open the Xcode project
-npx cap add ios
-npx cap sync
-npx cap open ios
+cd ~/Documents/GitHub/floor-ipad
+./finish-setup.sh          # verifies the toolchain, creates ios/, opens Xcode
 ```
 
 In Xcode: *Signing & Capabilities* → your Team · *General* → display name
 "FLOOR Shot Designer", deployment target iPadOS 16, **iPad only** (untick
-iPhone), landscape + portrait. Run on your own iPad over the cable — that is
-the real test of pencil, palm rejection and the panel toggles.
+iPhone), landscape + portrait. Connect the iPad by cable, choose it as the
+run destination, press ▶.
 
-Then, in this order:
+### After it runs on your iPad
 
 1. **Icon & launch screen** — one 1024×1024 icon (the FLOOR mark on white);
-   Xcode generates the sizes. Launch screen: plain `#F2F1EE`.
-2. **File backup shim** (~40 lines JS, only when `window.Capacitor` exists):
-   on every save also write the `.floorproj` JSON to
-   `Filesystem.Directory.Documents`; on boot, if IndexedDB is empty but a
-   backup exists, offer to restore. iOS may evict web storage after weeks of
-   non-use — this makes that harmless, and the Files app can see the projects.
-3. **Share sheet** for exports: route `dlBlob()` through `@capacitor/share`
-   on iOS (PDF/docx/PNG go to Files, Mail, AirDrop). Web behaviour unchanged.
-4. **App Store Connect**: new app with the bundle id, **one-time price
-   (~€29)**, no in-app purchases — that sidesteps Apple's subscription rules
-   entirely. Privacy label: "Data not collected" if sign-in stays off by
-   default; with optional sign-in declare e-mail + user content and link
-   `privacy.html`.
-5. **Review notes**: professional planning tool, fully usable offline;
-   attach a demo `.floorproj`. First review takes 1–3 days.
-6. **TestFlight first**: 5–10 DoP's for two weeks before public release.
+   Xcode generates the rest. Launch screen: plain `#F2F1EE`.
+2. **App Store Connect** — new app, bundle id `com.zoutwater.floorshot`,
+   **one-time price (~€29)**, no in-app purchases (that sidesteps Apple's
+   subscription rules entirely). Privacy label: "Data not collected" while
+   sign-in stays off; if you enable cloud sign-in later, declare e-mail +
+   user content and link `privacy.html`.
+3. **Review notes**: professional planning tool, fully usable offline; attach
+   a demo `.floorproj`. First review takes 1–3 days.
+4. **TestFlight first**: 5–10 DoP's for two weeks before the public release.
+
+## 4 · The bridge (js/08-native.js, in the web repo)
+
+One file, inert in every browser (`window.Capacitor` decides). Inside the
+app it adds:
+
+- **Exports → the iOS share sheet.** It patches `HTMLAnchorElement.click()`,
+  so every existing export (PDF, .docx, PNG, .txt, .floorproj) reaches Files,
+  Mail or AirDrop without one iPad-specific line elsewhere.
+- **Automatic `.floorproj` backups** in Files → *FLOOR Shot Designer*,
+  written when the project changed and when the app goes to the background.
+  iOS can evict web storage after weeks of non-use; this makes that harmless.
+- **A restore offer** on launch when storage is empty but backups exist — it
+  runs *before* the first backup, so an evicted app can never overwrite the
+  file it is about to restore from.
 
 ## 4 · Release routine (per version)
 

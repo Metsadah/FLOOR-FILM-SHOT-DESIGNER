@@ -1497,11 +1497,9 @@ async function exportFloorproj(){
     const pack = {floorproj:1, exported:new Date().toISOString(),
       name:project.shootName || 'production', project, assets};
     const blob = new Blob([JSON.stringify(pack)], {type:'application/json'});
-    const a = document.createElement('a');
-    a.download = (project.shootName || 'production').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') + '.floorproj';
-    a.href = URL.createObjectURL(blob);
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    // one download path for the whole app (08-native.js turns this into the iOS
+    // share sheet inside the iPad build)
+    dlBlob((project.shootName || 'production').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') + '.floorproj', blob);
     toast('Exported — images and files travel inside the file');
   }catch(e){
     console.error('floorproj export failed', e);

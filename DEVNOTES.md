@@ -303,6 +303,29 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.69 — native bridge (js/08-native.js) for the iPad build
+One new file that returns immediately unless window.Capacitor reports a
+native platform, so the browser build behaves identically. Inside the app:
+(1) exports become the iOS share sheet by patching
+HTMLAnchorElement.prototype.click for anchors with a download attribute and
+a blob:/data: href — that covers EVERY export (PDF, docx, PNG, txt,
+floorproj) with no iPad-specific code anywhere else; the blob goes to CACHE
+via Filesystem, then Share.share({url}). (2) .floorproj backups into
+Documents/FLOOR (visible in the Files app) on a 90s change-stamp tick, on
+visibilitychange and on pagehide — skipped while `dirty`, so it never packs
+a half-edit. (3) offerRestore() when the project index is empty but backups
+exist. SCAR: the restore MUST be awaited before the first backupNow(), or an
+evicted (empty) app overwrites the backup it is about to restore from —
+found by simulating Capacitor.Plugins in the browser pane, which is the only
+way to exercise this path without a device. Also: exportFloorproj now goes
+through dlBlob(), giving the app ONE download path; 08-native.js is in the
+service-worker shell list.
+The Capacitor 8 shell lives in ~/Documents/GitHub/floor-ipad
+(capacitor.config.json, config.ios.js, sync.sh, finish-setup.sh, www/).
+This Mac has Node but NOT Xcode.app — only CommandLineTools, licence not
+accepted, which also breaks python3 (use node for scripting) — and no
+CocoaPods. IPAD.md §3 lists the three user-run steps.
+
 ## v0.68 — LITE mode (Shot designer only) for the iPad spin-off
 `?mode=shot` or config.mode → window.FLOOR_MODE + body.lite (05-app,
 before the touch block). CSS hides #tabbar/#shareBtn/#installBtn and
