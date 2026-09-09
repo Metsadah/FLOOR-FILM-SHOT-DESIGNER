@@ -664,3 +664,10 @@ body.touch .side-head button{ min-width:26px; min-height:26px; }
 body.hideL #libToggle, body.hideR #panelToggle{
   background:var(--accent-soft); color:var(--accent); border-color:var(--accent);
 }
+
+/* ---------------- LITE mode: Shot designer only ----------------
+   ?mode=shot (or config.mode) — the iPad spin-off. One tab, no share/
+   co-edit chrome, a Load-script button instead of the Script tab. */
+body.lite #tabbar, body.lite #shareBtn, body.lite #installBtn{ display:none !important; }
+body.lite #loadScriptBtn{ display:inline-flex !important; }
+body.lite #app{ grid-template-rows:60px 1fr; } /* tabbar is display:none → it leaves the grid, so TWO rows */

@@ -303,6 +303,21 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.68 — LITE mode (Shot designer only) for the iPad spin-off
+`?mode=shot` or config.mode → window.FLOOR_MODE + body.lite (05-app,
+before the touch block). CSS hides #tabbar/#shareBtn/#installBtn and
+shows #loadScriptBtn (topbar, after projBtn). SCAR: a display:none
+tabbar LEAVES the grid, so `body.lite #app` must be a TWO-row template
+(60px 1fr) — a "60px 0 1fr" template put #main into the 0px row and the
+whole app collapsed to a strip. Scene info starts collapsed only when
+localStorage.floorHideR was never set (a remembered choice wins).
+loadScriptOverlay (06-tabs): paste or pick .txt/.fountain/.pdf
+(extractPdfText) → parseScreenplay → createScenesFromBreakdown (the
+classic path, no sbrow cards) → film tag sc.film + filmSrc 'script:<name>'
+→ switchShot(first). IPAD.md = flavour matrix (web / lite / Capacitor),
+the three no-fork rules, the Capacitor + Xcode + App Store steps (one-time
+price, no IAP) and the per-release rsync routine.
+
 ## v0.67 — landing page for first-time visitors + launch plan
 Cloud mode only: in the adapter's `ready` IIFE, no session AND no
 localStorage.floorSeen AND no ?view/?join/?start → location.replace

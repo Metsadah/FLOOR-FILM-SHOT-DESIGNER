@@ -968,6 +968,21 @@ document.getElementById('installBtn')?.addEventListener('click', async ()=>{
   document.getElementById('installBtn').style.display = 'none';
 });
 
+// ---------------------------------------------------------------- LITE mode
+// Shot designer only — the iPad spin-off. Activated by ?mode=shot, by
+// config.mode (the Capacitor build sets it) or a remembered choice. Same
+// code, same files: the other tabs and the share chrome simply hide, and a
+// Load-script button replaces the Script tab for getting scenes in.
+window.FLOOR_MODE = new URLSearchParams(location.search).get('mode') ||
+  (window.FLOOR_CONFIG && window.FLOOR_CONFIG.mode) || '';
+if(window.FLOOR_MODE === 'shot'){
+  document.body.classList.add('lite');
+  // start with the canvas wide open; the panel toggle brings Scene info back
+  let hr = null; try{ hr = localStorage.floorHideR; }catch(_){}
+  if(hr === undefined || hr === null) document.body.classList.add('hideR');
+  document.getElementById('loadScriptBtn').addEventListener('click', ()=>loadScriptOverlay());
+}
+
 // ---------------------------------------------------------------- touch / iPad
 // iPadOS Safari masquerades as macOS, but the touch points give it away
 window.IS_TOUCH = (navigator.maxTouchPoints || 0) > 1;

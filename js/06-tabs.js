@@ -2009,3 +2009,76 @@ function syncProjBtn(){
 }
 setInterval(syncProjBtn, 1500);
 setTimeout(syncProjBtn, 400);
+
+// ---------------------------------------------------------------- Load script (LITE mode)
+// The Shot-designer-only build has no Script tab, so scripts come in through
+// this sheet: paste text, or pick a .txt / .fountain / .pdf. Scene headings
+// (INT./EXT.) become scenes via the classic breakdown; the film name groups them.
+function loadScriptOverlay(){
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;inset:0;z-index:210;background:rgba(40,38,32,.35);' +
+    'display:flex;align-items:center;justify-content:center;font-family:-apple-system,Segoe UI,sans-serif;';
+  el.innerHTML = `
+    <div style="background:#fff;border:1px solid #E5E3DE;border-radius:16px;padding:24px 28px;
+                width:560px;max-width:94vw;max-height:90vh;overflow:auto;box-shadow:0 18px 60px rgba(40,38,32,.2)">
+      <div style="font-weight:600;font-size:15px">Load a script</div>
+      <div style="color:#8A877F;font-size:12px;margin:6px 0 10px;line-height:1.5">
+        Every scene heading (<b>INT. KITCHEN — DAY</b>, <b>EXT. …</b>) becomes a scene in the list on
+        the left, with its text in Scene info. Paste below, or pick a file.
+      </div>
+      <input id="lsName" placeholder="Film / script name (groups the scenes)"
+        style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:9px 11px;font-size:13px;box-sizing:border-box;margin-bottom:8px">
+      <textarea id="lsText" rows="10" spellcheck="false" placeholder="INT. KITCHEN — DAY&#10;&#10;Anna is cooking…"
+        style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:10px;
+               font:12.5px ui-monospace,Menlo,monospace;box-sizing:border-box"></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <button id="lsFile" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
+          padding:9px 12px;font-size:12.5px;cursor:pointer">Choose file… (.txt / .fountain / .pdf)</button>
+        <span id="lsMsg" style="color:#8A877F;font-size:12px"></span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="lsGo" style="flex:1;background:#4B6BFB;color:#fff;border:none;border-radius:8px;
+          padding:11px;font-size:13px;font-weight:600;cursor:pointer">Make scenes</button>
+        <button id="lsNo" style="flex:0 0 90px;background:#fff;border:1px solid #E5E3DE;
+          border-radius:8px;padding:11px;font-size:13px;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  const msg = el.querySelector('#lsMsg');
+  const ta = el.querySelector('#lsText');
+  const nameIn = el.querySelector('#lsName');
+  el.querySelector('#lsNo').addEventListener('click', ()=>el.remove());
+  el.addEventListener('pointerdown', e=>{ if(e.target === el) el.remove(); });
+  ta.addEventListener('keydown', e=>e.stopPropagation());
+  nameIn.addEventListener('keydown', e=>e.stopPropagation());
+  el.querySelector('#lsFile').addEventListener('click', ()=>{
+    const fi = document.createElement('input');
+    fi.type = 'file'; fi.accept = '.txt,.fountain,.fdx,.pdf,text/plain,application/pdf';
+    fi.addEventListener('change', async ()=>{
+      const f = fi.files && fi.files[0]; if(!f) return;
+      msg.textContent = 'Reading ' + f.name + '…';
+      try{
+        const text = /\.pdf$/i.test(f.name) ? await extractPdfText(f) : await f.text();
+        ta.value = text || '';
+        if(!nameIn.value) nameIn.value = f.name.replace(/\.[^.]+$/, '');
+        msg.textContent = text ? (text.split('\n').length + ' lines loaded') : 'No text found in that file';
+      }catch(e){ msg.textContent = 'Could not read that file: ' + (e.message || e); }
+    });
+    fi.click();
+  });
+  el.querySelector('#lsGo').addEventListener('click', ()=>{
+    const parsed = parseScreenplay(ta.value || '');
+    if(!parsed.length){
+      msg.textContent = 'No scene headings found — lines like INT. KITCHEN — DAY start a scene.';
+      return;
+    }
+    const scenes = createScenesFromBreakdown(parsed);
+    const film = nameIn.value.trim();
+    if(film) scenes.forEach(sc=>{ sc.film = film; sc.filmSrc = 'script:' + film; });
+    markDirty(); buildShotList(); buildInfo();
+    if(scenes[0]) switchShot(scenes[0].id);
+    el.remove();
+    toast(scenes.length + ' scene' + (scenes.length === 1 ? '' : 's') + ' ready — pick one on the left and start designing');
+  });
+  ta.focus();
+}
