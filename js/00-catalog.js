@@ -21,7 +21,9 @@ function ptSeg(px,py,x1,y1,x2,y2){
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // ---------------------------------------------------------------- palette
-const COLORS = ['#5B6472','#4B6BFB','#E8604C','#3FA46A','#E2A93B','#8B5CF6'];
+// colour-blind safe (Okabe–Ito based): slate · blue · vermillion · teal · amber · purple —
+// every pair stays distinct for deutan/protan/tritan vision
+const COLORS = ['#5B6472','#4B6BFB','#D55E00','#009E73','#E69F00','#9B5DE5'];
 const WALL_COLOR = '#3B3A36';
 
 // lens presets (full-frame horizontal FOV)

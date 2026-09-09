@@ -70,7 +70,7 @@ function buildMoodLibSection(lib){
     el.className = 'lib-item';
     el.appendChild(tileCanvas((tc,w2,h2)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
-      tc.fillStyle='#fff'; tc.fill();
+      tc.fillStyle = THEME.card; tc.fill();
       tc.strokeStyle=color; tc.lineWidth=2.5; tc.stroke();
       tc.fillStyle=color; tc.globalAlpha=.28;
       tc.fillRect(-w2/2,-h2*.4,w2,h2*.18); tc.globalAlpha=1;
@@ -86,7 +86,7 @@ function buildMoodLibSection(lib){
   preset('Idea', '#E2A93B', 'Idea');
   preset('Question', '#8B5CF6', 'Question');
   preset('Theme', '#3E9B6E', 'Theme');
-  preset('Do / Don’t', '#E8604C', 'Do / don’t');
+  preset('Do / Don’t', 'var(--danger)', 'Do / don’t');
   lib.appendChild(grid);
   const tip = document.createElement('div');
   tip.style.cssText = 'font-size:10px;color:var(--ink2);padding:4px 14px 10px;line-height:1.5;';
@@ -133,7 +133,7 @@ function buildWriteLibSection(lib){
   }, {cat:'script', kind:'script', mode:'film'});
   tile('AV script', (tc,w2,h2,c2)=>{
     tc.beginPath(); tc.roundRect(-w2*.42,-h2*.4,w2*.84,h2*.8,3);
-    tc.fillStyle='#fff'; tc.fill();
+    tc.fillStyle = THEME.card; tc.fill();
     tc.strokeStyle='#8B5CF6'; tc.lineWidth=2.5; tc.stroke();
     tc.fillStyle='#8B5CF6'; tc.globalAlpha=.28;
     tc.fillRect(-w2*.42,-h2*.4,w2*.84,h2*.14); tc.globalAlpha=1;
@@ -188,19 +188,19 @@ function buildProdLibSection(lib){
     el.className = 'lib-item';
     el.appendChild(tileCanvas((tc,w2,h2)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
-      tc.fillStyle='#fff'; tc.fill();
-      tc.strokeStyle='#E8604C'; tc.lineWidth=2.5; tc.stroke();
-      tc.fillStyle='#E8604C'; tc.globalAlpha=.28;
+      tc.fillStyle = THEME.card; tc.fill();
+      tc.strokeStyle = THEME.danger; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle = THEME.danger; tc.globalAlpha=.28;
       tc.fillRect(-w2/2, -h2*.4, w2, h2*.16); tc.globalAlpha=1;
       tc.font='800 '+(h2*.3)+'px -apple-system,Segoe UI,sans-serif';
       tc.textAlign='center'; tc.textBaseline='middle';
-      tc.fillStyle='#33322E'; tc.fillText('07:00', 0, h2*.02);
+      tc.fillStyle = THEME.ink; tc.fillText('07:00', 0, h2*.02);
       tc.textAlign='left'; tc.textBaseline='alphabetic';
       tc.fillStyle='#E8934C'; tc.globalAlpha=.7;
       tc.fillRect(-w2*.36, h2*.24, w2*.3, 2.5); tc.globalAlpha=1;
-    }, 100, 100, '#E8604C'));
+    }, 100, 100, 'var(--danger)'));
     el.insertAdjacentHTML('beforeend', '<span>Day header</span>');
-    el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'dayheader', kind:'dayheader', w:320, h:140, color:'#E8604C'}));
+    el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'dayheader', kind:'dayheader', w:320, h:140, color:'var(--danger)'}));
     grid.appendChild(el);
   }
   // registry cards first — Crew / Cast / Client, live views of one People list
@@ -210,7 +210,7 @@ function buildProdLibSection(lib){
     el.className = 'lib-item';
     el.appendChild(tileCanvas((tc,w2,h2)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2*.36,w2,h2*.72,4);
-      tc.fillStyle='#fff'; tc.fill();
+      tc.fillStyle = THEME.card; tc.fill();
       tc.strokeStyle=spec.color; tc.lineWidth=2.5; tc.stroke();
       tc.fillStyle=spec.color; tc.globalAlpha=.28;
       tc.fillRect(-w2/2, -h2*.36, w2, h2*.2); tc.globalAlpha=1;
@@ -229,7 +229,7 @@ function buildProdLibSection(lib){
     el.className = 'lib-item';
     el.appendChild(tileCanvas((tc,w2,h2)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
-      tc.fillStyle='#fff'; tc.fill();
+      tc.fillStyle = THEME.card; tc.fill();
       tc.strokeStyle=spec.color; tc.lineWidth=2.5; tc.stroke();
       tc.fillStyle=spec.color; tc.globalAlpha=.28;
       tc.fillRect(-w2/2, -h2*.4, w2, h2*.18); tc.globalAlpha=1;
@@ -266,7 +266,7 @@ function buildProdLibSection(lib){
     el.className = 'lib-item';
     el.appendChild(tileCanvas((tc,w2,h2)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
-      tc.fillStyle='#fff'; tc.fill();
+      tc.fillStyle = THEME.card; tc.fill();
       tc.strokeStyle='#E8934C'; tc.lineWidth=2.5; tc.stroke();
       tc.fillStyle='#E8934C'; tc.globalAlpha=.28;
       tc.fillRect(-w2/2,-h2*.4,w2,h2*.16); tc.globalAlpha=1;
@@ -288,7 +288,7 @@ function buildProdLibSection(lib){
     el.className = 'lib-item';
     el.appendChild(tileCanvas((tc,w2,h2)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
-      tc.fillStyle='#fff'; tc.fill();
+      tc.fillStyle = THEME.card; tc.fill();
       tc.strokeStyle='#7FA05A'; tc.lineWidth=2.5; tc.stroke();
       tc.fillStyle='#7FA05A'; tc.globalAlpha=.28;
       tc.fillRect(-w2/2,-h2*.4,w2,h2*.16); tc.globalAlpha=1;
@@ -314,7 +314,7 @@ function buildProdLibSection(lib){
     el.className = 'lib-item';
     el.appendChild(tileCanvas((tc,w2,h2)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2*.4,w2,h2*.8,4);
-      tc.fillStyle='#fff'; tc.fill();
+      tc.fillStyle = THEME.card; tc.fill();
       tc.strokeStyle='#4C8AD9'; tc.lineWidth=2.5; tc.stroke();
       tc.fillStyle='#4C8AD9'; tc.globalAlpha=.28;
       tc.fillRect(-w2/2,-h2*.4,w2,h2*.16); tc.globalAlpha=1;
@@ -351,18 +351,18 @@ function buildProdLibSection(lib){
     el.className = 'lib-item';
     el.appendChild(tileCanvas((tc,w2,h2)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2*.44,w2,h2*.88,4);
-      tc.fillStyle='#fff'; tc.fill();
-      tc.strokeStyle='#4B6BFB'; tc.lineWidth=2.5; tc.stroke();
-      tc.fillStyle='#4B6BFB'; tc.globalAlpha=.28;
+      tc.fillStyle = THEME.card; tc.fill();
+      tc.strokeStyle = THEME.accent; tc.lineWidth=2.5; tc.stroke();
+      tc.fillStyle = THEME.accent; tc.globalAlpha=.28;
       tc.fillRect(-w2/2,-h2*.44,w2,h2*.16); tc.globalAlpha=1;
       tc.globalAlpha=.55;
       for(const y2 of [-h2*.18, -h2*.06, h2*.1, h2*.22, h2*.34])
         tc.fillRect(-w2*.36, y2, w2*(y2===-h2*.18||y2===h2*.1 ? .34 : .72), 2.5);
       tc.globalAlpha=1;
-    }, 100, 100, '#4B6BFB'));
+    }, 100, 100, 'var(--accent)'));
     el.insertAdjacentHTML('beforeend', '<span>Call sheet</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e,
-      {cat:'callsheet', kind:'callsheet', w:380, h:300, color:'#4B6BFB'}));
+      {cat:'callsheet', kind:'callsheet', w:380, h:300, color:'var(--accent)'}));
     grid.appendChild(el);
   }
   lib.appendChild(grid);
@@ -584,7 +584,7 @@ function buildCallSheetPDF(o){
   const prevCtx = ctx, prevSel = sel;
   ctx = c.getContext('2d');
   sel = null; // no selection chrome in print
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = THEME.card;
   ctx.fillRect(0, 0, c.width, c.height);
   ctx.setTransform(scale, 0, 0, scale, (o.w/2 - o.x)*scale, (o.h/2 - o.y)*scale);
   try{ drawObject(o); }
@@ -1661,25 +1661,25 @@ function avPasteOverlay(o){
   el.style.cssText = 'position:fixed;inset:0;z-index:210;background:rgba(40,38,32,.35);' +
     'display:flex;align-items:center;justify-content:center;font-family:-apple-system,Segoe UI,sans-serif;';
   el.innerHTML = `
-    <div style="background:#fff;border:1px solid #E5E3DE;border-radius:16px;padding:24px 28px;
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px 28px;
                 width:520px;max-width:92vw;box-shadow:0 18px 60px rgba(40,38,32,.2)">
       <div style="font-weight:600;font-size:15px">Paste AV script rows</div>
-      <div style="color:#8A877F;font-size:12px;margin:6px 0 10px;line-height:1.5">
+      <div style="color:var(--ink2);font-size:12px;margin:6px 0 10px;line-height:1.5">
         Copy the rows from Excel / Google Sheets (or tab-separated text) and paste below.
         Columns: <b>VIDEO ⇥ AUDIO</b> — or start with a header row naming the columns,
         and an optional first column with a time like <b>0:30</b>.
       </div>
       <textarea id="avPasteTa" rows="10" spellcheck="false"
-        style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:10px;
+        style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;
                font:12px ui-monospace,Menlo,monospace;box-sizing:border-box"></textarea>
-      <label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#4A4636;margin-top:8px;cursor:pointer">
+      <label style="display:flex;gap:7px;align-items:center;font-size:12px;color:var(--body);margin-top:8px;cursor:pointer">
         <input id="avPasteSwap" type="checkbox"> First column is AUDIO (swap the two)
       </label>
-      <div id="avPasteMsg" style="color:#8A877F;font-size:12px;margin-top:8px;min-height:15px"></div>
+      <div id="avPasteMsg" style="color:var(--ink2);font-size:12px;margin-top:8px;min-height:15px"></div>
       <div style="display:flex;gap:8px;margin-top:6px">
-        <button id="avPasteGo" style="flex:1;background:#4B6BFB;color:#fff;border:none;border-radius:8px;
+        <button id="avPasteGo" style="flex:1;background:var(--accent);color:var(--panel);border:none;border-radius:8px;
           padding:10px;font-size:13px;font-weight:600;cursor:pointer">Import rows</button>
-        <button id="avPasteNo" style="flex:0 0 90px;background:#fff;border:1px solid #E5E3DE;
+        <button id="avPasteNo" style="flex:0 0 90px;background:var(--panel);border:1px solid var(--line);
           border-radius:8px;padding:10px;font-size:13px;cursor:pointer">Cancel</button>
       </div>
     </div>`;
@@ -1964,7 +1964,7 @@ async function openProjectPop(){
   if(idx.length > 1){
     const del = document.createElement('button');
     del.className = 'btn';
-    del.style.cssText = 'width:100%;margin-top:6px;color:#C0392B;';
+    del.style.cssText = 'width:100%;margin-top:6px;color:var(--danger);';
     const curShared = window.FLOOR_SHARED && window.FLOOR_SHARED.has(currentProjectId);
     const curRole = curShared ? window.FLOOR_SHARED.get(currentProjectId).role : null;
     del.textContent = curShared && curRole !== 'owner'
@@ -2018,27 +2018,27 @@ function loadScriptOverlay(){
   el.style.cssText = 'position:fixed;inset:0;z-index:210;background:rgba(40,38,32,.35);' +
     'display:flex;align-items:center;justify-content:center;font-family:-apple-system,Segoe UI,sans-serif;';
   el.innerHTML = `
-    <div style="background:#fff;border:1px solid #E5E3DE;border-radius:16px;padding:24px 28px;
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px 28px;
                 width:560px;max-width:94vw;max-height:90vh;overflow:auto;box-shadow:0 18px 60px rgba(40,38,32,.2)">
       <div style="font-weight:600;font-size:15px">Load a script</div>
-      <div style="color:#8A877F;font-size:12px;margin:6px 0 10px;line-height:1.5">
+      <div style="color:var(--ink2);font-size:12px;margin:6px 0 10px;line-height:1.5">
         Every scene heading (<b>INT. KITCHEN — DAY</b>, <b>EXT. …</b>) becomes a scene in the list on
         the left, with its text in Scene info. Paste below, or pick a file.
       </div>
       <input id="lsName" placeholder="Film / script name (groups the scenes)"
-        style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:9px 11px;font-size:13px;box-sizing:border-box;margin-bottom:8px">
+        style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px;box-sizing:border-box;margin-bottom:8px">
       <textarea id="lsText" rows="10" spellcheck="false" placeholder="INT. KITCHEN — DAY&#10;&#10;Anna is cooking…"
-        style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:10px;
+        style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;
                font:12.5px ui-monospace,Menlo,monospace;box-sizing:border-box"></textarea>
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
-        <button id="lsFile" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
+        <button id="lsFile" style="background:var(--panel);border:1px solid var(--line);border-radius:8px;
           padding:9px 12px;font-size:12.5px;cursor:pointer">Choose file… (.txt / .fountain / .pdf)</button>
-        <span id="lsMsg" style="color:#8A877F;font-size:12px"></span>
+        <span id="lsMsg" style="color:var(--ink2);font-size:12px"></span>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
-        <button id="lsGo" style="flex:1;background:#4B6BFB;color:#fff;border:none;border-radius:8px;
+        <button id="lsGo" style="flex:1;background:var(--accent);color:var(--panel);border:none;border-radius:8px;
           padding:11px;font-size:13px;font-weight:600;cursor:pointer">Make scenes</button>
-        <button id="lsNo" style="flex:0 0 90px;background:#fff;border:1px solid #E5E3DE;
+        <button id="lsNo" style="flex:0 0 90px;background:var(--panel);border:1px solid var(--line);
           border-radius:8px;padding:11px;font-size:13px;cursor:pointer">Cancel</button>
       </div>
     </div>`;

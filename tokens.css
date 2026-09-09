@@ -1,0 +1,91 @@
+/* =====================================================================
+   FLOOR / Floorboard — design tokens (the ONE source of truth)
+   =====================================================================
+   Loaded before styles.css. Every colour, radius and size in the app —
+   the CSS *and* the canvas renderer (js/00-theme.js reads these at
+   runtime) — comes from here. Light is the default; dark applies when
+   <html data-theme="dark"> is set, or when the OS prefers dark and no
+   explicit choice was made.
+
+   Palette notes
+   - Neutrals are warm greys (paper), never pure grey: calm, "studio".
+   - Semantic colours are colour-blind safe (Okabe–Ito based): blue for
+     action, vermillion for danger, amber for warning, teal-green for
+     success — no red/green pair anywhere, and every state also has a
+     shape or label, never colour alone.
+   - Radii: 8 on controls, 12 on panels/cards, 16 on overlays; canvas
+     cards 8. Soft, not bubbly.
+   ===================================================================== */
+:root{
+  /* surfaces */
+  --bg:#F4F3F0;          /* app background, canvas paper */
+  --panel:#FFFFFF;       /* sidebars, topbar, popovers */
+  --card:#FFFFFF;        /* canvas cards */
+  --hover:#F6F5F2;
+  --soft:#EEECE7;        /* subtle fills, chips */
+  --grid:#E3E0D9;        /* canvas grid dots */
+  --line:#E6E3DD;        /* hairlines */
+  --line2:#D6D2CA;       /* stronger strokes, card outlines */
+  /* text */
+  --ink:#2B2A27;
+  --body:#46433B;
+  --ink2:#7E7B73;
+  --ink3:#B5B1A8;
+  /* placeholders (ink at alpha) */
+  --ph30:rgba(70,67,59,.30);
+  --ph35:rgba(70,67,59,.35);
+  --ph40:rgba(70,67,59,.40);
+  --chip:rgba(255,255,255,.92);      /* floating chips on canvas */
+  --toast:#2A2926; --toast-ink:#FFFFFF;
+  /* semantic */
+  --accent:#4B6BFB; --accent-ink:#3D5BE8; --accent-soft:#EAEEFF; --accent-08:rgba(75,107,251,.08);
+  --danger:#D55E00; --danger-soft:#FBEAE0; --danger-line:#F0C1A6;
+  --warn:#E69F00;  --warn-soft:#FBF3E2;
+  --ok:#009E73;    --ok-soft:#E3F5EF;
+  --on-accent:#FFFFFF;
+  /* shape */
+  --r-xs:6px; --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+  --r-card:8;            /* canvas roundRect radius, unitless */
+  /* size & type */
+  --tap:34px;            /* minimum control height with a mouse; touch bumps to 44 */
+  --fs:13.5px;
+  --shadow:0 1px 2px rgba(40,38,32,.05), 0 6px 18px rgba(40,38,32,.07);
+  --shadow-lg:0 18px 60px rgba(40,38,32,.16);
+  /* legacy aliases (older rules still reference these) */
+  --border:var(--line); --border2:var(--line2); --radius:var(--r-md);
+  color-scheme:light;
+}
+
+/* ---------- dark ---------- */
+:root[data-theme="dark"]{
+  --bg:#151618; --panel:#1E1F22; --card:#232428; --hover:#26272B; --soft:#2A2B30;
+  --grid:#25262A; --line:#2E3035; --line2:#3A3C42;
+  --ink:#ECEAE4; --body:#D3D0C8; --ink2:#9C998F; --ink3:#6B6960;
+  --ph30:rgba(236,234,228,.30); --ph35:rgba(236,234,228,.35); --ph40:rgba(236,234,228,.40);
+  --chip:rgba(35,36,40,.92);
+  --toast:#ECEAE4; --toast-ink:#1E1F22;
+  --accent:#6D86FF; --accent-ink:#8CA0FF; --accent-soft:#252B45; --accent-08:rgba(109,134,255,.12);
+  --danger:#F0844A; --danger-soft:#3A2419; --danger-line:#6B3A22;
+  --warn:#F0B44A; --warn-soft:#3A3120;
+  --ok:#3BC29A; --ok-soft:#173A30;
+  --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.35);
+  --shadow-lg:0 18px 60px rgba(0,0,0,.55);
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151618; --panel:#1E1F22; --card:#232428; --hover:#26272B; --soft:#2A2B30;
+    --grid:#25262A; --line:#2E3035; --line2:#3A3C42;
+    --ink:#ECEAE4; --body:#D3D0C8; --ink2:#9C998F; --ink3:#6B6960;
+    --ph30:rgba(236,234,228,.30); --ph35:rgba(236,234,228,.35); --ph40:rgba(236,234,228,.40);
+    --chip:rgba(35,36,40,.92);
+    --toast:#ECEAE4; --toast-ink:#1E1F22;
+    --accent:#6D86FF; --accent-ink:#8CA0FF; --accent-soft:#252B45; --accent-08:rgba(109,134,255,.12);
+    --danger:#F0844A; --danger-soft:#3A2419; --danger-line:#6B3A22;
+    --warn:#F0B44A; --warn-soft:#3A3120;
+    --ok:#3BC29A; --ok-soft:#173A30;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.35);
+    --shadow-lg:0 18px 60px rgba(0,0,0,.55);
+    color-scheme:dark;
+  }
+}

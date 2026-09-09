@@ -303,6 +303,35 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.72 — design language, step 1: tokens + light/dark
+Floorboard groundwork. tokens.css is now the ONE source for colour,
+radius and size; styles.css has ZERO hex left (all var(--…)), and the
+canvas renderer reads the same tokens through THEME (js/00-theme.js,
+loaded first): loadTheme() copies --ink/--card/… into a plain object,
+setTheme('light'|'dark'|'') flips <html data-theme> and fires
+'floor-theme-changed' (05-app re-renders board, library tiles, stills).
+Dark applies via data-theme OR prefers-color-scheme when no choice is
+stored (localStorage.floorTheme). Exports are paper: renderShotPlan is
+wrapped in withLightTheme(), so PNG/PDF/call sheets never come out dark.
+Canvas literals mapped: #fff→THEME.card, #33322E→ink, #4A4636→body,
+#8A877F→ink2, #B9B6AE→ink3, #E5E3DE→line, #D8D5CF→line2, placeholders
+→ph30/35/40, chips→chip, roundRect(…,3)→THEME.rCard (8). Grid dots →
+THEME.grid; WALL_COLOR → THEME.ink (walls must read on dark paper).
+tileCanvas lifts the slate default icon colour to THEME.body in dark.
+DOM strings (selBar/overlays/adapter) use var(--token) — CSS vars
+resolve in inline styles but NOT in canvas fillStyle, hence the split;
+a regex fix-up caught the few canvas assignments inside 04-ui/06-tabs.
+Remaining hex in JS is intentional: gel colours, card-type colours,
+handle colours. Object palette is now colour-blind safe (Okabe–Ito
+derived): slate · blue · vermillion #D55E00 · teal #009E73 · amber
+#E69F00 · purple; --danger is vermillion too, so no red/green pair
+exists anywhere. Radius scale --r-sm 8 (controls) / --r-md 12 / --r-lg
+16; base font 13.5px; library labels 10.5px min.
+Also: account button is the LAST item in the topbar; a ◐/☀/☾ theme
+button sits before help; logged-out visitors ALWAYS get landing.html
+now (?view/?join/?start/?type bypass); landing/privacy/terms load
+tokens.css and follow the theme.
+
 ## v0.71 — iPad drag fixes + quieter prop list
 User on a real iPad: "items disappear when I drag". Three causes, all in
 the touch path: (1) a second finger/palm during an object drag made

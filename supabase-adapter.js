@@ -33,7 +33,7 @@
     document.addEventListener('DOMContentLoaded', ()=>{
       const b = document.createElement('div');
       b.style.cssText = 'position:fixed;bottom:14px;left:50%;transform:translateX(-50%);' +
-        'background:#33322E;color:#fff;font:12px -apple-system,Segoe UI,sans-serif;' +
+        'background:var(--ink);color:var(--panel);font:12px -apple-system,Segoe UI,sans-serif;' +
         'padding:9px 14px;border-radius:9px;z-index:300;box-shadow:0 8px 30px rgba(0,0,0,.25)';
       b.textContent = 'Cloud login could not start (Supabase library failed to load) — working locally instead.';
       document.body.appendChild(b);
@@ -57,7 +57,7 @@
   function loginOverlay(){
     return new Promise(resolve => {
       const el = document.createElement('div');
-      el.style.cssText = 'position:fixed;inset:0;z-index:200;background:#F2F1EE;' +
+      el.style.cssText = 'position:fixed;inset:0;z-index:200;background:var(--bg);' +
         'display:flex;align-items:center;justify-content:center;font-family:-apple-system,Segoe UI,sans-serif;';
       document.body.appendChild(el);
 
@@ -66,16 +66,16 @@
       function field(id, type, ph){
         return `<input id="${id}" type="${type}" placeholder="${ph}" autocomplete="${
           type==='password' ? 'current-password' : type==='email' ? 'email' : 'off'}"
-          style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:9px 11px;
+          style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;
                  font-size:13px;margin-top:8px;box-sizing:border-box">`;
       }
       function btn(id, label, primary){
         return `<button id="${id}" style="width:100%;margin-top:10px;border-radius:8px;padding:10px;
-          font-size:13px;font-weight:600;cursor:pointer;border:${primary ? 'none' : '1px solid #E5E3DE'};
-          background:${primary ? '#4B6BFB' : '#fff'};color:${primary ? '#fff' : '#33322E'}">${label}</button>`;
+          font-size:13px;font-weight:600;cursor:pointer;border:${primary ? 'none' : '1px solid var(--line)'};
+          background:${primary ? 'var(--accent)' : 'var(--panel)'};color:${primary ? 'var(--panel)' : 'var(--ink)'}">${label}</button>`;
       }
       function link(id, label){
-        return `<button id="${id}" style="background:none;border:none;color:#4B6BFB;font-size:12px;
+        return `<button id="${id}" style="background:none;border:none;color:var(--accent);font-size:12px;
           cursor:pointer;padding:2px 0;text-align:left">${label}</button>`;
       }
 
@@ -89,51 +89,51 @@
               ${link('flForgot','Forgot password?')}
               ${link('flToSignup','Create account')}
             </div>
-            <div style="border-top:1px solid #E5E3DE;margin-top:12px;padding-top:10px">
+            <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
               ${link('flToMagic','Email me a login link instead')}
             </div>` :
           mode === 'signup' ? `
             ${field('flEmail','email','you@example.com')}
             ${field('flPass','password','Choose a password (6+ characters)')}
             <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;
-                          font-size:12px;color:#4A4636;line-height:1.45;cursor:pointer">
+                          font-size:12px;color:var(--body);line-height:1.45;cursor:pointer">
               <input id="flConsent" type="checkbox" style="margin-top:2px">
               <span>I agree to the <a href="privacy.html" target="_blank"
-                style="color:#4B6BFB">privacy policy</a> — my email (and any profile
+                style="color:var(--accent)">privacy policy</a> — my email (and any profile
                 details I choose to add later) are stored to run my account.</span>
             </label>
             ${btn('flGo','Create account',true)}
             <div style="margin-top:10px">${link('flToSignin','Already have an account? Sign in')}</div>` :
           mode === 'forgot' ? `
-            <div style="color:#8A877F;font-size:12.5px;margin-bottom:4px">
+            <div style="color:var(--ink2);font-size:12.5px;margin-bottom:4px">
               We'll email you a one-time link to set a new password.</div>
             ${field('flEmail','email','you@example.com')}
             ${btn('flGo','Send reset link',true)}
             <div style="margin-top:10px">${link('flToSignin','Back to sign in')}</div>` :
           mode === 'reset' ? `
-            <div style="color:#8A877F;font-size:12.5px;margin-bottom:4px">
+            <div style="color:var(--ink2);font-size:12.5px;margin-bottom:4px">
               Set a new password for your account.</div>
             ${field('flPass','password','New password (6+ characters)')}
             ${field('flPass2','password','Repeat new password')}
             ${btn('flGo','Set password & continue',true)}` :
           /* magiclink */ `
-            <div style="color:#8A877F;font-size:12.5px;margin-bottom:4px">
+            <div style="color:var(--ink2);font-size:12.5px;margin-bottom:4px">
               We'll email you a one-time login link — no password needed.</div>
             ${field('flEmail','email','you@example.com')}
             ${btn('flGo','Email me a login link',true)}
             <div style="margin-top:10px">${link('flToSignin','Use a password instead')}</div>`;
 
         el.innerHTML = `
-          <div style="background:#fff;border:1px solid #E5E3DE;border-radius:16px;padding:30px 34px;
+          <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:30px 34px;
                       width:340px;box-shadow:0 18px 60px rgba(40,38,32,.14)">
             <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px">
-              <div style="width:10px;height:10px;border-radius:3px;background:#4B6BFB"></div>FLOOR Studio
+              <div style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></div>FLOOR Studio
             </div>
-            <div id="flTitle" style="color:#33322E;font-size:12.5px;font-weight:600;margin-top:10px">
+            <div id="flTitle" style="color:var(--ink);font-size:12.5px;font-weight:600;margin-top:10px">
               ${mode==='signin' ? 'Sign in' : mode==='signup' ? 'Create your account'
                 : mode==='forgot' ? 'Reset password' : mode==='reset' ? 'New password' : 'Email login link'}
             </div>
-            <div id="flMsg" style="color:#8A877F;font-size:12px;margin-top:6px;line-height:1.5"></div>
+            <div id="flMsg" style="color:var(--ink2);font-size:12px;margin-top:6px;line-height:1.5"></div>
           </div>`;
         el.querySelector('div > div').insertAdjacentHTML('beforeend', body);
         wire();
@@ -219,11 +219,10 @@
     }
     const {data} = await sb.auth.getSession();
     if(data.session){ try{ localStorage.floorSeen = '1'; }catch(_){} return data.session.user; }
-    // first-time visitors (never signed in here, no share/invite link) land on
-    // the landing page instead of a bare login box; ?start=1 comes back from it
+    // logged-out visitors land on the landing page (share/invite links and the
+    // landing page's own "Open the app" — ?start=1 — go straight to sign-in)
     const q = new URLSearchParams(location.search);
-    let seen = false; try{ seen = localStorage.floorSeen === '1'; }catch(_){}
-    if(!seen && !q.has('view') && !q.has('join') && !q.has('start')){
+    if(!q.has('view') && !q.has('join') && !q.has('start') && !q.has('type')){
       location.replace('landing.html');
       return new Promise(()=>{}); // the page is leaving — never resolve
     }
@@ -300,20 +299,20 @@
       'display:flex;align-items:center;justify-content:center;font-family:-apple-system,Segoe UI,sans-serif;';
     const f = (id, label, val, ph)=>`
       <div style="margin-top:9px">
-        <div style="font-size:10.5px;font-weight:600;color:#8A877F;letter-spacing:.4px">${label}
+        <div style="font-size:10.5px;font-weight:600;color:var(--ink2);letter-spacing:.4px">${label}
           <span style="font-weight:400">· optional</span></div>
         <input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph}"
-          style="width:100%;border:1px solid #E5E3DE;border-radius:8px;padding:8px 10px;
+          style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
                  font-size:13px;margin-top:3px;box-sizing:border-box">
       </div>`;
     el.innerHTML = `
-      <div style="background:#fff;border:1px solid #E5E3DE;border-radius:16px;padding:26px 30px;
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 30px;
                   width:360px;max-height:86vh;overflow:auto;box-shadow:0 18px 60px rgba(40,38,32,.2)">
         <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px">
-          <div style="width:10px;height:10px;border-radius:3px;background:#4B6BFB"></div>
+          <div style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></div>
           ${firstRun ? 'Welcome — tell us about yourself?' : 'Account & privacy'}
         </div>
-        <div style="color:#8A877F;font-size:12px;margin-top:6px;line-height:1.5">
+        <div style="color:var(--ink2);font-size:12px;margin-top:6px;line-height:1.5">
           ${firstRun
             ? 'Everything below is optional — it only prefills your call sheets and crew cards. Skip it freely.'
             : 'Signed in as <b>' + ((window.FLOOR_USER && window.FLOOR_USER.email) || '') + '</b>'}
@@ -322,36 +321,36 @@
         ${f('apAddress','ADDRESS', profile.address, 'Street, city')}
         ${f('apPhone','PHONE', profile.phone, '+31 6 …')}
         ${f('apProf','PROFESSION', profile.profession, 'DoP / gaffer / producer …')}
-        <div id="apMsg" style="color:#8A877F;font-size:12px;margin-top:10px;min-height:16px"></div>
-        <button id="apSave" style="width:100%;margin-top:4px;background:#4B6BFB;color:#fff;border:none;
+        <div id="apMsg" style="color:var(--ink2);font-size:12px;margin-top:10px;min-height:16px"></div>
+        <button id="apSave" style="width:100%;margin-top:4px;background:var(--accent);color:var(--panel);border:none;
           border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">
           ${firstRun ? 'Save & continue' : 'Save changes'}</button>
-        ${firstRun ? `<button id="apSkip" style="width:100%;margin-top:8px;background:#fff;color:#33322E;
-          border:1px solid #E5E3DE;border-radius:8px;padding:10px;font-size:13px;cursor:pointer">
+        ${firstRun ? `<button id="apSkip" style="width:100%;margin-top:8px;background:var(--panel);color:var(--ink);
+          border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;cursor:pointer">
           Skip for now</button>` : `
-        <div style="border-top:1px solid #E5E3DE;margin-top:16px;padding-top:12px;
+        <div style="border-top:1px solid var(--line);margin-top:16px;padding-top:12px;
                     display:flex;flex-direction:column;gap:8px">
-          <div id="apPlan" style="display:none;border:1px solid #E5E3DE;border-radius:10px;
+          <div id="apPlan" style="display:none;border:1px solid var(--line);border-radius:10px;
             padding:10px 12px;font-size:12.5px;line-height:1.5"></div>
-          <button id="apPassBtn" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
+          <button id="apPassBtn" style="background:var(--panel);border:1px solid var(--line);border-radius:8px;
             padding:9px;font-size:12.5px;cursor:pointer">Change password…</button>
           <div id="apPassRow" style="display:none;flex-direction:column;gap:6px">
             <input id="apPass" type="password" placeholder="New password (6+ characters)"
               autocomplete="new-password"
-              style="border:1px solid #E5E3DE;border-radius:8px;padding:8px 10px;font-size:12.5px">
+              style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px">
             <input id="apPass2" type="password" placeholder="Repeat new password"
               autocomplete="new-password"
-              style="border:1px solid #E5E3DE;border-radius:8px;padding:8px 10px;font-size:12.5px">
-            <button id="apPassGo" style="background:#4B6BFB;color:#fff;border:none;border-radius:8px;
+              style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px">
+            <button id="apPassGo" style="background:var(--accent);color:var(--panel);border:none;border-radius:8px;
               padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer">Set new password</button>
           </div>
-          <button id="apExport" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
+          <button id="apExport" style="background:var(--panel);border:1px solid var(--line);border-radius:8px;
             padding:9px;font-size:12.5px;cursor:pointer">Download my data (JSON)</button>
-          <button id="apSignout" style="background:#fff;border:1px solid #E5E3DE;border-radius:8px;
+          <button id="apSignout" style="background:var(--panel);border:1px solid var(--line);border-radius:8px;
             padding:9px;font-size:12.5px;cursor:pointer">Sign out</button>
-          <button id="apDelete" style="background:#fff;border:1px solid #E8B4AC;color:#C0392B;
+          <button id="apDelete" style="background:var(--panel);border:1px solid var(--danger-line);color:var(--danger);
             border-radius:8px;padding:9px;font-size:12.5px;cursor:pointer">Delete my account & all data…</button>
-          <a href="privacy.html" target="_blank" style="color:#4B6BFB;font-size:12px">Privacy policy</a>
+          <a href="privacy.html" target="_blank" style="color:var(--accent);font-size:12px">Privacy policy</a>
         </div>`}
       </div>`;
     document.body.appendChild(el);
@@ -368,13 +367,13 @@
         ? new Date(row.current_period_end).toLocaleDateString() : '';
       planBox.innerHTML = plan === 'free'
         ? `<b>Free plan</b> — one cloud production, no co-editing.<br>
-           <button id="apUpgrade" style="margin-top:8px;background:#4B6BFB;color:#fff;border:none;
+           <button id="apUpgrade" style="margin-top:8px;background:var(--accent);color:var(--panel);border:none;
              border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer">
              Upgrade to Pro${B.label ? ' · ' + B.label : ''}</button>`
         : `<b>${plan.toUpperCase()} plan</b> ✓ — unlimited productions & co-editing.` +
           (row && row.status === 'canceled' ? `<br>Cancelled — works until ${until}.`
             : until ? `<br>Renews ${until}.` : '') +
-          `<br><button id="apManage" style="margin-top:8px;background:#fff;border:1px solid #E5E3DE;
+          `<br><button id="apManage" style="margin-top:8px;background:var(--panel);border:1px solid var(--line);
              border-radius:8px;padding:7px 11px;font-size:12px;cursor:pointer">Manage subscription</button>`;
       planBox.querySelector('#apUpgrade')?.addEventListener('click', ()=>B.upgrade());
       planBox.querySelector('#apManage')?.addEventListener('click', ()=>B.manage());

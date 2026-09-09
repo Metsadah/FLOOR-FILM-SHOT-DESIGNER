@@ -126,14 +126,14 @@ function handleColor(id){
   if(id === 'rotate' || id.startsWith('pr') || id === 'sunH' || id === 'sunN') return '#E2A93B';
   if(id.startsWith('fov') || id.startsWith('pf') || id === 'jibHead' || id.startsWith('ch')) return '#8B5CF6';
   if(id === 'ksink' || id === 'khob') return '#4CA6E8';
-  return '#4B6BFB';
+  return THEME.accent;
 }
 function drawSelection(shot){
   if(!sel) return;
   const s = view.scale;
   ctx.save();
   if(sel.type === 'multi'){
-    ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.4/s; ctx.setLineDash([5/s,4/s]);
+    ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.4/s; ctx.setLineDash([5/s,4/s]);
     for(const id of sel.ids){
       const o = shot.objects.find(x=>x.id===id);
       if(!o) continue;
@@ -161,20 +161,20 @@ function drawSelection(shot){
     if(o && o.kind === 'track'){
       // glow along the centerline
       const smp = samplePath(o.pts, false, 14);
-      ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.6/s; ctx.globalAlpha=.7; ctx.setLineDash([6/s,5/s]);
+      ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.6/s; ctx.globalAlpha=.7; ctx.setLineDash([6/s,5/s]);
       ctx.beginPath();
       smp.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
       ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
     } else if(o){
       ctx.save(); ctx.translate(o.x,o.y); ctx.rotate(o.rot);
-      ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.4/s; ctx.setLineDash([5/s,4/s]);
+      ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.4/s; ctx.setLineDash([5/s,4/s]);
       ctx.strokeRect(-o.w/2-6/s, -o.h/2-6/s, o.w+12/s, o.h+12/s);
       ctx.setLineDash([]);
       if(!o.locked){
         ctx.beginPath(); ctx.moveTo(0,-o.h/2-6/s); ctx.lineTo(0,-o.h/2-26/s); ctx.globalAlpha=.5; ctx.stroke(); ctx.globalAlpha=1;
       } else {
         ctx.font = `${13/s}px -apple-system,Segoe UI,sans-serif`;
-        ctx.fillStyle = '#8A877F';
+        ctx.fillStyle = THEME.ink2;
         ctx.fillText('\ud83d\udd12', -o.w/2-4/s, -o.h/2-10/s);
       }
       ctx.restore();
@@ -183,7 +183,7 @@ function drawSelection(shot){
     const w = shot.walls.find(x=>x.id===sel.id);
     if(w){
       const smp = wallSamples(w);
-      ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 3/s; ctx.globalAlpha = .8;
+      ctx.strokeStyle = THEME.accent; ctx.lineWidth = 3/s; ctx.globalAlpha = .8;
       ctx.beginPath();
       smp.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
       ctx.stroke(); ctx.globalAlpha=1;
@@ -206,13 +206,13 @@ function drawSelection(shot){
       const geom = wallGeom(w);
       const pc = wallPointAt(geom, op.t*geom.L);
       const cx = pc.x, cy = pc.y;
-      ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.6/s;
+      ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.6/s;
       ctx.beginPath(); ctx.arc(cx, cy, (op.w/2)+8/s, 0, 7); ctx.setLineDash([5/s,4/s]); ctx.stroke(); ctx.setLineDash([]);
     }
   } else if(sel.type === 'sun'){
     const su = shot.sun;
     if(su && su.on){
-      ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.6/s; ctx.setLineDash([5/s,4/s]);
+      ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.6/s; ctx.setLineDash([5/s,4/s]);
       ctx.beginPath(); ctx.arc(su.x, su.y, 30, 0, 7); ctx.stroke(); ctx.setLineDash([]);
       // orbit hint for the hour handle
       ctx.globalAlpha=.35;
@@ -222,7 +222,7 @@ function drawSelection(shot){
   }
   for(const hd of handleList()){
     ctx.beginPath(); ctx.arc(hd.x, hd.y, H_R/s, 0, 7);
-    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.fillStyle = THEME.card; ctx.fill();
     ctx.lineWidth = 2/s;
     ctx.strokeStyle = handleColor(hd.id);
     ctx.stroke();
@@ -234,18 +234,18 @@ function drawToolPreview(){
   const s = view.scale;
   if(drag && drag.kind === 'drawWall'){
     ctx.save();
-    ctx.strokeStyle = WALL_COLOR; ctx.globalAlpha = .55; ctx.lineWidth = 11; ctx.lineCap='butt';
+    ctx.strokeStyle = THEME.ink; ctx.globalAlpha = .55; ctx.lineWidth = 11; ctx.lineCap='butt';
     ctx.beginPath(); ctx.moveTo(drag.x1, drag.y1); ctx.lineTo(drag.x2, drag.y2); ctx.stroke();
     ctx.globalAlpha=1;
     const L = Math.round(dist(drag.x1,drag.y1,drag.x2,drag.y2));
     ctx.font = `${12/s}px -apple-system,sans-serif`;
-    ctx.fillStyle = '#33322E';
+    ctx.fillStyle = THEME.ink;
     ctx.fillText((L>=100 ? (L/100).toFixed(2).replace(/\.?0+$/,'')+' m' : L+' cm'), (drag.x1+drag.x2)/2 + 10/s, (drag.y1+drag.y2)/2 - 10/s);
     ctx.restore();
   }
   if(drag && drag.kind === 'drawRoom'){
     ctx.save();
-    ctx.strokeStyle = WALL_COLOR; ctx.globalAlpha=.55; ctx.lineWidth = 11;
+    ctx.strokeStyle = THEME.ink; ctx.globalAlpha=.55; ctx.lineWidth = 11;
     ctx.strokeRect(Math.min(drag.x1,drag.x2), Math.min(drag.y1,drag.y2), Math.abs(drag.x2-drag.x1), Math.abs(drag.y2-drag.y1));
     ctx.restore();
   }
@@ -257,12 +257,12 @@ function drawToolPreview(){
     ctx.save();
     ctx.beginPath(); ctx.arc(cx,cy, 10/s, 0, 7);
     ctx.fillStyle = 'rgba(75,107,251,.25)'; ctx.fill();
-    ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.6/s; ctx.stroke();
+    ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.6/s; ctx.stroke();
     ctx.restore();
   }
   if(drag && drag.kind === 'marquee'){
     ctx.save();
-    ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.6/s; ctx.setLineDash([6/s,5/s]);
+    ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.6/s; ctx.setLineDash([6/s,5/s]);
     ctx.strokeRect(Math.min(drag.x1,drag.x2), Math.min(drag.y1,drag.y2),
                    Math.abs(drag.x2-drag.x1), Math.abs(drag.y2-drag.y1));
     ctx.setLineDash([]);
@@ -273,7 +273,7 @@ function drawToolPreview(){
   }
   if(drag && drag.kind === 'crop'){
     ctx.save();
-    ctx.strokeStyle = '#4B6BFB'; ctx.lineWidth = 1.8/s; ctx.setLineDash([7/s,5/s]);
+    ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.8/s; ctx.setLineDash([7/s,5/s]);
     ctx.strokeRect(Math.min(drag.x1,drag.x2), Math.min(drag.y1,drag.y2),
                    Math.abs(drag.x2-drag.x1), Math.abs(drag.y2-drag.y1));
     ctx.setLineDash([]);
@@ -294,7 +294,7 @@ function drawToolPreview(){
   }
   if(tool==='poly' && polyDraw){
     ctx.save();
-    ctx.strokeStyle = '#4B6BFB'; ctx.fillStyle = '#4B6BFB';
+    ctx.strokeStyle = THEME.accent; ctx.fillStyle = THEME.accent;
     ctx.lineWidth = 1.8/s;
     if(polyDraw.pts.length){
       ctx.globalAlpha=.9;

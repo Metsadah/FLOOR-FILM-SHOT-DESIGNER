@@ -258,9 +258,9 @@ function refreshSelBar(){
       const pick = document.createElement('input');
       pick.type = 'color';
       pick.title = 'Pick any color';
-      pick.value = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(o.hex||'') ? expand(o.hex) : '#E8604C';
+      pick.value = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(o.hex||'') ? expand(o.hex) : 'var(--danger)';
       pick.style.cssText = 'width:34px;height:26px;border:1px solid var(--border);' +
-        'border-radius:2px;padding:1px;background:#fff;cursor:pointer;';
+        'border-radius:2px;padding:1px;background:var(--panel);cursor:pointer;';
       selBar.appendChild(pick);
       const hx = document.createElement('input');
       hx.className = 'lbl'; hx.style.width = '84px';
@@ -339,7 +339,7 @@ function refreshSelBar(){
           'Astera Titan Tube','Astera Helios Tube','Nanlux Evoke 1200','Nanlite PavoTube II',
           'Kino Flo Diva-Lite','Kino Flo 4Bank','Litepanels Gemini 2x1','Dedolight DLED4','Godox VL300'];
         const fsel = document.createElement('select');
-        fsel.style.cssText = 'font-size:11px;padding:2px 4px;max-width:150px;border:1px solid var(--line);border-radius:6px;background:#fff;';
+        fsel.style.cssText = 'font-size:11px;padding:2px 4px;max-width:150px;border:1px solid var(--line);border-radius:6px;background:var(--panel);';
         fsel.title = 'Name this fixture — shows on its label and in gear lists';
         fsel.innerHTML = '<option value="">Fixture…</option>' +
           FIXTURES.map(f=>'<option' + (o.label === f ? ' selected' : '') + '>' + f + '</option>').join('');
@@ -352,7 +352,7 @@ function refreshSelBar(){
       }
       if(o.kind === 'cstand'){
         // the LED light: wattage (throw scales along) + lantern / dome modifiers
-        const selCss2 = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:#fff;';
+        const selCss2 = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel);';
         const ws = document.createElement('select');
         ws.style.cssText = selCss2;
         ws.title = 'Light output — the throw scales with it';
@@ -379,7 +379,7 @@ function refreshSelBar(){
         markDirty(); render(); refreshSelBar();
       });
       if(o.beam !== false && !LIGHT_BEAMS[o.kind].haze){
-        const selCss = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:#fff;';
+        const selCss = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel);';
         // NAMED gels — picking one (or any RGB that isn't white) overrides the temperature
         const GELS = [
           ['', 'Gel: none (white)'],
@@ -407,11 +407,11 @@ function refreshSelBar(){
         // RGB — standard WHITE; white = no color, temperature rules
         const cw = document.createElement('input');
         cw.type = 'color';
-        cw.value = o.gel || '#FFFFFF';
+        cw.value = o.gel || 'var(--panel)';
         cw.title = 'Light color (RGB) — white = no color, the temperature applies';
         cw.style.cssText = 'width:22px;height:20px;padding:0;border:none;background:none;cursor:pointer;';
         cw.addEventListener('input', ()=>{
-          o.gel = cw.value.toLowerCase() === '#ffffff' ? null : cw.value;
+          o.gel = cw.value.toLowerCase() === 'var(--panel)' ? null : cw.value;
           markDirty(); render();
         });
         cw.addEventListener('change', ()=>refreshSelBar());
@@ -599,7 +599,7 @@ function refreshSelBar(){
       if(o.cols.still){
         const ss = document.createElement('select');
         ss.title = 'Still size in the script';
-        ss.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:#fff;';
+        ss.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel);';
         for(const [v, n] of [[72,'Stills S'],[140,'Stills M'],[200,'Stills L'],[280,'Stills XL']])
           ss.insertAdjacentHTML('beforeend', `<option value="${v}"${(o.stillH||AVS.stillH)===v?' selected':''}>${n}</option>`);
         ss.addEventListener('change', ()=>{ o.stillH = +ss.value; markDirty(); render(); });
@@ -1564,6 +1564,8 @@ function closeNoteEditor(save){
 
 // ---------------------------------------------------------------- library
 function tileCanvas(drawFn, w, h, c, def){
+  // the neutral slate icon colour is invisible on the dark hover tile — lift it
+  if(THEME.dark && (!c || c === '#5B6472')) c = THEME.body;
   const t = document.createElement('canvas');
   const s = 44, d = window.devicePixelRatio||1;
   t.width = s*d; t.height = s*d; t.style.width = s+'px'; t.style.height = s+'px';
@@ -1583,11 +1585,11 @@ function libTile(spec){
   if(spec.cat === 'camera'){
     const d = CAMS[spec.kind];
     drawFn = (tc,tw,th,tcol)=>drawCameraKind(tc, spec.kind, tw, th, tcol);
-    w=d.w; h=d.h; name=d.name; color='#33322E';
+    w=d.w; h=d.h; name=d.name; color='var(--ink)';
   } else if(spec.cat === 'actor'){
     const d = ACTORS[spec.kind] || ACTORS.actor;
     drawFn = (tc,tw,th,tcol)=>drawActorIcon(tc, tw, th, tcol, spec.kind);
-    w=d.w; h=d.h; name=d.name; color='#4B6BFB';
+    w=d.w; h=d.h; name=d.name; color='var(--accent)';
   } else {
     const d = PROPS[spec.kind];
     drawFn = d.draw; w=d.w; h=d.h; name=d.name;
@@ -1657,15 +1659,15 @@ function buildLibrary(){
     tc.textAlign='center'; tc.textBaseline='middle';
     tc.fillStyle=c; tc.fillText('T', 0, 2);
     tc.textAlign='left'; tc.textBaseline='alphabetic';
-  }, 60, 60, '#33322E', {cat:'text', kind:'text', w:240, h:40, color:'#5B6472'});
+  }, 60, 60, 'var(--ink)', {cat:'text', kind:'text', w:240, h:40, color:'#5B6472'});
   boardTile('Line / arrow', (tc,w2,h2,c)=>{
     tc.strokeStyle=c; tc.lineWidth=5; tc.lineCap='round';
     tc.beginPath(); tc.moveTo(-w2/2,h2/2); tc.lineTo(w2*.3,-h2*.3); tc.stroke();
     tc.beginPath(); tc.moveTo(w2*.3,-h2*.3); tc.lineTo(w2*.05,-h2*.32); tc.moveTo(w2*.3,-h2*.3); tc.lineTo(w2*.33,-h2*.05); tc.stroke();
-  }, 90, 90, '#E8604C', {cat:'line', kind:'line', w:220, h:14, color:'#E8604C'});
+  }, 90, 90, 'var(--danger)', {cat:'line', kind:'line', w:220, h:14, color:'var(--danger)'});
   boardTile('Sub-board', (tc,w2,h2,c)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2*.42,w2,h2*.84,5);
-    tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=c; tc.lineWidth=2.5; tc.stroke();
+    tc.fillStyle = THEME.card; tc.fill(); tc.strokeStyle=c; tc.lineWidth=2.5; tc.stroke();
     tc.fillStyle=c; tc.globalAlpha=.28; tc.fillRect(-w2/2,-h2*.42,w2,h2*.18); tc.globalAlpha=1;
     tc.globalAlpha=.5;
     tc.strokeRect(-w2*.3,-h2*.1,w2*.24,h2*.3);
@@ -1682,28 +1684,28 @@ function buildLibrary(){
     tc.strokeStyle=c; tc.lineWidth=6; tc.lineCap='round';
     tc.beginPath(); tc.ellipse(-w2*.14,h2*.14,w2*.24,h2*.15,-Math.PI/4,0,7); tc.stroke();
     tc.beginPath(); tc.ellipse(w2*.14,-h2*.14,w2*.24,h2*.15,-Math.PI/4,0,7); tc.stroke();
-  }, 90, 90, '#4B6BFB', {cat:'link', kind:'link', w:130, h:34, color:'#4B6BFB'});
+  }, 90, 90, 'var(--accent)', {cat:'link', kind:'link', w:130, h:34, color:'var(--accent)'});
   // shot info card mirrors the Shot info panel — only meaningful on the designer
   if(activeTab === 'design'){
     boardTile('Scene info card', (tc,w2,h2,c)=>{
       tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
-      tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=c; tc.stroke();
+      tc.fillStyle = THEME.card; tc.fill(); tc.strokeStyle=c; tc.stroke();
       tc.fillStyle=c; tc.globalAlpha=.28;
       tc.fillRect(-w2/2,-h2/2,w2,h2*.2); tc.globalAlpha=1;
       tc.globalAlpha=.55;
       for(const y2 of [h2*.02,h2*.18,h2*.34]) tc.fillRect(-w2*.34,y2,w2*.68,3);
       tc.globalAlpha=1;
-    }, 90, 70, '#4B6BFB', {cat:'infocard', kind:'infocard', w:260, h:180, color:'#4B6BFB'});
+    }, 90, 70, 'var(--accent)', {cat:'infocard', kind:'infocard', w:260, h:180, color:'var(--accent)'});
   }
   boardTile('Column', (tc,w2,h2,c)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
-    tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=c; tc.stroke();
+    tc.fillStyle = THEME.card; tc.fill(); tc.strokeStyle=c; tc.stroke();
     tc.fillStyle=c; tc.globalAlpha=.28;
     tc.fillRect(-w2/2,-h2/2,w2,h2*.2); tc.globalAlpha=1;
     tc.globalAlpha=.5;
     for(const y2 of [h2*.04,h2*.18,h2*.32]) tc.fillRect(-w2*.34,y2,w2*.68,2.5);
     tc.globalAlpha=1;
-  }, 90, 110, '#4B6BFB', {cat:'colcard', kind:'colcard', w:240, h:120, color:'#4B6BFB'});
+  }, 90, 110, 'var(--accent)', {cat:'colcard', kind:'colcard', w:240, h:120, color:'var(--accent)'});
   boardTile('Production', (tc,w2,h2)=>{
     drawNoteShape(tc, {w:w2, h:h2, color:'#5B6472', text:''}, true);
     tc.fillStyle='#5B6472'; tc.globalAlpha=.7;
@@ -1727,12 +1729,12 @@ function buildLibrary(){
     tc.moveTo(-w2*.38,h2*.1); tc.lineTo(w2*.38,h2*.1);
     tc.moveTo(0,-h2*.3); tc.lineTo(0,h2*.3);
     tc.stroke();
-  }, 90, 90, '#5B6472', {cat:'table', kind:'table', w:340, h:90, color:'#4B6BFB'});
+  }, 90, 90, '#5B6472', {cat:'table', kind:'table', w:340, h:90, color:'var(--accent)'});
   boardTile('Color', (tc,w2,h2)=>{
-    tc.fillStyle='#E8604C'; tc.beginPath(); tc.roundRect(-w2*.36,-h2*.36,w2*.72,h2*.5,6); tc.fill();
-    tc.fillStyle='#8A877F';
+    tc.fillStyle = THEME.danger; tc.beginPath(); tc.roundRect(-w2*.36,-h2*.36,w2*.72,h2*.5,6); tc.fill();
+    tc.fillStyle = THEME.ink2;
     tc.fillRect(-w2*.3, h2*.22, w2*.6, 3);
-  }, 90, 90, '#E8604C', {cat:'colorcard', kind:'colorcard', w:160, h:130, color:'#E8604C'});
+  }, 90, 90, 'var(--danger)', {cat:'colorcard', kind:'colorcard', w:160, h:130, color:'var(--danger)'});
   boardTile('Audio\u2026', (tc,w2,h2,c2)=>{
     tc.strokeStyle=c2; tc.lineWidth=3.4; tc.lineCap='round';
     tc.beginPath(); tc.arc(-w2*.14,h2*.2,h2*.11,0,7); tc.stroke();
@@ -1797,7 +1799,7 @@ function startLibDrag(e, spec){
   closeDrawers(); // on phones/tablets the drawer covers the canvas — get it out of the way
   libDrag = spec;
   libGhost = document.createElement('div');
-  libGhost.style.cssText = 'position:fixed;z-index:60;pointer-events:none;opacity:.85;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--border);border-radius:9px;padding:6px;box-shadow:var(--shadow);';
+  libGhost.style.cssText = 'position:fixed;z-index:60;pointer-events:none;opacity:.85;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:6px;box-shadow:var(--shadow);';
   const def = spec.kind.startsWith('custom:')
     ? project.customProps.find(p=>p.id===spec.kind.slice(7))
     : null;
@@ -1822,12 +1824,12 @@ function startLibDrag(e, spec){
   };
   else if(spec.cat==='infocard') drawFn = (tc,w2,h2,col)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,6);
-    tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
+    tc.fillStyle = THEME.card; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.fillRect(-w2/2,-h2/2,w2,5);
   };
   else if(['listcard','fieldcard','dayheader','avscript','colcard','callsheet','schedule','proplist','gearlist'].includes(spec.cat)) drawFn = (tc,w2,h2,col)=>{
     tc.beginPath(); tc.roundRect(-w2/2,-h2/2,w2,h2,4);
-    tc.fillStyle='#fff'; tc.fill(); tc.strokeStyle=col; tc.stroke();
+    tc.fillStyle = THEME.card; tc.fill(); tc.strokeStyle=col; tc.stroke();
     tc.fillStyle=col; tc.globalAlpha=.3; tc.fillRect(-w2/2,-h2/2,w2,h2*.24); tc.globalAlpha=1;
     tc.globalAlpha=.55;
     for(const y2 of [h2*.02, h2*.22]) tc.fillRect(-w2*.36, y2, w2*.72, 2.5);
@@ -1868,7 +1870,7 @@ function dropLib(e){
       }
     } else if(libDrag.cat === 'table'){
       o = {id:uid(), cat:'table', kind:'table', x, y, rot:0, w:340, h:90,
-           cells:[['Column A','Column B'],['','']], color:libDrag.color||'#4B6BFB', label:'', path:[]};
+           cells:[['Column A','Column B'],['','']], color:libDrag.color||'var(--accent)', label:'', path:[]};
     } else if(libDrag.cat === 'listcard'){
       o = {id:uid(), cat:'listcard', kind:libDrag.kind, x, y, rot:0, w:360, h:74,
            color:(LIST_CARDS[libDrag.kind] || LIST_CARDS.crew).color, label:'', path:[]};
@@ -1885,11 +1887,11 @@ function dropLib(e){
     } else if(libDrag.cat === 'colcard'){
       o = {id:uid(), cat:'colcard', kind:'colcard', x, y, rot:0, w:libDrag.cw || 240, h:120,
            title:libDrag.title || '', text:libDrag.text || '',
-           color:libDrag.color || '#4B6BFB', label:'', path:[]};
+           color:libDrag.color || 'var(--accent)', label:'', path:[]};
     } else if(libDrag.cat === 'callsheet'){
       o = {id:uid(), cat:'callsheet', kind:'callsheet', x, y, rot:0, w:380, h:300,
            inc:{location:true, schedule:true, props:true, crew:true, cast:true, client:true, weather:true},
-           color:libDrag.color || '#4B6BFB', label:'', path:[]};
+           color:libDrag.color || 'var(--accent)', label:'', path:[]};
       // multi-day production → ask which day this sheet covers
       if(boardDays().length > 1) setTimeout(()=>showCallsheetDayPicker(o, e.clientX, e.clientY), 60);
     } else if(libDrag.cat === 'schedule'){
@@ -1908,7 +1910,7 @@ function dropLib(e){
     } else if(libDrag.cat === 'dayheader'){
       o = {id:uid(), cat:'dayheader', kind:'dayheader', x, y, rot:0, w:DAYH.w, h:140,
            date:new Date().toISOString().slice(0,10), call:'', shootCall:'', wrap:'',
-           place:'', lat:null, lon:null, color:'#E8604C', label:'', path:[]};
+           place:'', lat:null, lon:null, color:'var(--danger)', label:'', path:[]};
       setTimeout(()=>dayheaderSunFetch(o), 100); // auto-pull sun from the location card if one exists
     } else if(libDrag.cat === 'fieldcard'){
       o = {id:uid(), cat:'fieldcard', kind:libDrag.kind, x, y, rot:0, w:280, h:130,
@@ -1933,7 +1935,7 @@ function dropLib(e){
            place:'', date:'', data:[], color:'#4CA6E8', label:'', path:[]};
     } else if(libDrag.cat === 'colorcard'){
       o = {id:uid(), cat:'colorcard', kind:'colorcard', x, y, rot:0, w:160, h:130,
-           hex:'#E8604C', label:'', color:'#E8604C', path:[]};
+           hex:'var(--danger)', label:'', color:'var(--danger)', path:[]};
     } else if(libDrag.cat === 'script'){
       o = {id:uid(), cat:'script', kind:'script', x, y, rot:0,
            w: libDrag.mode==='av' ? 560 : 430, h:300,
@@ -1941,7 +1943,7 @@ function dropLib(e){
            color:'#5B6472', label:'', path:[]};
     } else if(libDrag.cat === 'sbrow'){
       o = {id:uid(), cat:'sbrow', kind:'sbrow', x, y, rot:0, w:560, h:120,
-           title:'Scene', desc:'', imgId:null, sceneId:null, color:'#4B6BFB', label:'', path:[]};
+           title:'Scene', desc:'', imgId:null, sceneId:null, color:'var(--accent)', label:'', path:[]};
     } else if(libDrag.cat === 'text'){
       o = {id:uid(), cat:'text', kind:'text', x, y, rot:0, w:240, h:40,
            fontSize:18, bold:false, italic:false, text:'', color:'#5B6472', label:'', path:[]};
@@ -1950,13 +1952,13 @@ function dropLib(e){
       o = {id:uid(), cat:'line', kind:isDim ? 'dim' : 'line', x, y, rot:0, w:220, h:14,
            p1:{x:x-110, y}, p2:{x:x+110, y},
            weight:isDim ? 2 : 2.5, dashed:false, arrow:!isDim,
-           color:libDrag.color||(isDim ? '#5B6472' : '#E8604C'), label:'', path:[]};
+           color:libDrag.color||(isDim ? '#5B6472' : 'var(--danger)'), label:'', path:[]};
     } else if(libDrag.cat === 'link'){
       o = {id:uid(), cat:'link', kind:'link', x, y, rot:0, w:180, h:218,
-           label:'', url:'', color:libDrag.color||'#4B6BFB', path:[]};
+           label:'', url:'', color:libDrag.color||'var(--accent)', path:[]};
     } else if(libDrag.cat === 'infocard'){
       o = {id:uid(), cat:'infocard', kind:'infocard', x, y, rot:0, w:260, h:180,
-           color:libDrag.color||'#4B6BFB', label:'', path:[]};
+           color:libDrag.color||'var(--accent)', label:'', path:[]};
     } else if(libDrag.kind === 'track'){
       o = {id:uid(), cat:'prop', kind:'track', x, y, rot:0, w:30, h:30,
            color:libDrag.color||'#5B6472', label:'', path:[],
@@ -1993,7 +1995,7 @@ function showCallsheetDayPicker(o, cx, cy){
   if(old) old.remove();
   const pop = document.createElement('div');
   pop.id = 'csDayPop';
-  pop.style.cssText = 'position:fixed;z-index:130;background:#fff;border:1px solid var(--line);' +
+  pop.style.cssText = 'position:fixed;z-index:130;background:var(--panel);border:1px solid var(--line);' +
     'border-radius:3px;box-shadow:0 16px 50px rgba(40,38,32,.18);padding:10px;min-width:190px;';
   pop.style.left = Math.min(cx, window.innerWidth - 220) + 'px';
   pop.style.top = Math.min(cy, window.innerHeight - 260) + 'px';
@@ -2022,7 +2024,7 @@ function showChecklistPicker(o, cx, cy){
   if(old) old.remove();
   const pop = document.createElement('div');
   pop.id = 'chkPop';
-  pop.style.cssText = 'position:fixed;z-index:130;background:#fff;border:1px solid var(--line);' +
+  pop.style.cssText = 'position:fixed;z-index:130;background:var(--panel);border:1px solid var(--line);' +
     'border-radius:3px;box-shadow:0 16px 50px rgba(40,38,32,.18);padding:10px;min-width:170px;';
   pop.style.left = Math.min(cx, window.innerWidth - 200) + 'px';
   pop.style.top = Math.min(cy, window.innerHeight - 240) + 'px';
@@ -2078,7 +2080,7 @@ function showPasteImport(card){
   wrap2.style.cssText = 'position:fixed;inset:0;z-index:140;background:rgba(40,38,32,.25);' +
     'display:flex;align-items:center;justify-content:center;';
   wrap2.innerHTML = `
-    <div style="background:#fff;border:1px solid var(--line);border-radius:3px;padding:16px 18px;
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:16px 18px;
                 width:520px;max-width:92vw;max-height:82vh;overflow:auto;box-shadow:0 18px 60px rgba(40,38,32,.2)">
       <div style="font-weight:600;margin-bottom:2px">Paste ${esc(spec.title.toLowerCase())} list</div>
       <div style="font-size:10.5px;color:var(--ink2);margin-bottom:10px;line-height:1.5">

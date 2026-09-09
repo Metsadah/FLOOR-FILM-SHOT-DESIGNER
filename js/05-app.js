@@ -78,9 +78,9 @@ function buildShotList(){
           if(ev.clientY > rc.top + rc.height/2) to++;
         });
         rows.forEach((r, j) => {
-          r.style.borderTop = (j === to && to !== i && to !== i+1) ? '2px solid #4B6BFB' : '';
+          r.style.borderTop = (j === to && to !== i && to !== i+1) ? '2px solid var(--accent)' : '';
           r.style.borderBottom = (to === rows.length && j === rows.length-1 && i !== rows.length-1)
-            ? '2px solid #4B6BFB' : '';
+            ? '2px solid var(--accent)' : '';
         });
       };
       let done = false;
@@ -175,7 +175,7 @@ function buildShotList(){
       const b = document.createElement('button');
       b.className = 'btn';
       b.style.cssText = 'padding:4px 8px;font-size:10.5px' +
-        (danger ? ';color:#fff;background:var(--danger);border-color:var(--danger)' : '');
+        (danger ? ';color:var(--panel);background:var(--danger);border-color:var(--danger)' : '');
       b.textContent = label;
       b.addEventListener('click', fn);
       bar.appendChild(b);
@@ -260,9 +260,9 @@ function syncTitle(){
     const b = document.createElement('button');
     b.textContent = txt; b.title = tip || '';
     b.style.cssText = 'font:600 10.5px -apple-system,Segoe UI,sans-serif;padding:3px 8px;' +
-      'border-radius:12px;cursor:pointer;border:1px solid ' + (on ? '#4B6BFB' : 'var(--line)') +
-      ';background:' + (on ? 'rgba(75,107,251,.12)' : '#fff') +
-      ';color:' + (on ? '#4B6BFB' : 'var(--ink2)') + ';';
+      'border-radius:12px;cursor:pointer;border:1px solid ' + (on ? 'var(--accent)' : 'var(--line)') +
+      ';background:' + (on ? 'rgba(75,107,251,.12)' : 'var(--panel)') +
+      ';color:' + (on ? 'var(--accent)' : 'var(--ink2)') + ';';
     b.addEventListener('click', fn);
     wrapEl.appendChild(b);
     return b;
@@ -436,7 +436,7 @@ function buildShotEnts(){
     inp.value = sh.name || '';
     inp.placeholder = 'Shot ' + (idx+1);
     inp.style.cssText = 'flex:1;min-width:0;border:1px solid transparent;background:transparent;font-size:12px;padding:3px 4px;border-radius:6px;';
-    inp.addEventListener('focus', ()=>{ inp.style.borderColor='var(--line)'; inp.style.background='#fff'; });
+    inp.addEventListener('focus', ()=>{ inp.style.borderColor='var(--line)'; inp.style.background='var(--panel)'; });
     inp.addEventListener('blur', ()=>{ inp.style.borderColor='transparent'; inp.style.background='transparent'; });
     inp.addEventListener('input', ()=>{ sh.name = inp.value; markDirty(); });
     row.appendChild(inp);
@@ -618,7 +618,7 @@ async function buildStills(){
 document.getElementById('lightbox').addEventListener('click', function(){ this.classList.remove('show'); });
 
 // ---------------------------------------------------------------- exports
-function renderShotPlan(shot, maxDim, boundsOpt, withGrid){
+function _renderShotPlanImpl(shot, maxDim, boundsOpt, withGrid){
   const b = boundsOpt || contentBounds(shot);
   const pad = boundsOpt ? 0 : 80;
   const bx = b ? b.minX-pad : -400, by = b ? b.minY-pad : -300;
@@ -628,7 +628,7 @@ function renderShotPlan(shot, maxDim, boundsOpt, withGrid){
   c.width = Math.max(2, Math.round(bw*k));
   c.height = Math.max(2, Math.round(bh*k));
   const xc = c.getContext('2d');
-  xc.fillStyle = '#fff'; xc.fillRect(0,0,c.width,c.height);
+  xc.fillStyle = THEME.card; xc.fillRect(0,0,c.width,c.height);
   xc.scale(k, k); xc.translate(-bx, -by);
 
   const mainCtx = ctx, savedView = {...view}, savedSel = sel, savedDrawShot = drawShot;
@@ -684,22 +684,22 @@ async function doPNGExport(cropBounds){
   const out = document.createElement('canvas');
   out.width = plan.width; out.height = plan.height + hStrip + footerH;
   const oc = out.getContext('2d');
-  oc.fillStyle='#fff'; oc.fillRect(0,0,out.width,out.height);
-  oc.fillStyle = '#33322E';
+  oc.fillStyle = THEME.card; oc.fillRect(0,0,out.width,out.height);
+  oc.fillStyle = THEME.ink;
   oc.font = '600 19px -apple-system,Segoe UI,sans-serif';
   oc.fillText((project.shootName ? project.shootName + ' — ' : '') + shot.name, 18, 26);
-  oc.fillStyle = '#8A877F';
+  oc.fillStyle = THEME.ink2;
   oc.font = '12px -apple-system,Segoe UI,sans-serif';
   oc.fillText(meta, 18, 43);
   oc.drawImage(plan, 0, hStrip);
   if(script){
     const fy = hStrip + plan.height;
-    oc.strokeStyle = '#E5E3DE';
+    oc.strokeStyle = THEME.line;
     oc.beginPath(); oc.moveTo(18, fy + 6); oc.lineTo(out.width - 18, fy + 6); oc.stroke();
-    oc.fillStyle = '#8A877F';
+    oc.fillStyle = THEME.ink2;
     oc.font = '700 10px -apple-system,Segoe UI,sans-serif';
     oc.fillText('S C R I P T', 18, fy + 24);
-    oc.fillStyle = '#33322E';
+    oc.fillStyle = THEME.ink;
     oc.font = '13px -apple-system,Segoe UI,sans-serif';
     scriptLines.forEach((l, i)=> oc.fillText(l, 18, fy + 44 + i*18));
   }
@@ -983,6 +983,28 @@ if(window.FLOOR_MODE === 'shot'){
   document.getElementById('loadScriptBtn').addEventListener('click', ()=>loadScriptOverlay());
 }
 
+// ---------------------------------------------------------------- theme (light / dark / system)
+// tokens.css holds both palettes; THEME (00-theme.js) mirrors them for the canvas.
+(function(){
+  const btn = document.getElementById('themeBtn');
+  const glyph = ()=>{ const m = currentTheme(); btn.textContent = m === 'dark' ? '☾' : m === 'light' ? '☀' : '◐';
+    btn.title = 'Theme: ' + (m || 'system') + ' — click to switch (light → dark → system)'; };
+  btn.addEventListener('click', ()=>{
+    const m = currentTheme();
+    setTheme(m === '' ? 'light' : m === 'light' ? 'dark' : '');
+    glyph();
+  });
+  glyph();
+  // everything drawn on a canvas re-reads THEME: the board, the library tiles, thumbnails
+  document.addEventListener('floor-theme-changed', ()=>{
+    glyph();
+    if(typeof render === 'function') render();
+    if(typeof buildLibrary === 'function') buildLibrary();
+    if(typeof refreshSelBar === 'function') refreshSelBar();
+    if(typeof buildStills === 'function') buildStills();
+  });
+})();
+
 // ---------------------------------------------------------------- touch / iPad
 // iPadOS Safari masquerades as macOS, but the touch points give it away
 window.IS_TOUCH = (navigator.maxTouchPoints || 0) > 1;
@@ -1134,7 +1156,7 @@ function saveBanner(mode){
       const b = document.createElement('button');
       b.textContent = lab; b.title = tip;
       b.style.cssText = 'border:none;border-radius:14px;padding:3px 9px;cursor:pointer;' +
-        'font:600 10.5px -apple-system,Segoe UI,sans-serif;background:#C7810A;color:#fff;';
+        'font:600 10.5px -apple-system,Segoe UI,sans-serif;background:#C7810A;color:var(--panel);';
       b.addEventListener('click', fn);
       chip.appendChild(b);
     };
@@ -1157,7 +1179,7 @@ function saveBanner(mode){
   el.dataset.mode = mode;
   el.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:400;' +
     'display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;' +
-    'max-width:min(92vw,660px);padding:10px 16px;border-radius:11px;color:#fff;' +
+    'max-width:min(92vw,660px);padding:10px 16px;border-radius:11px;color:var(--panel);' +
     'font:600 12.5px -apple-system,Segoe UI,sans-serif;box-shadow:0 10px 34px rgba(0,0,0,.28);' +
     'background:#D14B3A;';
   el.innerHTML = '';
@@ -1166,7 +1188,10 @@ function saveBanner(mode){
   const b = document.createElement('button');
   b.textContent = 'Retry now';
   b.style.cssText = 'border:none;border-radius:7px;padding:6px 11px;cursor:pointer;' +
-    'font:600 12px -apple-system,Segoe UI,sans-serif;background:rgba(255,255,255,.94);color:#33322E;';
+    'font:600 12px -apple-system,Segoe UI,sans-serif;background:rgba(255,255,255,.94);color:var(--ink);';
   b.addEventListener('click', ()=>{ saveBanner(null); dirty = true; saveProject(); });
   el.appendChild(b);
 }
+
+// exports (PNG/PDF/call sheets) are paper documents — always the light palette
+function renderShotPlan(...a){ return withLightTheme(()=>_renderShotPlanImpl(...a)); }
