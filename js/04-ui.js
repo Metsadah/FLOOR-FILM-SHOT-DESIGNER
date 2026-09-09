@@ -1563,23 +1563,24 @@ function closeNoteEditor(save){
 }
 
 // ---------------------------------------------------------------- library
-// tint → the soft rounded square behind a library icon (Floorboard tiles)
-function tileBg(tc, s, tint){
-  if(!tint) return;
-  tc.save();
-  tc.fillStyle = tint; tc.globalAlpha = THEME.dark ? .28 : .16;
-  tc.beginPath(); tc.roundRect(-s/2, -s/2, s, s, 11); tc.fill();
-  tc.restore();
-}
-function tileCanvas(drawFn, w, h, c, def, tint){
+// Floorboard tiles: a filled rounded square in the item's hue with a bold white
+// glyph (TILE_GLYPH). Kinds without a glyph keep their canvas drawing on a
+// soft tint of the same hue.
+function tileCanvas(drawFn, w, h, c, def, tint, key){
   if(!c || c === '#5B6472') c = PAL.slate;
+  key = key || (def && (def.kind || def.cat)) || null;
+  const glyph = key && TILE_GLYPH[key];
+  const hue = (key && TILE_COLOR[key]) || tint || c;
   const t = document.createElement('canvas');
   const s = 44, d = window.devicePixelRatio||1;
   t.width = s*d; t.height = s*d; t.style.width = s+'px'; t.style.height = s+'px';
   const tc = t.getContext('2d');
   tc.setTransform(d,0,0,d,0,0);
   tc.translate(s/2, s/2);
-  tileBg(tc, s, tint === undefined ? c : tint);
+  tc.beginPath(); tc.roundRect(-s/2, -s/2, s, s, 11);
+  tc.fillStyle = hue;
+  if(glyph){ tc.fill(); glyph(tc, s); return t; }
+  tc.globalAlpha = THEME.dark ? .28 : .16; tc.fill(); tc.globalAlpha = 1;
   const k = Math.min((s-16)/w, (s-16)/h);
   tc.scale(k, k);
   tc.lineWidth = 2/k;
@@ -1602,7 +1603,7 @@ function libTile(spec, tint){
     const d = PROPS[spec.kind];
     drawFn = d.draw; w=d.w; h=d.h; name=d.name;
   }
-  el.appendChild(tileCanvas(drawFn, w, h, color, null, tint || color));
+  el.appendChild(tileCanvas(drawFn, w, h, color, null, tint || color, spec.kind));
   el.insertAdjacentHTML('beforeend', `<span>${esc(name)}</span>`);
   el.addEventListener('pointerdown', e => {
     const base = {cat:spec.cat, kind:spec.kind, w, h, color};
@@ -1656,7 +1657,8 @@ function buildLibrary(){
   const boardTile = (name, drawFn, w, h, color, spec, onClick) => {
     const el = document.createElement('div');
     el.className = 'lib-item';
-    el.appendChild(tileCanvas(drawFn, w, h, color));
+    const key = (spec && spec.kind) || String(name).toLowerCase().replace(/[^a-z]/g, '').replace(/^scene.*/, 'infocard').replace(/^lineorarrow$/, 'line').replace(/^todolist$/, 'todo').replace(/^production$/, 'note').replace(/^column$/, 'colcard').replace(/^measure$/, 'dim').replace(/^subboard$/, 'subboard');
+    el.appendChild(tileCanvas(drawFn, w, h, color, spec, null, key));
     el.insertAdjacentHTML('beforeend', `<span>${esc(name)}</span>`);
     if(onClick) el.addEventListener('click', onClick);
     else el.addEventListener('pointerdown', e => startLibDrag(e, spec));

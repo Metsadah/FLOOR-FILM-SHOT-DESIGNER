@@ -303,6 +303,29 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.74 — glyph tiles, distinct board tools, wider sidebar
+Feedback on v0.73: sidebar too narrow for three tiles, icons could be
+more recognisable, the board ("brainstorm") tools looked alike.
+js/00-icons.js: TILE_GLYPH — one bold WHITE glyph per kind, drawn in a
+44×44 space centred at 0 (keep shapes inside ±15), on a FILLED tile in
+the item's hue (TILE_COLOR for tools, TYPE_COLOR/CAT_TINT otherwise).
+tileCanvas(drawFn,w,h,c,def,tint,key): if TILE_GLYPH[key] exists the
+tile is filled + glyph; otherwise the old soft tint + canvas drawing
+(furniture, vehicles etc. stay top-down — they read fine that way).
+Keys: libTile passes spec.kind; boardTile derives from spec.kind or the
+tile name; 06-tabs board tiles pass the kind as the 7th argument (a
+script added ', null, null, "<kind>"' before the closing paren).
+Glyph language: cameras side-view (body+lens), cast = head+shoulders
+(filled / outlined / small), lights = sun, bars, dot-grid, rings, star,
+pill; tools = Aa, arrow, ruler, nested squares, chain, card+lines,
+column, sticky with folded corner, checklist, grid, palette dots,
+waveform, folder, mountain, page, filmstrip, two-column table,
+calendar, clipboard, clock, tag, toolbox, sun-behind-cloud, two people.
+Layout: sidebar 238→264px everywhere (#main default, tab-mood,
+tab-org, tab-write, hideR), lib-grid repeat(3,minmax(0,1fr)) gap 6
+padding 10 — minmax(0) stops a long label from widening a column.
+Add 00-icons.js to index.html AND the SW shell list (done).
+
 ## v0.73 — pastel palette, default colour per type, colourful tiles
 Feedback on v0.72: "I miss the colours for actors" — a real regression:
 the v0.72 hex→var(--…) sweep also rewrote canvas colour STRINGS in

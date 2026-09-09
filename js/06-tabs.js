@@ -77,7 +77,7 @@ function buildMoodLibSection(lib){
       tc.globalAlpha=.5;
       for(const y2 of [-h2*.06, h2*.1, h2*.26]) tc.fillRect(-w2*.36, y2, w2*.72, 2.5);
       tc.globalAlpha=1;
-    }, 100, 100, color));
+    }, 100, 100, color, null, null, 'colcard'));
     el.insertAdjacentHTML('beforeend', '<span>' + esc(name) + '</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e,
       {cat:'colcard', kind:'colcard', w:220, h:120, cw:220, color, title, text:ph||''}));
@@ -119,7 +119,7 @@ function buildWriteLibSection(lib){
   const tile = (name, drawFn, spec)=>{
     const el = document.createElement('div');
     el.className = 'lib-item';
-    el.appendChild(tileCanvas(drawFn, 100, 100, '#5B6472'));
+    el.appendChild(tileCanvas(drawFn, 100, 100, '#5B6472', null, null, 'script'));
     el.insertAdjacentHTML('beforeend', '<span>' + esc(name) + '</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e, spec));
     grid.appendChild(el);
@@ -198,7 +198,7 @@ function buildProdLibSection(lib){
       tc.textAlign='left'; tc.textBaseline='alphabetic';
       tc.fillStyle='#E8934C'; tc.globalAlpha=.7;
       tc.fillRect(-w2*.36, h2*.24, w2*.3, 2.5); tc.globalAlpha=1;
-    }, 100, 100, PAL.coral));
+    }, 100, 100, PAL.coral, null, null, 'dayheader'));
     el.insertAdjacentHTML('beforeend', '<span>Day header</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'dayheader', kind:'dayheader', w:320, h:140, color:PAL.coral}));
     grid.appendChild(el);
@@ -217,7 +217,7 @@ function buildProdLibSection(lib){
       tc.globalAlpha=.55;
       for(const y2 of [-h2*.04, h2*.14]) tc.fillRect(-w2*.36, y2, w2*.72, 2.5);
       tc.globalAlpha=1;
-    }, 100, 100, spec.color));
+    }, 100, 100, spec.color, null, null, kind));
     el.insertAdjacentHTML('beforeend', '<span>' + esc(kind.charAt(0).toUpperCase()+kind.slice(1)) + '</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'listcard', kind, w:360, h:74, color:spec.color}));
     grid.appendChild(el);
@@ -239,7 +239,7 @@ function buildProdLibSection(lib){
         tc.fillRect(-w2*.08, y2, w2*.44, 2.5);
       }
       tc.globalAlpha=1;
-    }, 100, 100, spec.color));
+    }, 100, 100, spec.color, null, null, kind));
     el.insertAdjacentHTML('beforeend', '<span>' + esc(name) + '</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e, {cat:'fieldcard', kind, w:280, h:130, color:spec.color}));
     grid.appendChild(el);
@@ -254,7 +254,7 @@ function buildProdLibSection(lib){
         tc.strokeRect(-w2*.32, y2-6, 12, 12);
         tc.beginPath(); tc.moveTo(-w2*.06, y2); tc.lineTo(w2*.34, y2); tc.stroke();
       }
-    }, 100, 100, '#8B5CF6'));
+    }, 100, 100, '#8B5CF6', null, null, 'todo'));
     el.insertAdjacentHTML('beforeend', '<span>Checklist</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e,
       {cat:'todo', kind:'todo', w:230, h:120, color:'#8B5CF6', checklist:true}));
@@ -276,7 +276,7 @@ function buildProdLibSection(lib){
         tc.fillRect(-w2*.24, y2, w2*.6, 2.5);
       }
       tc.globalAlpha=1;
-    }, 100, 100, '#E8934C'));
+    }, 100, 100, '#E8934C', null, null, 'schedule'));
     el.insertAdjacentHTML('beforeend', '<span>Day schedule</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e,
       {cat:'schedule', kind:'schedule', w:320, h:200, color:'#E8934C'}));
@@ -302,7 +302,7 @@ function buildProdLibSection(lib){
       tc.beginPath();
       tc.moveTo(-w2*.35, -h2*.09); tc.lineTo(-w2*.33, -h2*.06); tc.lineTo(-w2*.29, -h2*.12);
       tc.stroke();
-    }, 100, 100, '#7FA05A'));
+    }, 100, 100, '#7FA05A', null, null, 'proplist'));
     el.insertAdjacentHTML('beforeend', '<span>Prop list</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e,
       {cat:'proplist', kind:'proplist', w:280, h:160, color:'#7FA05A'}));
@@ -324,7 +324,7 @@ function buildProdLibSection(lib){
         tc.fillRect(-w2*.22, y2+1, w2*.55, 2.5);
       }
       tc.globalAlpha=1;
-    }, 100, 100, '#4C8AD9'));
+    }, 100, 100, '#4C8AD9', null, null, 'gearlist'));
     el.insertAdjacentHTML('beforeend', '<span>Gear list</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e,
       {cat:'gearlist', kind:'gearlist', w:280, h:160, color:'#4C8AD9'}));
@@ -341,7 +341,7 @@ function buildProdLibSection(lib){
     tc.quadraticCurveTo(0,-h2*.2,w2*.14,0);
     tc.quadraticCurveTo(w2*.36,-h2*.02,w2*.28,h2*.12);
     tc.closePath(); tc.globalAlpha=.35; tc.fill(); tc.globalAlpha=1; tc.stroke();
-  }, 100, 100, '#4CA6E8'));
+  }, 100, 100, '#4CA6E8', null, null, 'weather'));
   wEl.insertAdjacentHTML('beforeend', '<span>Weather (live)</span>');
   wEl.addEventListener('pointerdown', e => startLibDrag(e, {cat:'weather', kind:'weather', color:'#4CA6E8'}));
   grid.appendChild(wEl);
@@ -359,7 +359,7 @@ function buildProdLibSection(lib){
       for(const y2 of [-h2*.18, -h2*.06, h2*.1, h2*.22, h2*.34])
         tc.fillRect(-w2*.36, y2, w2*(y2===-h2*.18||y2===h2*.1 ? .34 : .72), 2.5);
       tc.globalAlpha=1;
-    }, 100, 100, PAL.sky));
+    }, 100, 100, PAL.sky, null, null, 'callsheet'));
     el.insertAdjacentHTML('beforeend', '<span>Call sheet</span>');
     el.addEventListener('pointerdown', e => startLibDrag(e,
       {cat:'callsheet', kind:'callsheet', w:380, h:300, color:PAL.sky}));

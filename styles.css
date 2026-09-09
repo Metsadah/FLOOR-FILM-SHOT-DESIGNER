@@ -18,7 +18,7 @@
     display:flex; align-items:center; gap:10px; padding:0 14px;
     background:var(--panel); border-bottom:1px solid var(--border); min-width:0;
   }
-  #main{display:grid; grid-template-columns:238px 1fr 266px; min-height:0;}
+  #main{display:grid; grid-template-columns:264px 1fr 266px; min-height:0;}
 
   .logo{display:flex; align-items:center; gap:8px; font-weight:600; letter-spacing:.2px;}
   .logo .dot{width:10px; height:10px; border-radius:var(--r-sm); background:var(--accent);}
@@ -92,7 +92,7 @@
   .cat-head:hover{color:var(--ink);}
   .cat-head .arr{transition:transform .12s; font-size:9px;}
   .cat-head.closed .arr{transform:rotate(-90deg);}
-  .lib-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:7px; padding:2px 12px 4px;}
+  .lib-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; padding:2px 10px 4px;}
   .lib-grid.hidden{display:none;}
   .lib-item{
     display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 2px 6px;
@@ -406,7 +406,7 @@ body.tab-script #hint, body.tab-story #hint, body.tab-org #hint{ display:none !i
 /* moodboard mode: canvas stays, scene chrome goes */
 body.tab-mood #shotList, body.tab-mood .side-head:first-child, body.tab-mood #rightPanel,
 body.tab-mood #panelToggle{ display:none !important; }
-body.tab-mood #main{ grid-template-columns: 238px 1fr; }
+body.tab-mood #main{ grid-template-columns: 264px 1fr; }
 body.tab-mood #toolbar button[data-tool="wall"], body.tab-mood #toolbar button[data-tool="room"],
 body.tab-mood #toolbar button[data-tool="door"], body.tab-mood #toolbar button[data-tool="window"],
 body.tab-mood #toolbar button[data-tool="gap"],
@@ -464,7 +464,7 @@ body.tab-mood #sceneLbl, body.tab-org #sceneLbl{ display:none !important; }
   stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 /* ---------------- production board mode ---------------- */
 /* full-width canvas — production data lives on the board (People registry cards) */
-body.tab-org #main{ display:grid !important; grid-template-columns:238px 1fr; }
+body.tab-org #main{ display:grid !important; grid-template-columns:264px 1fr; }
 body.tab-org #toolbar, body.tab-org #hint{ display:flex !important; }
 body.tab-org #shotList, body.tab-org #sidebar > .side-head:first-child{ display:none !important; }
 body.tab-org #rightPanel, body.tab-org #panelToggle{ display:none !important; }
@@ -555,7 +555,7 @@ body.view-only.tab-write #main{ display:grid !important; grid-template-columns:1
 /* write board: same chrome as moodboard */
 body.tab-write #shotList, body.tab-write #sidebar > .side-head:first-child,
 body.tab-write #rightPanel, body.tab-write #panelToggle{ display:none !important; }
-body.tab-write #main{ grid-template-columns:238px 1fr; }
+body.tab-write #main{ grid-template-columns:264px 1fr; }
 body.tab-write #toolbar button[data-tool="wall"], body.tab-write #toolbar button[data-tool="room"],
 body.tab-write #toolbar button[data-tool="door"], body.tab-write #toolbar button[data-tool="window"],
 body.tab-write #toolbar button[data-tool="gap"],
@@ -632,7 +632,7 @@ body.touch .drawer-btn{ display:inline-flex; }
   body.hideL #sidebar{ display:none !important; }
   body.hideR #rightPanel{ display:none !important; }
   body.hideL #main{ grid-template-columns:1fr 266px !important; }
-  body.hideR #main{ grid-template-columns:238px 1fr !important; }
+  body.hideR #main{ grid-template-columns:264px 1fr !important; }
   body.hideL.hideR #main, body.tab-mood.hideL #main{ grid-template-columns:1fr !important; }
 }
 body.touch #toolbar button{ width:40px; height:40px; }
