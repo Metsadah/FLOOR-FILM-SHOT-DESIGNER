@@ -61,8 +61,18 @@
   };
 
   // ---- 2 · .floorproj backups in the Files app ----------------------------
+  // is there anything worth keeping? (an empty starter project must NEVER be
+  // backed up — it would then be offered back as a "restore" on the next launch)
+  function hasContent(){
+    try{
+      return !!(project.scenes || []).some(s=>(s.objects || []).length || (s.walls || []).length ||
+          (s.stills || []).length || (s.script || '').trim() || (s.shots || []).length) ||
+        !!(project.shootName || '').trim();
+    }catch(_){ return false; }
+  }
   async function backupNow(){
     if(!FS || typeof project === 'undefined' || !project) return;
+    if(!hasContent()) return;
     try{
       const assets = (typeof collectAssets === 'function') ? await collectAssets() : {img:{}, file:{}};
       const pack = {floorproj:1, exported:new Date().toISOString(),

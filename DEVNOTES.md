@@ -303,6 +303,28 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.70 — the iPad app actually runs (device-test fixes)
+Built and launched on an iPad Pro simulator for the first time. Two
+findings, both only visible on a device:
+1. SPM instead of CocoaPods. Capacitor 8 supports
+   `npx cap add ios --packagemanager SPM`, which resolves
+   capacitor-swift-pm + the plugins through Xcode itself — no Ruby, no
+   `gem install cocoapods`, one less thing for a self-hosting user to
+   install. finish-setup.sh checks for Xcode only.
+2. backupNow() must not write an EMPTY project. The first launch of a
+   fresh install backed up the starter project, and the next launch
+   offered that empty file back as a "restore" — a scary dialog that
+   would have shipped. hasContent() now gates it (objects, walls,
+   stills, script, shots or a shoot name).
+Also learned: WKWebView console output does NOT reach os_log, so the way
+to debug the packaged app is to inject an error handler that writes into
+the #loading div and read it off a screenshot
+(xcrun simctl io <device> screenshot). Serving www/ over http and opening
+it in the browser pane is the faster first check — it proved the bundle
+itself was fine.
+Project settings set in project.pbxproj: TARGETED_DEVICE_FAMILY = "2"
+(iPad only). Deployment target stays at Capacitor default 15.0.
+
 ## v0.69 — native bridge (js/08-native.js) for the iPad build
 One new file that returns immediately unless window.Capacitor reports a
 native platform, so the browser build behaves identically. Inside the app:
