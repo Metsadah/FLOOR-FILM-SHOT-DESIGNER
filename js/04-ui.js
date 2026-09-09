@@ -1716,7 +1716,7 @@ function buildLibrary(){
     for(const y2 of [h2*.04,h2*.18,h2*.32]) tc.fillRect(-w2*.34,y2,w2*.68,2.5);
     tc.globalAlpha=1;
   }, 90, 110, PAL.sky, {cat:'colcard', kind:'colcard', w:240, h:120, color:PAL.sky});
-  boardTile('Production', (tc,w2,h2)=>{
+  if(activeTab === 'org') boardTile('Production', (tc,w2,h2)=>{
     drawNoteShape(tc, {w:w2, h:h2, color:'#5B6472', text:''}, true);
     tc.fillStyle='#5B6472'; tc.globalAlpha=.7;
     for(const y2 of [-h2*.22,-h2*.02,h2*.18]) tc.fillRect(-w2*.32,y2,w2*.64,3);

@@ -1,4 +1,4 @@
-# FLOOR Studio betaald maken — stappenplan
+# Floorboard betaald maken — stappenplan
 
 Volgorde is bewust: elke stap heeft de vorige nodig. Reken op ~4 tot 6 losse
 avonden. De technische kant in de app is klaar (v0.66/0.67): tabel
@@ -76,7 +76,7 @@ ondersteunt beide; kosten zijn gelijk (5 % + €0,50).
 1. Account aanmaken **in sandbox/test-mode**. Bedrijfsverificatie (KvK,
    ID, bankrekening, URL's van voorwaarden + privacy) duurt bij Paddle 1–3
    werkdagen.
-2. Product **"FLOOR Studio Pro"** met twee prijzen: €9/maand en €90/jaar.
+2. Product **"Floorboard Pro"** met twee prijzen: €9/maand en €90/jaar.
    Btw-categorie "standard digital goods". Prijzen inclusief btw tonen
    (MoR doet dat automatisch per land).
 3. **Webhook** aanmaken, URL:

@@ -1,4 +1,4 @@
-# FLOOR Studio on the iPad — Lite mode, Capacitor, one codebase
+# Floorboard on the iPad — Lite mode, Capacitor, one codebase
 
 ## 1 · Lite mode (shipped in v0.68)
 

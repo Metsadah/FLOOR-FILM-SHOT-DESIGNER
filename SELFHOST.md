@@ -1,12 +1,12 @@
-# Self-hosting FLOOR Studio
+# Self-hosting Floorboard
 
-> **License note:** FLOOR Studio is source-available under the
+> **License note:** Floorboard is source-available under the
 > [Elastic License 2.0](LICENSE). Self-hosting for yourself, your team, or
 > your company — commercial productions included — is allowed and encouraged.
-> Offering FLOOR Studio itself as a hosted or managed service to third
+> Offering Floorboard itself as a hosted or managed service to third
 > parties is not.
 
-FLOOR Studio is plain static files — no build step, no server code. Hosting it
+Floorboard is plain static files — no build step, no server code. Hosting it
 yourself is: put this folder behind any web server. It has two modes, chosen in
 `config.js`:
 

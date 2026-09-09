@@ -1,4 +1,4 @@
-# Selling FLOOR Studio — hosted plans & branded e-mail
+# Selling Floorboard — hosted plans & branded e-mail
 
 This is the operator's checklist for the **hosted** edition. None of it is
 needed for self-hosting: with `billing.provider` empty in `config.js` the app
@@ -32,7 +32,7 @@ from `noreply@mail.app.supabase.io`. Paying customers must get mail from you.
    access*. Copy the key (starts with `re_`).
 4. Supabase dashboard → **Authentication → Emails → SMTP Settings → Enable
    custom SMTP**:
-   - Sender e-mail: `login@yourdomain` · Sender name: `FLOOR Studio`
+   - Sender e-mail: `login@yourdomain` · Sender name: `Floorboard`
    - Host `smtp.resend.com` · Port `465` · Username `resend` · Password = the
      API key
 5. Same page, **Templates**: replace the subject lines (they still say
@@ -60,7 +60,7 @@ first — they ask for the URLs.
 ### 2a · Paddle
 
 1. https://sandbox-vendors.paddle.com → account (sandbox first, always).
-2. **Catalog → Products → New**: "FLOOR Studio Pro". Add a **price**:
+2. **Catalog → Products → New**: "Floorboard Pro". Add a **price**:
    €9.00 / month, tax category "Standard digital goods". Note the price id
    `pri_…`.
 3. **Developer tools → Authentication → Client-side tokens → Generate**.
@@ -85,7 +85,7 @@ first — they ask for the URLs.
 ### 2b · Lemon Squeezy
 
 1. https://app.lemonsqueezy.com → store (turn **Test mode** on first).
-2. **Products → New**: "FLOOR Studio Pro", subscription, €9/month. Open the
+2. **Products → New**: "Floorboard Pro", subscription, €9/month. Open the
    product → **Share** → copy the checkout link
    `https://YOURSTORE.lemonsqueezy.com/buy/…`.
 3. **Settings → Webhooks → +**:

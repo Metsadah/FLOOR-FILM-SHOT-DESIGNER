@@ -682,3 +682,78 @@ body.touch #trashCan{ display:none !important; }
 .cat-head .dot{ width:8px; height:8px; border-radius:50%; flex:none; margin-right:2px; }
 /* tool buttons: soft tinted pill when active */
 #toolbar button.on, #toolbar button.active{ background:var(--accent-soft); color:var(--accent); border-radius:var(--r-sm); }
+
+/* ---------------- floors (the tabbar as a building) ----------------
+   Each floor: hue-tinted icon · small level pill · clear name. */
+#tabbar button{ display:inline-flex; align-items:center; gap:7px; }
+#tabbar .fl{
+  font-size:9.5px; font-weight:800; letter-spacing:.9px; text-transform:uppercase;
+  color:var(--ink3); background:var(--soft); padding:2px 7px; border-radius:var(--r-pill);
+}
+#tabbar button.on .fl{ background:var(--accent-soft); color:var(--accent); }
+#tabbar button[data-tab="budget"] svg{ color:var(--pal-sand); }
+@media (max-width:600px){ #tabbar .fl, #tabbar .nm{ display:none; } }
+.logo-name{ font-weight:800; letter-spacing:-.2px; font-size:15px; }
+
+/* ---------------- 3rd floor: budget page ---------------- */
+#tabBudget{ grid-column:1 / -1; overflow:auto; background:var(--bg); }
+body.tab-budget #sidebar, body.tab-budget #canvasWrap, body.tab-budget #rightPanel,
+body.tab-budget #toolbar, body.tab-budget #selBar, body.tab-budget #zoomCtl, body.tab-budget #hint,
+body.tab-budget #panelToggle, body.tab-budget #libToggle{ display:none !important; }
+body.tab-budget #main{ grid-template-columns:1fr !important; }
+body.tab-budget #tabBudget{ display:block; }
+.bud-wrap{ max-width:1180px; margin:0 auto; padding:26px 28px 60px; }
+.bud-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+.bud-head h2{ font-size:22px; letter-spacing:-.3px; margin:0 0 4px; }
+.bud-lead{ color:var(--ink2); margin:0; max-width:560px; }
+.bud-headactions{ display:flex; gap:10px; align-items:center; }
+.bud-cur{ font-size:12px; color:var(--ink2); display:flex; gap:6px; align-items:center; }
+.bud-cur select, .bud-cat select, .bud-cat input, .bud-phase input{
+  border:1px solid var(--line); border-radius:var(--r-sm); background:var(--panel); color:var(--ink);
+  padding:6px 8px; font-size:13px; min-height:30px;
+}
+.bud-phases{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:22px 0 26px; }
+.bud-phase{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md); padding:14px 16px; }
+.bud-phase.total{ border-color:var(--accent-soft); background:var(--accent-soft); }
+.bud-phase.over .bud-bar i{ background:var(--danger); }
+.bud-phase.over .bud-phase-num b{ color:var(--danger); }
+.bud-phase-top{ display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700;
+  letter-spacing:.7px; text-transform:uppercase; color:var(--ink2); gap:8px; }
+.bud-phase-top label{ font-weight:600; letter-spacing:0; text-transform:none; display:flex; gap:6px; align-items:center; }
+.bud-phase-top input{ width:96px; text-align:right; }
+.bud-bar{ height:6px; border-radius:var(--r-pill); background:var(--soft); margin:12px 0 8px; overflow:hidden; }
+.bud-bar i{ display:block; height:100%; background:var(--accent); border-radius:var(--r-pill); transition:width .2s; }
+.bud-phase-num{ display:flex; justify-content:space-between; align-items:baseline; }
+.bud-phase-num b{ font-size:19px; letter-spacing:-.3px; }
+.bud-phase-num span, .bud-delta{ font-size:12px; color:var(--ink2); }
+.bud-cat{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md); margin-bottom:16px; overflow:hidden; }
+.bud-cat header{ display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
+.bud-cat h3{ margin:0; font-size:14px; display:flex; align-items:center; gap:8px; }
+.bud-cat h3 .dot{ width:9px; height:9px; border-radius:50%; }
+.bud-sum{ font-weight:700; color:var(--ink2); }
+.bud-actions{ margin-left:auto; display:flex; gap:8px; }
+.bud-cat table{ width:100%; border-collapse:collapse; font-size:13px; }
+.bud-cat th{ text-align:left; font-size:10.5px; letter-spacing:.7px; text-transform:uppercase; color:var(--ink2);
+  padding:8px 10px; border-bottom:1px solid var(--line); font-weight:700; }
+.bud-cat td{ padding:6px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.bud-cat tr:last-child td{ border-bottom:none; }
+.bud-cat th.n, .bud-cat td.n{ text-align:right; }
+.bud-cat td.n input{ text-align:right; width:84px; }
+.bud-cat td input:not([type=number]){ width:100%; min-width:120px; }
+.bud-amt{ font-weight:700; white-space:nowrap; }
+.bud-empty td{ color:var(--ink2); padding:16px 12px; font-size:12.5px; }
+.bud-cat .mini{ width:24px; height:24px; border-radius:var(--r-sm); color:var(--ink3); font-size:14px; }
+.bud-cat .mini:hover{ background:var(--danger-soft); color:var(--danger); }
+@media (max-width:900px){ .bud-phases{ grid-template-columns:repeat(2,1fr); } .bud-wrap{ padding:16px; } }
+body.tab-budget #sceneLbl, body.tab-budget #shotTitle{ display:none !important; }
+/* 4th floor · Documents (every script / AV script + budget, exportable in one click) */
+.docs-list{ padding:2px 10px 6px; display:flex; flex-direction:column; gap:6px; }
+.doc-row{ border:1px solid var(--border); border-radius:var(--r-sm); background:var(--hover); padding:8px 9px; display:flex; flex-direction:column; gap:6px; }
+.doc-t{ display:flex; flex-direction:column; min-width:0; }
+.doc-t b{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.doc-t span{ font-size:10.5px; color:var(--ink2); }
+.doc-b{ display:flex; gap:4px; }
+.doc-b .btn{ padding:3px 8px; font-size:11px; }
+.doc-empty{ font-size:11px; color:var(--ink2); line-height:1.5; padding:4px 2px; }
+.bud-phase-top{ flex-wrap:wrap; }
+.bud-delta{ white-space:nowrap; }

@@ -540,7 +540,7 @@ async function __floorViewerBoot(token){
       'font-family:-apple-system,Segoe UI,sans-serif;color:#33322E;text-align:center;padding:20px">' +
       '<div><div style="font-size:18px;font-weight:600">This share link is not available</div>' +
       '<div style="color:#8A877F;margin-top:8px;font-size:13px">It may have been revoked, or the link is incomplete.<br>' +
-      'Ask the sender for a fresh FLOOR Studio link.</div></div></div>';
+      'Ask the sender for a fresh Floorboard link.</div></div></div>';
   }
 }
 

@@ -28,6 +28,9 @@ function switchTab(t){
     buildLibrary(); buildShotList(); buildInfo(); buildStills();
     refreshSelBar();
     ensureShotImages(activeScene(), false).then(render);
+  } else if(t === 'budget'){
+    if(typeof buildBudgetPage === 'function') buildBudgetPage();
+    refreshSelBar();
   } else if(t === 'org'){
     ensureProdBoard();
     buildLibrary();
@@ -174,7 +177,78 @@ function ensureProdBoard(){
 }
 
 // ---- production card library (smart cards — drag onto the board) ----
+
+// ---------------------------------------------------------------- 4th floor: documents
+// Every script / AV script card in the production, wherever it lives (script
+// board, moodboard, production board, nested boards) — so a producer exports
+// all paperwork from one place without hunting through boards.
+function collectDocCards(){
+  const out = [];
+  const seen = new Set();
+  const scanObjs = (objs, where)=>(objs||[]).forEach(ob=>{
+    if(seen.has(ob.id)) return;
+    if(ob.cat === 'script' || ob.cat === 'avscript' || ob.kind === 'script' || ob.kind === 'avscript'){
+      seen.add(ob.id); out.push({o:ob, where, av:(ob.cat === 'avscript' || ob.kind === 'avscript')});
+    }
+    if(ob.cat === 'subboard' && ob.board) scanObjs(ob.board.objects, where);
+  });
+  scanObjs(project.scriptboard && project.scriptboard.objects, '1st · Script');
+  scanObjs(project.moodboard && project.moodboard.objects, 'Ground · Mood');
+  scanObjs(project.prodboard && project.prodboard.objects, '4th · Production');
+  (project.scenes || []).forEach(s=>scanObjs(s.objects, s.name));
+  return out;
+}
+function buildDocsSection(lib){
+  const h = document.createElement('div');
+  h.className = 'side-head';
+  h.style.marginTop = '10px';
+  h.textContent = 'Documents';
+  h.style.marginTop = '6px';
+  lib.prepend(h); // producers first: documents above the board tiles
+  const box = document.createElement('div');
+  box.className = 'docs-list';
+  const docs = collectDocCards();
+  const row = (title, sub, btns)=>{
+    const r = document.createElement('div');
+    r.className = 'doc-row';
+    r.innerHTML = '<div class="doc-t"><b>' + esc(title) + '</b><span>' + esc(sub) + '</span></div>';
+    const bb = document.createElement('div'); bb.className = 'doc-b';
+    for(const [lab, fn, tip] of btns){
+      const b = document.createElement('button'); b.className = 'btn'; b.textContent = lab; b.title = tip || '';
+      b.addEventListener('click', e=>{ e.stopPropagation(); fn(); });
+      bb.appendChild(b);
+    }
+    r.appendChild(bb);
+    box.appendChild(r);
+  };
+  if(!docs.length){
+    const e = document.createElement('div'); e.className = 'doc-empty';
+    e.textContent = 'No script yet. Load or write one on the 1st floor (Script) — it shows up here for export.';
+    box.appendChild(e);
+  }
+  for(const d of docs){
+    const title = d.o.title || d.o.name || (d.av ? 'AV script' : 'Script');
+    row(title, (d.av ? 'AV script · ' : 'Script · ') + d.where, [
+      ['PDF', ()=>d.av ? exportAvPDF(d.o) : exportScriptPDF(d.o), 'Export as PDF'],
+      ['.docx', ()=>d.av ? exportAvDocx(d.o) : exportScriptDocx(d.o), 'Export as Word document'],
+      ['Open', ()=>{ switchTab('write'); const ob = findOnBoard(d.o.id); if(ob){ sel = ob; if(typeof zoomToSel === 'function') zoomToSel(); render(); refreshSelBar(); } }, 'Go to the card on the 1st floor']
+    ]);
+  }
+  if(typeof budgetCSV === 'function'){
+    const tot = typeof budgetTotals === 'function' ? budgetTotals() : null;
+    row('Budget', tot ? budgetFmt(tot.all, budgetData().currency) + ' · 3rd floor' : '3rd floor', [
+      ['CSV', ()=>dlBlob((project.shootName || 'production').replace(/\s+/g, '_') + '-budget.csv', budgetCSV()), 'Export the budget as CSV'],
+      ['Open', ()=>switchTab('budget'), 'Go to the 3rd floor']
+    ]);
+  }
+  h.after(box);
+}
+function findOnBoard(id){
+  const s = activeScene();
+  return (s && s.objects || []).find(o=>o.id === id) || null;
+}
 function buildProdLibSection(lib){
+  buildDocsSection(lib);
   const h = document.createElement('div');
   h.className = 'side-head';
   h.style.marginTop = '10px';
@@ -536,7 +610,7 @@ function callSheetText(o){
     L.push(''); L.push('WEATHER (' + (o.wx.place || '') + '):');
     for(const [k, v] of o.wx.data) L.push('  ' + k + ': ' + v);
   }
-  L.push(''); L.push('— sent from FLOOR Studio');
+  L.push(''); L.push('— sent from Floorboard');
   return L.join('\n');
 }
 function mailCallSheet(o, tag){

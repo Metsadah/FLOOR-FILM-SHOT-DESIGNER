@@ -127,7 +127,7 @@
           <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:30px 34px;
                       width:340px;box-shadow:0 18px 60px rgba(40,38,32,.14)">
             <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px">
-              <div style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></div>FLOOR Studio
+              <div style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></div>Floorboard
             </div>
             <div id="flTitle" style="color:var(--ink);font-size:12.5px;font-weight:600;margin-top:10px">
               ${mode==='signin' ? 'Sign in' : mode==='signup' ? 'Create your account'
@@ -196,7 +196,7 @@
           const {error} = await sb.auth.signInWithOtp({email, options:{ emailRedirectTo: location.href }});
           msg().textContent = error
             ? 'Could not send the link: ' + error.message
-            : 'Check your inbox for your FLOOR Studio login link (sent via Supabase — check spam the first time) and open it on THIS device. This page will unlock automatically.';
+            : 'Check your inbox for your Floorboard login link (sent via Supabase — check spam the first time) and open it on THIS device. This page will unlock automatically.';
         }
       }
 
