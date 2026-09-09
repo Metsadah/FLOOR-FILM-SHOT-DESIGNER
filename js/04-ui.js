@@ -548,9 +548,12 @@ function refreshSelBar(){
       selBar.appendChild(hint);
     }
     if(o.cat === 'proplist'){
+      sbtn((o.fromScript ? '✓ ' : '') + 'Guess from script', ()=>{
+        o.fromScript = !o.fromScript; markDirty(); render(); refreshSelBar();
+      }).title = 'Also list prop words found in each scene’s script text (off by default — it guesses a lot)';
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
-      hint.textContent = 'Auto-filled from each scene’s board + script — tick the box, + prop to add, × to dismiss';
+      hint.textContent = 'Props placed on each scene board — + prop adds your own, × dismisses';
       selBar.appendChild(hint);
     }
     if(o.cat === 'gearlist'){

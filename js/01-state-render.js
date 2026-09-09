@@ -334,8 +334,9 @@ function propListGroups(o){
       seen.add(nm.toLowerCase());
       if(!o.hide[key]) rows.push({key, sceneId:s.id, name:nm, count:counts[nm], auto:true, done:!!o.done[key]});
     }
-    // 2 · prop names the script mentions (word-boundary, singular/plural)
-    for(const nm of scenePropMentions(s)){
+    // 2 · prop names the script mentions — OPT-IN (o.fromScript): the word
+    // scan is eager ("table", "car"…) and drowned the list with guesses
+    for(const nm of (o.fromScript ? scenePropMentions(s) : [])){
       const lo = nm.toLowerCase(), key = s.id + '|' + lo;
       if(seen.has(lo)) continue;
       seen.add(lo);

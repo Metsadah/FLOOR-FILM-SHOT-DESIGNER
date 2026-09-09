@@ -312,10 +312,15 @@ function closeDrawers(){
 }
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointercancel', e => {
+  // iOS cancels a pointer when it claims the gesture (edge swipe, multitasking).
+  // The object already moved live — commit that position instead of losing track.
   ptrs.delete(e.pointerId);
   if(ptrs.size < 2) pinch = null;
   if(ptrs.size === 0) postPinch = false;
+  const had = drag;
   drag = null; cv.classList.remove('panning');
+  if(had && had.kind !== 'pan'){ markDirty(); if(typeof histSettle === 'function' && typeof histPushed !== 'undefined' && histPushed) histSettle(); }
+  render(); refreshSelBar();
 });
 
 cv.addEventListener('wheel', e => {
@@ -334,10 +339,16 @@ cv.addEventListener('wheel', e => {
 let lastPenAt = 0; // pencil activity timestamp — powers the palm rejection
 cv.addEventListener('pointerdown', e => {
   if(e.pointerType === 'pen') lastPenAt = performance.now();
+  // palm rejection for every tool: a finger touching down right after pencil
+  // activity is the resting hand, not a command
+  if(e.pointerType === 'touch' && performance.now() - lastPenAt < 800) return;
   cv.setPointerCapture(e.pointerId);
   hideCustomPop();
   closeDrawers();
   if(typeof hideExportPop === 'function') hideExportPop();
+  // while an object is being dragged, extra fingers (palm, thumb) are ignored —
+  // turning them into a pinch-zoom yanked the view away mid-drag on the iPad
+  if(drag && drag.kind !== 'pan' && e.pointerType === 'touch' && ptrs.size >= 1 && !ptrs.has(e.pointerId)) return;
   ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if(ptrs.size === 2){
     const [a,b] = [...ptrs.values()];

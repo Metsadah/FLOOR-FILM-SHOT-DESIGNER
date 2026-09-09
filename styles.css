@@ -671,3 +671,6 @@ body.hideL #libToggle, body.hideR #panelToggle{
 body.lite #tabbar, body.lite #shareBtn, body.lite #installBtn{ display:none !important; }
 body.lite #loadScriptBtn{ display:inline-flex !important; }
 body.lite #app{ grid-template-rows:60px 1fr; } /* tabbar is display:none → it leaves the grid, so TWO rows */
+
+/* touch: no drop-to-delete target (fingers land on the bottom edge constantly) */
+body.touch #trashCan{ display:none !important; }

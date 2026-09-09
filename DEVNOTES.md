@@ -303,6 +303,23 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.71 — iPad drag fixes + quieter prop list
+User on a real iPad: "items disappear when I drag". Three causes, all in
+the touch path: (1) a second finger/palm during an object drag made
+ptrs.size===2 → pinch started, drag=null, view yanked away — now extra
+touch pointers are IGNORED while a non-pan drag is active (only a free
+one-finger pan may become a two-finger pinch); (2) iOS pointercancel
+(edge swipe, multitasking) dropped the drag state — it now commits the
+live position (markDirty + histSettle) and re-renders; (3) the
+drop-to-delete trash at the bottom centre ate anything released near the
+bottom edge — disabled on body.touch (CSS + both document listeners);
+delete stays in the selBar. Plus palm rejection is now GLOBAL: a touch
+pointerdown within 800ms of pencil activity is ignored for every tool
+(was draw-only since v0.56). Prop list: the script word-scan
+(scenePropMentions) is opt-in via o.fromScript + a "Guess from script"
+selBar toggle — default OFF, board-placed props only. Gear list untouched
+(it only counts placed fixtures).
+
 ## v0.70 — the iPad app actually runs (device-test fixes)
 Built and launched on an iPad Pro simulator for the first time. Two
 findings, both only visible on a device:

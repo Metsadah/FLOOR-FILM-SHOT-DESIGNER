@@ -1845,12 +1845,13 @@ function overTrash(x, y){
   return x >= r.left - 12 && x <= r.right + 12 && y >= r.top - 12 && y <= r.bottom + 12;
 }
 document.addEventListener('pointermove', e=>{
+  if(window.IS_TOUCH) return; // touch: delete via the selection bar only
   const dragging = drag && drag.kind === 'move' && drag.o && !drag.o.locked;
   trashEl.classList.toggle('show', !!dragging);
   if(dragging) trashEl.classList.toggle('hot', overTrash(e.clientX, e.clientY));
 });
 document.addEventListener('pointerup', e=>{
-  if(drag && drag.kind === 'move' && drag.o && !drag.o.locked && overTrash(e.clientX, e.clientY)){
+  if(!window.IS_TOUCH && drag && drag.kind === 'move' && drag.o && !drag.o.locked && overTrash(e.clientX, e.clientY)){
     const o = drag.o;
     const sc = activeScene();
     sc.objects = sc.objects.filter(x=>x.id !== o.id);
