@@ -303,6 +303,46 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.76 — Shot list floor, document PDFs with house style, budget v2, prop list
+Six floors now: Ground·Mood · 1st·Script · 2nd·Shot designer · **3rd·Shot
+list** (new) · 4th·Budget · 5th·Production. Level pills hide ≤1100px.
+**Shot list (js/11-shotlist.js):** every camera on every scene board
+(all setups) is a shot — slAllShots() keys them sceneId|camId. Model:
+project.shotlist = {days:[{id,name,date,call,loc,items:[{id,type:
+shot|break|setup|move|note, key?, label, dur, note, time?}]}]}. Times
+chain from the day's call; typing a time pins the chain. Unscheduled
+pool on the left (grouped per scene, "+ all"), days as tabs, HTML5 drag
+& drop between slots/days/pool + ▲▼ and a "Move…" select for touch.
+slAddDay() borrows date/call from the Production floor's day headers.
+PDF per day or all days. Items whose camera disappeared are pruned.
+**Document engine (js/10-docs.js):** DocPDF — vector A4, Helvetica with
+WinAnsi (€ works), real AFM widths for wrapping, head() with production
+name / title / meta / logo, section(), table() with span rows, check
+boxes, zebra, page breaks with repeated header, totals(), link annots,
+footer with company · footer line · page x/n. Style in
+project.production.brand {accent, style:'band'|'minimal', footer} +
+P.logo/P.company — edited via docStyleOverlay() (Production floor ›
+Documents › STYLE, also on the call sheet bar). exportPropListPDF (prop
+& gear lists), exportCallSheetDoc (reuses o._csHead/_csSecs the
+renderer now stores; "PDF (card look)" keeps the raster export),
+exportBudgetPDF, exportShotListPDF.
+**Budget v2 (09-budget.js):** phases pre/prod/post/**var** (variable
+costs, outside the target), free lines per phase (qty·unit·description·
+rate·note), Standard lines per phase (the usual quote items, rate 0),
+From crew/cast list (qty = shoot days, personId kept), Gear from
+boards, drag lines between phases, contingency % + VAT %, quote-style
+PDF + CSV. Old v1 items migrate (cat kept as a tag).
+**Prop list:** board items are OPT-IN (o.fromBoards, default off — a
+sofa on the plan is set dressing); "Pick from boards…" overlay adds the
+ones that travel (with count); × on every row inside the card (tap
+works without selecting first); "Remove ticked"; manual rows carry
+count/note. Call sheet: inc.props defaults to false (mail text too).
+Documents section lists scripts, AV scripts, prop/gear lists, call
+sheets, shot list and budget with PDF/CSV/Open.
+Ideas not built yet: budget quote-vs-cost margin, actuals column,
+call-sheet schedule fed from the shot list, per-day call sheets from
+shot list days.
+
 ## v0.75 — Floorboard: five floors, budget floor, new logo, documents
 The rename is real now: "Floorboard — the floor is yours" everywhere
 (index title/logo, manifest, landing/privacy/terms, share + adapter

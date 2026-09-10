@@ -50,7 +50,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="sharePop"></div>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <span id="verChip" title="Floorboard version">v0.75</span><button class="hbtn" id="themeBtn" title="Light / dark / system theme">◐</button><button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="Floorboard version">v0.76</span><button class="hbtn" id="themeBtn" title="Light / dark / system theme">◐</button><button id="helpBtn" title="How to use">?</button>
       <button class="btn drawer-btn" id="panelToggle" title="Show / hide the Scene info panel">☷</button>
       <button class="btn" id="accountBtn" title="Account & privacy" style="display:none;padding:5px 9px">
         <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;vertical-align:-2px">
@@ -64,11 +64,13 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
     <button data-tab="mood" title="Ground floor — Mood: references, colour, tone"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="1.5"/><rect x="13" y="3" width="8" height="6" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="15" width="8" height="6" rx="1.5"/></svg><span class="fl">Ground</span><span class="nm">Mood</span></button>
     <button data-tab="write" title="1st floor — Script: import, break down, storyboard, AV script"><svg viewBox="0 0 24 24"><path d="M3 9l17-4 1 4-17 4z"/><path d="M7 8.2l2.5 3M12 7l2.5 3M17 5.8l2.5 3M4 13h16v7H4z"/><path d="M8 13v7M14 13v7"/></svg><span class="fl">1st</span><span class="nm">Script</span></button>
     <button data-tab="design" class="on" title="2nd floor — Shot designer: block cameras, cast and light on the real floor"><svg viewBox="0 0 24 24"><rect x="2.5" y="8" width="13" height="10" rx="1.5"/><circle cx="9" cy="13" r="3"/><path d="M15.5 11l6-3v8l-6-3M6 8V6h6v2"/></svg><span class="fl">2nd</span><span class="nm">Shot designer</span></button>
-    <button data-tab="budget" title="3rd floor — Budget: crew, cast and gear per phase"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10.5h18M7 15h4"/></svg><span class="fl">3rd</span><span class="nm">Budget</span></button>
-    <button data-tab="org" title="4th floor — Production: crew, call sheets, schedule, files"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4M9 9.5h6M9 13h6M9 16.5h4"/></svg><span class="fl">4th</span><span class="nm">Production</span></button>
+    <button data-tab="shots" title="3rd floor — Shot list: shooting order, breaks, moves, shoot days"><svg viewBox="0 0 24 24"><path d="M4 6h2.5M9.5 6H20M4 12h2.5M9.5 12H20M4 18h2.5M9.5 18H20"/></svg><span class="fl">3rd</span><span class="nm">Shot list</span></button>
+    <button data-tab="budget" title="4th floor — Budget: every line per phase, contingency and VAT"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10.5h18M7 15h4"/></svg><span class="fl">4th</span><span class="nm">Budget</span></button>
+    <button data-tab="org" title="5th floor — Production: crew, call sheets, documents, files"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4M9 9.5h6M9 13h6M9 16.5h4"/></svg><span class="fl">5th</span><span class="nm">Production</span></button>
   </div>
   <div id="main">
     <div id="tabBudget" class="tabPageFull"></div>
+    <div id="tabShots" class="tabPageFull"></div>
     <!-- left -->
     <div id="sidebar">
       <div class="side-head">Scenes <span style="display:flex;gap:4px"><button id="selScenesBtn" title="Select scenes — delete several (or all) at once" style="width:auto;padding:0 7px;font-size:9.5px;letter-spacing:.5px">SELECT</button><button id="planBtn" title="Day planner — chain scenes with travel &amp; setup time" style="width:auto;padding:0 7px;font-size:9.5px;letter-spacing:.5px">PLAN</button><button id="addShot" title="Add scene">+</button></span></div>
@@ -266,5 +268,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
 <script src="./js/07-share.js"></script>
 <script src="./js/08-native.js"></script>
 <script src="./js/09-budget.js"></script>
+<script src="./js/10-docs.js"></script>
+<script src="./js/11-shotlist.js"></script>
 </body>
 </html>

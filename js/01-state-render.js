@@ -326,7 +326,9 @@ function propListGroups(o){
     const rows = [], seen = new Set();
     // 1 · props placed on the scene board (with counts)
     const counts = {};
-    for(const ob of s.objects || []){
+    // OPT-IN (o.fromBoards): a sofa on the plan is set dressing, not something
+    // to pack — the list is for what travels. "Pick from boards…" adds the rest.
+    for(const ob of (o.fromBoards ? (s.objects || []) : [])){
       if(ob.cat !== 'prop' || PROPLIST_SKIP.has(ob.kind)) continue;
       const nm = propDisplayName(ob);
       if(nm) counts[nm] = (counts[nm] || 0) + 1;
@@ -346,7 +348,7 @@ function propListGroups(o){
     }
     // 3 · manual rows (closeNoteEditor prunes the ones left nameless)
     for(const r of o.props[s.id] || [])
-      rows.push({key:r.id, sceneId:s.id, rowId:r.id, name:r.name, count:0, auto:false, done:!!r.done});
+      rows.push({key:r.id, sceneId:s.id, rowId:r.id, name:r.name, count:r.count || 0, note:r.note || '', auto:false, done:!!r.done});
     groups.push({s, rows});
   }
   return groups;
@@ -1924,7 +1926,7 @@ function drawObjectShape(o, ghost){
     ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
     for(const g of groups) for(const r of g.rows)
       labMax = Math.max(labMax, ctx.measureText(r.name + (r.count > 1 ? '  ×' + r.count : '')).width);
-    o.w = clamp(Math.max(pad*2 + 22 + labMax + 14, o.userW || 280), 280, 900);
+    o.w = clamp(Math.max(pad*2 + 22 + labMax + 40, o.userW || 280), 280, 900); // +40: room for the × column
     let need = titleH + 8;
     for(const g of groups) need += headH + g.rows.length*rowH + addH;
     o.h = need + pad - 2;
@@ -1974,16 +1976,16 @@ function drawObjectShape(o, ghost){
           ctx.font = (r.script ? 'italic ' : '') + '11.5px -apple-system,Segoe UI,sans-serif';
           ctx.fillStyle = r.done ? THEME.ph40 : THEME.body;
           const txt = r.name + (r.count > 1 ? '  ×' + r.count : '');
-          ctx.fillText(trimText(ctx, txt, o.w/2 - pad - nX), nX, cy);
+          ctx.fillText(trimText(ctx, txt, o.w/2 - pad - nX - 26), nX, cy);
           if(r.done){
-            const tw = Math.min(ctx.measureText(txt).width, o.w/2 - pad - nX);
+            const tw = Math.min(ctx.measureText(txt).width, o.w/2 - pad - nX - 26);
             ctx.strokeStyle = THEME.ph40; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(nX, cy); ctx.lineTo(nX + tw, cy); ctx.stroke();
           }
         }
         o._plNames.push({key:r.key, sceneId:r.sceneId, rowId:r.rowId || null,
-          x:o.x + nX - 4, y:o.y + cy - 10, w:o.w/2 - pad - nX + 8, h:20,
-          lx:nX, ly:cy - 9, lw:o.w/2 - pad - nX});
+          x:o.x + nX - 4, y:o.y + cy - 10, w:o.w/2 - pad - nX - 26 + 8, h:20,
+          lx:nX, ly:cy - 9, lw:o.w/2 - pad - nX - 26});
         y += rowH;
       }
       // + prop
@@ -1997,19 +1999,18 @@ function drawObjectShape(o, ghost){
     ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.stroke();
     // × chips: manual rows are removed, auto rows dismissed (they'd re-detect)
-    if(selMe){
-      ctx.textAlign = 'center'; ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    { // × on EVERY row, inside the card — removing must never be a hunt
+      ctx.textAlign = 'center'; ctx.font = '700 12px -apple-system,Segoe UI,sans-serif';
       let y2 = -o.h/2 + titleH + 8;
       for(const g of groups){
         y2 += headH;
         for(const r of g.rows){
           const cy = y2 + rowH/2;
-          ctx.beginPath(); ctx.arc(o.w/2 + 14, cy, 8, 0, 7);
-          ctx.fillStyle = THEME.card; ctx.fill();
-          ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1.2; ctx.stroke();
-          ctx.fillStyle = THEME.ink2; ctx.fillText('×', o.w/2 + 14, cy + 1);
+          ctx.beginPath(); ctx.arc(o.w/2 - 16, cy, 9, 0, 7);
+          ctx.fillStyle = selMe ? THEME.dangerSoft || THEME.soft : THEME.soft; ctx.fill();
+          ctx.fillStyle = selMe ? THEME.danger : THEME.ink2; ctx.fillText('×', o.w/2 - 16, cy + 1);
           o._plDels.push({key:r.key, sceneId:r.sceneId, rowId:r.rowId || null,
-            x:o.x + o.w/2 + 14, y:o.y + cy, r:11});
+            x:o.x + o.w/2 - 16, y:o.y + cy, r:13});
           y2 += rowH;
         }
         y2 += addH;
@@ -2021,9 +2022,9 @@ function drawObjectShape(o, ghost){
     // THE call sheet — a live composite of the other cards. Nothing here is
     // edited directly: day header, registry, location and weather feed it.
     normalizeProduction();
-    if(!o.inc) o.inc = {location:true, schedule:true, props:true, crew:true, cast:true, client:true, weather:true};
+    if(!o.inc) o.inc = {location:true, schedule:true, props:false, crew:true, cast:true, client:true, weather:true};
     if(o.inc.schedule === undefined) o.inc.schedule = true;
-    if(o.inc.props === undefined) o.inc.props = true;
+    if(o.inc.props === undefined) o.inc.props = false; // opt-in — the Prop list PDF is the prop master's document
     if(o.inc.gear === undefined) o.inc.gear = false; // opt-in — most sheets don't list gear
     const inc = o.inc;
     const b = project.prodboard;
@@ -2193,6 +2194,7 @@ function drawObjectShape(o, ghost){
       needW = Math.max(needW, ctx.measureText(txt).width);
     }
     o.w = clamp(Math.max(needW + pad*2 + 4, o.userW || 380), 380, 900);
+    o._csHead = head; o._csSecs = secs; // the A4 document export (10-docs) reuses these
     o.h = titleH + pad + head.length*rowH + gap +
       secs.reduce((a, s)=>a + secHead + s[1].length*rowH + gap, 0) + pad - gap + 6;
     // draw

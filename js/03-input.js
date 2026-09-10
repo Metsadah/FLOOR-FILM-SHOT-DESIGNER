@@ -1281,10 +1281,15 @@ cv.addEventListener('pointerup', e => {
     } else if(o.cat === 'proplist' || o.cat === 'gearlist'){
       const hitZ = zones => (zones||[]).find(z=> up.x >= z.x && up.x <= z.x + z.w &&
                                                  up.y >= z.y && up.y <= z.y + z.h);
-      const cb = hitZ(o._plChecks);
-      const ad = !cb && hitZ(o._plAdds);
-      const nm = !cb && !ad && hitZ(o._plNames);
-      if(cb){
+      const dl = (o._plDels||[]).find(z=>dist(up.x, up.y, z.x, z.y) <= z.r);
+      const cb = !dl && hitZ(o._plChecks);
+      const ad = !dl && !cb && hitZ(o._plAdds);
+      const nm = !dl && !cb && !ad && hitZ(o._plNames);
+      if(dl){
+        if(dl.rowId) o.props[dl.sceneId] = (o.props[dl.sceneId]||[]).filter(r=>r.id !== dl.rowId);
+        else o.hide[dl.key] = true;
+        markDirty(); render();
+      } else if(cb){
         if(cb.rowId){
           const r = ((o.props||{})[cb.sceneId]||[]).find(x=>x.id === cb.rowId);
           if(r) r.done = !r.done;

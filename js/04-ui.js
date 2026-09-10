@@ -481,7 +481,8 @@ function refreshSelBar(){
     }
     if(o.cat === 'callsheet'){
       if(!o.inc) o.inc = {location:true, schedule:true, crew:true, cast:true, client:true, weather:true};
-      sbtn('Export PDF ↓', ()=>exportCallSheetPDF(o));
+      sbtn('Export PDF ↓', ()=>exportCallSheetDoc(o)).title = 'A4 document in your document style (Production floor › Documents › Style)';
+      sbtn('PDF (card look)', ()=>exportCallSheetPDF(o)).title = 'The card exactly as it looks on the board';
       if(navigator.share) sbtn('Share PDF…', ()=>shareCallSheetPDF(o));
       sbtn('✉ Crew', ()=>mailCallSheet(o, 'crew'));
       sbtn('✉ Cast', ()=>mailCallSheet(o, 'cast'));
@@ -548,15 +549,28 @@ function refreshSelBar(){
       selBar.appendChild(hint);
     }
     if(o.cat === 'proplist'){
+      sbtn('Pick from boards…', ()=>propPickOverlay(o))
+        .title = 'Tick the items from the scene boards that actually travel with you — the rest is set dressing';
+      sbtn((o.fromBoards ? '✓ ' : '') + 'Everything on boards', ()=>{
+        o.fromBoards = !o.fromBoards; markDirty(); render(); refreshSelBar();
+      }).title = 'List every prop placed on every scene board automatically (off by default — most of it is interior)';
       sbtn((o.fromScript ? '✓ ' : '') + 'Guess from script', ()=>{
         o.fromScript = !o.fromScript; markDirty(); render(); refreshSelBar();
       }).title = 'Also list prop words found in each scene’s script text (off by default — it guesses a lot)';
+      sbtn('Remove ticked', ()=>{
+        let n = 0;
+        for(const sid in (o.props || {})){ const keep = o.props[sid].filter(r=>!r.done); n += o.props[sid].length - keep.length; o.props[sid] = keep; }
+        for(const k in (o.done || {})) if(o.done[k] && !o.hide[k]){ o.hide[k] = true; n++; }
+        markDirty(); render(); refreshSelBar(); toast(n ? n + ' ticked item' + (n === 1 ? '' : 's') + ' removed' : 'Nothing ticked');
+      }).title = 'Clear every ticked row';
+      sbtn('PDF', ()=>exportPropListPDF(o)).title = 'A4 checklist per scene — tick boxes, quantities, room for notes';
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
-      hint.textContent = 'Props placed on each scene board — + prop adds your own, × dismisses';
+      hint.textContent = 'What travels with you — + prop adds a row, × removes it';
       selBar.appendChild(hint);
     }
     if(o.cat === 'gearlist'){
+      sbtn('PDF', ()=>exportPropListPDF(o)).title = 'A4 checklist per scene — tick boxes, quantities, room for notes';
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
       hint.textContent = 'Cameras & lights from each scene board (fixture names when set) — + prop adds your own rows';
@@ -2212,4 +2226,39 @@ function finishPoly(){
   polyDraw = null;
   markDirty(); buildLibrary(); setTool('select'); render();
   toast(`“${name}” added to your custom props`);
+}
+
+// ---- prop list: pick what travels from the scene boards ----
+function propPickOverlay(o){
+  if(!o.props) o.props = {};
+  const scenes = project.scenes.map(s=>{
+    const counts = {};
+    for(const ob of s.objects || []){
+      if(ob.cat !== 'prop' || PROPLIST_SKIP.has(ob.kind)) continue;
+      const nm = propDisplayName(ob); if(nm) counts[nm] = (counts[nm] || 0) + 1;
+    }
+    const have = new Set((o.props[s.id] || []).map(r=>r.name.toLowerCase()));
+    return {s, items:Object.entries(counts).map(([name, n])=>({name, n, on:have.has(name.toLowerCase())}))};
+  }).filter(g=>g.items.length);
+  const el = document.createElement('div');
+  el.className = 'fb-ov';
+  el.innerHTML = '<div class="fb-ov-box" style="width:520px"><div class="fb-ov-title">Pick from the scene boards</div>' +
+    '<div class="fb-ov-sub">Tick what actually has to be brought along. Sofas, sinks and pianos on the plan are usually part of the location — leave those off.</div>' +
+    (scenes.length ? scenes.map(g=>'<div class="fb-pick-scene"><b>' + esc(plSceneHead(g.s)) + '</b>' +
+      g.items.map(it=>'<label class="fb-pick"><input type="checkbox" data-scene="' + g.s.id + '" data-name="' + esc(it.name) + '" data-n="' + it.n + '"' + (it.on ? ' checked disabled' : '') + '><span>' + esc(it.name) + (it.n > 1 ? ' <i>×' + it.n + '</i>' : '') + '</span></label>').join('') + '</div>').join('')
+      : '<p class="fb-dim">Nothing placed on the scene boards yet.</p>') +
+    '<div class="fb-ov-actions"><button class="btn" id="ppNo">Cancel</button><span style="flex:1"></span><button class="btn primary" id="ppGo">Add ticked</button></div></div>';
+  document.body.appendChild(el);
+  el.addEventListener('keydown', e=>e.stopPropagation());
+  el.querySelector('#ppNo').addEventListener('click', ()=>el.remove());
+  el.addEventListener('click', e=>{ if(e.target === el) el.remove(); });
+  el.querySelector('#ppGo').addEventListener('click', ()=>{
+    let n = 0;
+    el.querySelectorAll('input[type=checkbox]:checked:not(:disabled)').forEach(cb=>{
+      (o.props[cb.dataset.scene] = o.props[cb.dataset.scene] || []).push({id:uid(), name:cb.dataset.name, count:+cb.dataset.n || 0, done:false});
+      n++;
+    });
+    el.remove();
+    if(n){ markDirty(); render(); toast(n + ' item' + (n === 1 ? '' : 's') + ' added to the prop list'); }
+  });
 }

@@ -28,6 +28,9 @@ function switchTab(t){
     buildLibrary(); buildShotList(); buildInfo(); buildStills();
     refreshSelBar();
     ensureShotImages(activeScene(), false).then(render);
+  } else if(t === 'shots'){
+    if(typeof buildShotListPage === 'function') buildShotListPage();
+    refreshSelBar();
   } else if(t === 'budget'){
     if(typeof buildBudgetPage === 'function') buildBudgetPage();
     refreshSelBar();
@@ -204,6 +207,11 @@ function buildDocsSection(lib){
   h.style.marginTop = '10px';
   h.textContent = 'Documents';
   h.style.marginTop = '6px';
+  const st = document.createElement('button');
+  st.textContent = 'STYLE'; st.title = 'Document style — accent colour, logo, footer for every exported PDF';
+  st.style.cssText = 'width:auto;padding:0 7px;font-size:9.5px;letter-spacing:.5px;';
+  st.addEventListener('click', ()=>docStyleOverlay());
+  h.appendChild(st);
   lib.prepend(h); // producers first: documents above the board tiles
   const box = document.createElement('div');
   box.className = 'docs-list';
@@ -234,11 +242,45 @@ function buildDocsSection(lib){
       ['Open', ()=>{ switchTab('write'); const ob = findOnBoard(d.o.id); if(ob){ sel = ob; if(typeof zoomToSel === 'function') zoomToSel(); render(); refreshSelBar(); } }, 'Go to the card on the 1st floor']
     ]);
   }
+  // call sheets, prop & gear lists on the boards
+  const cards = [];
+  const scanCards = objs=>(objs || []).forEach(ob=>{
+    if(ob.cat === 'callsheet' || ob.cat === 'proplist' || ob.cat === 'gearlist') cards.push(ob);
+    if(ob.cat === 'subboard' && ob.board) scanCards(ob.board.objects);
+  });
+  scanCards(project.prodboard && project.prodboard.objects);
+  scanCards(project.scriptboard && project.scriptboard.objects);
+  scanCards(project.moodboard && project.moodboard.objects);
+  for(const c of cards){
+    if(c.cat === 'callsheet'){
+      const dy = typeof dayFor === 'function' ? dayFor(c) : null;
+      row('Call sheet', c.allDays ? 'All days' : (dy ? (dy.date ? new Date(dy.date + 'T12:00:00').toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short'}) : 'Day ' + dayNumber(dy)) : 'No day yet'), [
+        ['PDF', ()=>exportCallSheetDoc(c), 'Export as an A4 document'],
+        ['Card', ()=>exportCallSheetPDF(c), 'Export the card as it looks on the board'],
+        ['Open', ()=>{ const ob = findOnBoard(c.id); if(ob){ sel = ob; render(); refreshSelBar(); } }, 'Select the card']
+      ]);
+    } else {
+      const n = (c.cat === 'gearlist' ? gearListGroups : propListGroups)(c).reduce((a, g)=>a + g.rows.length, 0);
+      row(c.cat === 'gearlist' ? 'Gear list' : 'Prop list', n + ' item' + (n === 1 ? '' : 's'), [
+        ['PDF', ()=>exportPropListPDF(c), 'Export as an A4 checklist'],
+        ['Open', ()=>{ const ob = findOnBoard(c.id); if(ob){ sel = ob; render(); refreshSelBar(); } }, 'Select the card']
+      ]);
+    }
+  }
+  if(typeof shotlistData === 'function'){
+    const sd = shotlistData();
+    const n = sd.days.reduce((a, dy)=>a + (dy.items || []).filter(i=>i.type === 'shot').length, 0);
+    row('Shot list', sd.days.length ? sd.days.length + ' day' + (sd.days.length === 1 ? '' : 's') + ' · ' + n + ' shots · 3rd floor' : 'No shoot days yet · 3rd floor', [
+      ['PDF', ()=>exportShotListPDF(null), 'Shooting order per day, breaks and moves included'],
+      ['Open', ()=>switchTab('shots'), 'Go to the 3rd floor']
+    ]);
+  }
   if(typeof budgetCSV === 'function'){
     const tot = typeof budgetTotals === 'function' ? budgetTotals() : null;
-    row('Budget', tot ? budgetFmt(tot.all, budgetData().currency) + ' · 3rd floor' : '3rd floor', [
-      ['CSV', ()=>dlBlob((project.shootName || 'production').replace(/\s+/g, '_') + '-budget.csv', budgetCSV()), 'Export the budget as CSV'],
-      ['Open', ()=>switchTab('budget'), 'Go to the 3rd floor']
+    row('Budget', tot ? budgetFmt(tot.total, budgetData().currency) + ' incl. VAT · 4th floor' : '4th floor', [
+      ['PDF', ()=>exportBudgetPDF(), 'Quote-style budget'],
+      ['CSV', ()=>dlBlob(budgetFileBase() + '-budget.csv', budgetCSV()), 'Export the budget as CSV'],
+      ['Open', ()=>switchTab('budget'), 'Go to the 4th floor']
     ]);
   }
   h.after(box);
@@ -586,7 +628,7 @@ function callSheetText(o){
     }
   }
   const day = dayList[0]; // props/people/weather below are day-independent
-  if(!(o.inc && o.inc.props === false)){
+  if(o.inc && o.inc.props){ // props are opt-in on the sheet — the Prop list PDF is the prop master's document
     const plc = b && b.objects.find(x=>x.cat==='proplist');
     const gs = propListGroups(plc || {props:{}, hide:{}, done:{}}).filter(g=>g.rows.length);
     if(gs.length){
