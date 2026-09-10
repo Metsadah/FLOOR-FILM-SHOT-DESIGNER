@@ -18,7 +18,7 @@ let histBase = null, histPushed = false, histTimer = null;
 function snapshotState(){
   return JSON.stringify({scenes:project.scenes, activeSceneId:project.activeSceneId,
     customProps:project.customProps, shootName:project.shootName||'',
-    moodboard:project.moodboard||null, prodboard:project.prodboard||null,
+    moodboard:project.moodboard||null, prodboard:project.prodboard||null, shotboard:project.shotboard||null,
     script:project.script||null, production:project.production||null});
 }
 function updateHistBtns(){
@@ -51,6 +51,7 @@ function applyState(s){
   project.activeSceneId = p.activeSceneId ?? p.activeShotId;
   if(p.moodboard !== undefined) project.moodboard = p.moodboard;
   if(p.prodboard !== undefined) project.prodboard = p.prodboard;
+  if(p.shotboard !== undefined) project.shotboard = p.shotboard;
   if(p.script !== undefined && p.script !== null) project.script = p.script;
   if(p.production !== undefined && p.production !== null) project.production = p.production;
   project.customProps = p.customProps || [];
@@ -517,10 +518,10 @@ cv.addEventListener('pointerdown', e => {
       }
       const ins = (so._rowIns||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
       if(ins){
-        const nr = {id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgs:[]};
+        const nr = {id:uid(), no:'', shot:'', time:'', dur:'', cam:'', audio:'', video:'', notes:'', imgs:[]};
         so.rows.splice(ins.idx, 0, nr);
         markDirty(); render();
-        setTimeout(()=>openAvCell(so, nr.id, so.cols && so.cols.no ? 'no' : 'time'), 0);
+        setTimeout(()=>openAvCell(so, nr.id, so.mode === 'shotlist' ? 'no' : (so.cols && so.cols.no ? 'no' : 'time')), 0);
         return;
       }
       const cdel = (so._colDels||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);
@@ -1537,8 +1538,7 @@ cv.addEventListener('dblclick', e => {
         const colsH = o._avCols || avCols(o);
         let cx = o.x - o.w/2 + AVS.grip;
         for(const [key,,wd] of colsH){
-          if(wx >= cx && wx < cx + wd &&
-             !['no','time','still','audio','video','notes'].includes(key)){
+          if(wx >= cx && wx < cx + wd && !AV_FIXED.has(key)){
             const cc = (o.customCols||[]).find(c=>c.id === key);
             const name = cc && prompt('Column name', cc.label || '');
             if(name !== null && cc){ cc.label = name.trim() || cc.label; markDirty(); render(); }

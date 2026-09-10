@@ -57,7 +57,7 @@ function budgetAddRow(phase, seed){
   return row;
 }
 function budgetShootDays(){
-  if(project.shotlist && project.shotlist.days && project.shotlist.days.length) return project.shotlist.days.length;
+  if(typeof slCards === 'function' && slCards().length) return slCards().length;
   if(typeof boardDays === 'function' && boardDays().length) return boardDays().length;
   return 1;
 }

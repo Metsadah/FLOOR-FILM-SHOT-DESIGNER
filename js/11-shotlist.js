@@ -1,20 +1,16 @@
-// Floorboard — 11-shotlist.js · the Shot list floor
-// Every camera on every scene board is a shot. This floor lines them up in
-// SHOOTING order — per shoot day, with breaks, build/setup time and company
-// moves in between — without a floor plan in sight. Times chain from the
-// day's call. Drag a shot to another slot or day (or use the arrows / the
-// "Move to" menu on touch). Exports a per-day shot list PDF.
+// Floorboard — 11-shotlist.js · the Shot list floor (3rd)
+// A BOARD like every other floor (notes, images, sub-boards all work), whose
+// signature card is the shot list: an AV-script card in shot-list mode — one
+// card per shoot day, rows in SHOOTING order. Columns: SC · SHOT · START ·
+// MIN · CAMERA (camera · lens · move, prefilled from the Shot designer, still
+// editable) · STILLS · VIDEO · AUDIO · REGIE NOTES. Breaks, setup time and
+// company moves are tinted rows; START adds the minutes up from the call.
+// The card IS an avscript (cat) so cells, row drag, stills, column widths,
+// custom columns and the .docx export all come for free; o.mode==='shotlist'
+// switches columns, clock and placeholders.
 'use strict';
-const SL_TYPES = {shot:'Shot', break:'Break', setup:'Setup / build', move:'Company move', note:'Note'};
-const SL_DEFAULT = {shot:20, break:30, setup:45, move:60, note:0};
-let slDayId = null, slDrag = null;
+const SL_BLOCKS = {break:['Break', 30], setup:['Setup / build', 45], move:['Company move', 60]};
 
-function shotlistData(){
-  if(!project.shotlist) project.shotlist = {days:[]};
-  const d = project.shotlist;
-  d.days = d.days || [];
-  return d;
-}
 function slMinutes(t){ // "08:30" → 510
   const m = /^(\d{1,2})[:.](\d{2})$/.exec(String(t || '').trim());
   return m ? (+m[1]) * 60 + (+m[2]) : null;
@@ -25,7 +21,66 @@ function slHHMM(min){
   const d = Math.floor(min / 60) % 24, m = min % 60;
   return String(d).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
-// every camera on every scene (all setups) → a shot
+function slDurMin(t){ // "20", "20m", "1:30" (h:mm) → minutes
+  t = String(t || '').trim();
+  if(!t) return 0;
+  const m = t.match(/^(\d{1,2})[:.](\d{2})$/);
+  if(m) return (+m[1]) * 60 + (+m[2]);
+  return parseInt(t, 10) || 0;
+}
+function slCardTitle(o){
+  const d = o.day || {};
+  const date = d.date ? new Date(d.date + 'T12:00:00').toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short'}) : '';
+  return [(d.name || 'SHOT LIST').toUpperCase(), date, d.call ? 'call ' + d.call : ''].filter(Boolean).join('  ·  ');
+}
+// ---------------------------------------------------------------- the board
+function ensureShotBoard(){
+  if(!project.shotboard){
+    const b = newShot(0);
+    b.name = 'Shot list';
+    project.shotboard = b;
+    markDirty();
+  }
+  migrateShot(project.shotboard);
+  slMigrateOld();
+}
+function slCards(){ // every shot-list card on the shot board (sub-boards too), date-sorted
+  const out = [];
+  const scan = objs=>(objs || []).forEach(ob=>{
+    if(ob.cat === 'avscript' && ob.mode === 'shotlist') out.push(ob);
+    if(ob.cat === 'subboard' && ob.board) scan(ob.board.objects);
+  });
+  if(project.shotboard) scan(project.shotboard.objects);
+  return out.sort((a, c)=>String((a.day || {}).date || '9999').localeCompare(String((c.day || {}).date || '9999')));
+}
+function slNewCard(x, y, day){
+  const n = slCards().length;
+  const bd = (typeof boardDays === 'function') ? boardDays()[n] : null; // borrow the Production floor's day headers
+  return {id:uid(), cat:'avscript', kind:'avscript', mode:'shotlist', x:x || 0, y:y || 0, rot:0, w:900, h:150, color:PAL.coral,
+    cols:{no:true, still:false, notes:true}, rows:[],
+    day:Object.assign({name:'Day ' + (n + 1), date:(bd && bd.date) || '', call:(bd && (bd.shootCall || bd.call)) || '08:00'}, day || {})};
+}
+// v0.76 kept days in project.shotlist (a DOM page) — they become cards once
+function slMigrateOld(){
+  const old = project.shotlist;
+  if(!old || old.migrated || !(old.days || []).length) return;
+  const map = slShotMap();
+  let y = 0;
+  for(const d of old.days){
+    const card = slNewCard(0, y, {name:d.name, date:d.date, call:d.call});
+    for(const it of d.items || []){
+      if(it.type === 'shot'){ const sh = map[it.key]; if(sh) card.rows.push(slRowFromShot(sh, it.dur, it.note)); }
+      else if(it.type === 'note') card.rows.push({id:uid(), no:'', shot:'', dur:'', cam:'', video:it.label || '', audio:'', notes:it.note || '', imgs:[]});
+      else card.rows.push(slBlockRow(it.type, it.label, it.dur, it.note));
+    }
+    if(d.loc) card.rows.unshift({id:uid(), no:'', shot:'', dur:'', cam:'', video:d.loc, audio:'', notes:'', imgs:[], block:'setup', label:'Unit base'});
+    project.shotboard.objects.push(card);
+    y += 420;
+  }
+  old.migrated = true;
+  markDirty();
+}
+// ---------------------------------------------------------------- shots from the designer
 function slAllShots(){
   const out = [];
   (project.scenes || []).forEach((s, si)=>{
@@ -39,279 +94,151 @@ function slAllShots(){
         seen.add(ob.id);
         const sh = (s.shots || []).find(x=>x.id === ob.shotId);
         const suName = multi ? ((su || (s.setups || []).find(x=>x.id === s.setupId) || {}).name || '') : '';
+        const camName = (typeof CAMS !== 'undefined' && CAMS[ob.kind] && CAMS[ob.kind].name) || '';
         out.push({key:s.id + '|' + ob.id, sceneId:s.id, camId:ob.id, si,
           sc:s.scene || '', scene:s.sceneDesc || s.name || '', shot:(sh && sh.name) || '', label:ob.label || '',
-          framing:ob.framing || '', lens:ob.lens ? ob.lens + 'mm' : '', support:ob.support || '', setup:suName,
-          film:s.film || ''});
+          framing:ob.framing || '', lens:ob.lens ? ob.lens + 'mm' : '', support:ob.support || '', setup:suName, camName,
+          sceneDur:s.duration || 0});
       }
     }
   });
   return out;
 }
 function slShotMap(){ const m = {}; for(const s of slAllShots()) m[s.key] = s; return m; }
-function slSync(){
-  const d = shotlistData(), map = slShotMap();
-  for(const day of d.days){
-    day.items = (day.items || []).filter(it=>it.type !== 'shot' || map[it.key]);
-    for(const it of day.items) if(it.dur == null) it.dur = SL_DEFAULT[it.type] || 20;
-  }
-  if(slDayId && !d.days.some(x=>x.id === slDayId)) slDayId = null;
-  if(!slDayId && d.days.length) slDayId = d.days[0].id;
-  return map;
+function slCamText(sh){ return [sh.camName, sh.framing, sh.lens, sh.support, sh.setup].filter(Boolean).join(' · '); }
+function slRowFromShot(sh, dur, note){
+  const cam = slCamText(sh);
+  return {id:uid(), key:sh.key, no:sh.sc, shot:[sh.shot, sh.label].filter(Boolean).join(' · '), dur:String(dur || 20), cam, camAuto:cam,
+    video:'', audio:'', notes:note || '', imgs:[]};
+}
+function slBlockRow(type, label, dur, note){
+  const [name, def] = SL_BLOCKS[type] || ['Block', 30];
+  return {id:uid(), block:type, no:'', shot:'', dur:String(dur || def), cam:'', video:label || '', audio:'', notes:note || '', imgs:[], label:name};
 }
 function slScheduledKeys(){
   const set = new Set();
-  for(const day of shotlistData().days) for(const it of day.items || []) if(it.type === 'shot') set.add(it.key);
+  for(const c of slCards()) for(const r of c.rows || []) if(r.key) set.add(r.key);
   return set;
 }
-function slAddDay(){
-  const d = shotlistData();
-  const n = d.days.length;
-  const bd = (typeof boardDays === 'function') ? boardDays()[n] : null; // borrow the Production floor's day headers
-  const day = {id:uid(), name:'Day ' + (n + 1), date:(bd && bd.date) || '', call:(bd && (bd.shootCall || bd.call)) || '08:00', loc:'', items:[]};
-  d.days.push(day);
-  slDayId = day.id;
-  markDirty();
-  return day;
-}
-function slCurrentDay(){ const d = shotlistData(); return d.days.find(x=>x.id === slDayId) || d.days[0] || null; }
-function slAddShot(day, key, at){
-  if(!day) return;
-  const it = {id:uid(), type:'shot', key, dur:SL_DEFAULT.shot, note:''};
-  if(at == null || at < 0 || at > day.items.length) day.items.push(it); else day.items.splice(at, 0, it);
-  markDirty();
-  return it;
-}
-function slAddBlock(day, type){
-  if(!day) return;
-  day.items.push({id:uid(), type, label:'', dur:SL_DEFAULT[type], note:''});
-  markDirty();
-}
-function slFindItem(id){
-  for(const day of shotlistData().days){ const i = day.items.findIndex(x=>x.id === id); if(i >= 0) return {day, i, it:day.items[i]}; }
-  return null;
-}
-function slMoveItem(id, toDay, at){ // at = index in the target list (before removal fix-up)
-  const f = slFindItem(id); if(!f || !toDay) return;
-  f.day.items.splice(f.i, 1);
-  if(f.day === toDay && at != null && at > f.i) at--;
-  if(at == null || at < 0 || at > toDay.items.length) toDay.items.push(f.it); else toDay.items.splice(at, 0, f.it);
-  markDirty();
-}
-function slRows(day, map){
-  let t = slMinutes(day.call) ?? 480;
-  const rows = [];
-  for(const it of day.items || []){
-    const pin = slMinutes(it.time);
-    if(pin != null) t = pin;
-    const dur = +it.dur || 0;
-    rows.push({it, shot:it.type === 'shot' ? map[it.key] : null, start:t, end:t + dur, dur});
-    t += dur;
+// refresh camera/lens/move from the designer for rows the user hasn't retyped
+function slSyncCard(o){
+  const map = slShotMap();
+  let n = 0, gone = 0;
+  for(const r of o.rows || []){
+    if(!r.key) continue;
+    const sh = map[r.key];
+    if(!sh){ gone++; continue; }
+    const cam = slCamText(sh);
+    if(r.cam === r.camAuto && r.cam !== cam){ r.cam = cam; n++; }
+    r.camAuto = cam;
+    if(!r.no) r.no = sh.sc;
+    if(!r.shot) r.shot = [sh.shot, sh.label].filter(Boolean).join(' · ');
   }
-  return {rows, wrap:t};
+  markDirty(); render();
+  toast((n ? n + ' camera cell' + (n === 1 ? '' : 's') + ' updated from the Shot designer' : 'Camera cells already match the Shot designer') +
+    (gone ? ' · ' + gone + ' row' + (gone === 1 ? '' : 's') + ' no longer have a camera on the board' : ''));
 }
-function slShotTitle(sh){
-  return [sh.sc ? 'SC ' + sh.sc : '', sh.shot, sh.label].filter(Boolean).join(' · ') || 'Shot';
+function slAddBlock(o, type){
+  o.rows.push(slBlockRow(type));
+  markDirty(); render();
+  const r = o.rows[o.rows.length - 1];
+  setTimeout(()=>openAvCell(o, r.id, 'video'), 0);
 }
-function slShotSub(sh){
-  return [sh.framing, sh.lens, sh.support, sh.setup].filter(Boolean).join(' · ');
-}
-
-// ---------------------------------------------------------------- page
-function buildShotListPage(){
-  const host = document.getElementById('tabShots');
-  if(!host) return;
-  const map = slSync();
-  const d = shotlistData();
-  const day = slCurrentDay();
+// pull shots from the scene boards into this card
+function slPullOverlay(o){
   const sched = slScheduledKeys();
-  const pool = slAllShots().filter(s=>!sched.has(s.key));
+  const all = slAllShots();
   const groups = [];
-  for(const s of pool){ let g = groups.find(x=>x.sceneId === s.sceneId); if(!g){ g = {sceneId:s.sceneId, sc:s.sc, scene:s.scene, shots:[]}; groups.push(g); } g.shots.push(s); }
-  const totalShots = slAllShots().length;
-  const dayBtn = dy=>{
-    const {rows, wrap} = slRows(dy, map);
-    const n = rows.filter(r=>r.it.type === 'shot').length;
-    return `<button class="sl-day${dy === day ? ' on' : ''}" data-day="${dy.id}"><b>${esc(dy.name || 'Day')}</b><span>${dy.date ? new Date(dy.date + 'T12:00:00').toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short'}) : 'no date'} · ${n} shot${n === 1 ? '' : 's'} · wrap ${slHHMM(wrap)}</span></button>`;
-  };
-  let main = '';
-  if(!day){
-    main = `<div class="sl-empty"><h3>No shoot days yet</h3><p>Add a day, then drag shots from the left into shooting order. Breaks, build time and company moves go in between; the clock runs from the day's call.</p><button class="btn primary" data-act="addday">+ Shoot day</button></div>`;
-  } else {
-    const {rows, wrap} = slRows(day, map);
-    const nShots = rows.filter(r=>r.it.type === 'shot').length;
-    const mins = rows.reduce((a, r)=>a + r.dur, 0);
-    const moveOpts = d.days.filter(x=>x !== day).map(x=>`<option value="${x.id}">→ ${esc(x.name)}</option>`).join('');
-    main = `
-      <div class="sl-dayhead">
-        <input class="sl-dayname" data-dk="name" value="${esc(day.name || '')}" placeholder="Day name">
-        <label>Date <input type="date" data-dk="date" value="${esc(day.date || '')}"></label>
-        <label>Call <input data-dk="call" value="${esc(day.call || '')}" placeholder="08:00" style="width:64px"></label>
-        <label class="grow">Location / note <input data-dk="loc" value="${esc(day.loc || '')}" placeholder="Where the day starts, parking, unit base…"></label>
-        <span class="sl-daystats">${nShots} shot${nShots === 1 ? '' : 's'} · ${Math.round(mins / 60 * 10) / 10} h · wrap <b>${slHHMM(wrap)}</b></span>
-      </div>
-      <div class="sl-tools">
-        <button class="btn" data-act="block" data-type="break">+ Break</button>
-        <button class="btn" data-act="block" data-type="setup">+ Setup / build</button>
-        <button class="btn" data-act="block" data-type="move">+ Company move</button>
-        <button class="btn" data-act="block" data-type="note">+ Note</button>
-        <span style="flex:1"></span>
-        <button class="btn" data-act="pdfday">PDF this day</button>
-        <button class="btn primary" data-act="pdfall">PDF all days</button>
-        <button class="btn danger-ghost" data-act="rmday" title="Remove this day — its shots go back to Unscheduled">Remove day</button>
-      </div>
-      <table class="sl-table">
-        <thead><tr><th class="t">Time</th><th class="g"></th><th>Shot</th><th class="n">Min</th><th>Notes</th><th class="c"></th></tr></thead>
-        <tbody data-day="${day.id}">
-        ${rows.map((r, i)=>{
-          const it = r.it, isShot = it.type === 'shot';
-          const info = isShot
-            ? `<div class="sl-shot"><b>${esc(slShotTitle(r.shot))}</b><span>${esc(slShotSub(r.shot) || r.shot.scene)}</span></div>`
-            : `<div class="sl-block sl-${it.type}"><em>${SL_TYPES[it.type]}</em><input data-k="label" value="${esc(it.label || '')}" placeholder="${it.type === 'move' ? 'To where?' : it.type === 'note' ? 'Anything the crew should know' : 'Optional label'}"></div>`;
-          return `<tr data-id="${it.id}" class="sl-row sl-${it.type}" draggable="true">
-            <td class="t"><input data-k="time" class="sl-time${it.time ? ' pinned' : ''}" value="${esc(it.time || '')}" placeholder="${slHHMM(r.start)}" title="Computed from the call — type a time to pin it"></td>
-            <td class="g"><span class="grip" title="Drag to reorder">⋮⋮</span></td>
-            <td>${info}</td>
-            <td class="n"><input data-k="dur" type="number" min="0" step="5" value="${it.dur ?? 0}"></td>
-            <td><input data-k="note" value="${esc(it.note || '')}" placeholder="…"></td>
-            <td class="c"><button class="mini" data-act="up" title="Earlier"${i === 0 ? ' disabled' : ''}>▲</button><button class="mini" data-act="down" title="Later"${i === rows.length - 1 ? ' disabled' : ''}>▼</button>
-              <select class="sl-move" data-act="moveto" title="Move to another day"><option value="">Move…</option>${moveOpts}${isShot ? '<option value="__pool">→ Unscheduled</option>' : ''}</select>
-              <button class="mini" data-act="del" title="${isShot ? 'Back to Unscheduled' : 'Remove'}">×</button></td>
-          </tr>`;
-        }).join('')}
-        ${rows.length ? '' : `<tr class="sl-droprow"><td colspan="6">Drag shots here from the left — or click the + next to a shot. Then add breaks and moves.</td></tr>`}
-        </tbody>
-      </table>`;
+  for(const s of all){
+    let g = groups.find(x=>x.sceneId === s.sceneId);
+    if(!g){ g = {sceneId:s.sceneId, sc:s.sc, scene:s.scene, shots:[]}; groups.push(g); }
+    g.shots.push(s);
   }
-  host.innerHTML = `
-  <div class="sl-wrap">
-    <aside class="sl-pool" data-pool="1">
-      <div class="sl-pool-head"><h3>Unscheduled</h3><span>${pool.length} of ${totalShots}</span></div>
-      ${totalShots ? '' : '<p class="sl-hint">No shots yet — every camera you place on a scene board (2nd floor) shows up here.</p>'}
-      ${groups.map(g=>`
-        <div class="sl-group">
-          <div class="sl-group-head"><b>${g.sc ? 'SC ' + esc(g.sc) : 'Scene'}</b><span>${esc(g.scene)}</span><button class="mini" data-act="addscene" data-scene="${g.sceneId}" title="Add all ${g.shots.length} shots to the current day">+ all</button></div>
-          ${g.shots.map(s=>`<div class="sl-pshot" draggable="true" data-key="${s.key}"><div><b>${esc([s.shot, s.label].filter(Boolean).join(' · ') || 'Shot')}</b><span>${esc(slShotSub(s))}</span></div><button class="mini" data-act="addshot" data-key="${s.key}" title="Add to the current day">+</button></div>`).join('')}
-        </div>`).join('')}
-      ${totalShots && !pool.length ? '<p class="sl-hint">Everything is scheduled.</p>' : ''}
-    </aside>
-    <section class="sl-main">
-      <div class="sl-days">${d.days.map(dayBtn).join('')}<button class="sl-day add" data-act="addday">+ Shoot day</button></div>
-      ${main}
-    </section>
-  </div>`;
-  // ---- wiring ----
-  host.onkeydown = e=>e.stopPropagation();
-  host.oninput = e=>{
-    const dk = e.target.dataset.dk;
-    if(dk && day){ day[dk] = e.target.value; markDirty(); if(dk !== 'name' && dk !== 'loc') buildShotListPage(); else if(dk === 'name'){ const b = host.querySelector(`.sl-day[data-day="${day.id}"] b`); if(b) b.textContent = day.name || 'Day'; } return; }
-    const tr = e.target.closest('tr[data-id]'); if(!tr) return;
-    const f = slFindItem(tr.dataset.id); if(!f) return;
-    const k = e.target.dataset.k;
-    f.it[k] = k === 'dur' ? (+e.target.value || 0) : e.target.value;
-    markDirty();
-    if(k === 'dur' || k === 'time') refreshTimes();
-  };
-  host.onchange = e=>{
-    if(e.target.dataset.act === 'moveto'){
-      const tr = e.target.closest('tr[data-id]'), v = e.target.value; if(!tr || !v) return;
-      if(v === '__pool'){ const f = slFindItem(tr.dataset.id); f.day.items.splice(f.i, 1); markDirty(); }
-      else slMoveItem(tr.dataset.id, d.days.find(x=>x.id === v), null);
-      buildShotListPage();
-    }
-    if(e.target.type === 'date' && e.target.dataset.dk) { /* handled in oninput */ }
-  };
-  host.onclick = e=>{
-    const dayBtnEl = e.target.closest('.sl-day[data-day]');
-    if(dayBtnEl){ slDayId = dayBtnEl.dataset.day; buildShotListPage(); return; }
-    const btn = e.target.closest('button'); if(!btn) return;
-    const act = btn.dataset.act;
-    if(act === 'addday'){ slAddDay(); buildShotListPage(); }
-    else if(act === 'addshot'){ if(!day){ slAddDay(); } slAddShot(slCurrentDay(), btn.dataset.key); buildShotListPage(); }
-    else if(act === 'addscene'){ if(!day){ slAddDay(); } const cur = slCurrentDay(); for(const s of pool.filter(x=>x.sceneId === btn.dataset.scene)) slAddShot(cur, s.key); buildShotListPage(); }
-    else if(act === 'block'){ slAddBlock(day, btn.dataset.type); buildShotListPage(); const last = host.querySelector('tbody tr[data-id]:last-child input[data-k="label"]'); if(last) last.focus(); }
-    else if(act === 'up' || act === 'down'){ const tr = btn.closest('tr'); const f = slFindItem(tr.dataset.id); const j = act === 'up' ? f.i - 1 : f.i + 1; if(j >= 0 && j < f.day.items.length){ f.day.items.splice(f.i, 1); f.day.items.splice(j, 0, f.it); markDirty(); buildShotListPage(); } }
-    else if(act === 'del'){ const tr = btn.closest('tr'); const f = slFindItem(tr.dataset.id); f.day.items.splice(f.i, 1); markDirty(); buildShotListPage(); }
-    else if(act === 'rmday'){ if(!confirm('Remove ' + (day.name || 'this day') + '? Its shots go back to Unscheduled.')) return; d.days = d.days.filter(x=>x !== day); slDayId = null; markDirty(); buildShotListPage(); }
-    else if(act === 'pdfday'){ exportShotListPDF(day.id); }
-    else if(act === 'pdfall'){ exportShotListPDF(null); }
-  };
-  // ---- drag & drop: rows within/between days, pool → day, row → pool ----
-  host.addEventListener('dragstart', e=>{
-    const row = e.target.closest('tr[data-id]'), ps = e.target.closest('.sl-pshot');
-    if(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT'){ e.preventDefault(); return; }
-    if(row){ slDrag = {kind:'item', id:row.dataset.id}; row.classList.add('dragging'); }
-    else if(ps){ slDrag = {kind:'pool', key:ps.dataset.key}; ps.classList.add('dragging'); }
-    else return;
-    e.dataTransfer.effectAllowed = 'move';
-    try{ e.dataTransfer.setData('text/plain', 'floorboard-shot'); }catch(_){}
-  });
-  host.addEventListener('dragend', ()=>{ slDrag = null; host.querySelectorAll('.dragging,.drop-before,.drop-into').forEach(x=>x.classList.remove('dragging', 'drop-before', 'drop-into')); });
-  host.addEventListener('dragover', e=>{
-    if(!slDrag) return;
-    const row = e.target.closest('tr[data-id]'), body = e.target.closest('tbody[data-day]'), dbtn = e.target.closest('.sl-day[data-day]'), poolEl = e.target.closest('.sl-pool');
-    if(!(row || body || dbtn || (poolEl && slDrag.kind === 'item'))) return;
-    e.preventDefault();
-    host.querySelectorAll('.drop-before,.drop-into').forEach(x=>x.classList.remove('drop-before', 'drop-into'));
-    if(row) row.classList.add('drop-before'); else if(dbtn) dbtn.classList.add('drop-into'); else if(body) body.classList.add('drop-into'); else if(poolEl) poolEl.classList.add('drop-into');
-  });
-  host.addEventListener('drop', e=>{
-    if(!slDrag) return;
-    const row = e.target.closest('tr[data-id]'), body = e.target.closest('tbody[data-day]'), dbtn = e.target.closest('.sl-day[data-day]'), poolEl = e.target.closest('.sl-pool');
-    e.preventDefault();
-    const targetDay = dbtn ? d.days.find(x=>x.id === dbtn.dataset.day) : (body || row) ? d.days.find(x=>x.id === (body || row.closest('tbody')).dataset.day) : null;
-    const at = row ? targetDay.items.findIndex(x=>x.id === row.dataset.id) : null;
-    if(slDrag.kind === 'pool'){
-      if(targetDay) slAddShot(targetDay, slDrag.key, at);
-    } else if(slDrag.kind === 'item'){
-      if(poolEl && !targetDay){ const f = slFindItem(slDrag.id); if(f && f.it.type === 'shot'){ f.day.items.splice(f.i, 1); markDirty(); } }
-      else if(targetDay && !(row && row.dataset.id === slDrag.id)) slMoveItem(slDrag.id, targetDay, at);
-    }
-    slDrag = null;
-    buildShotListPage();
-  });
-  function refreshTimes(){
-    if(!day) return;
-    const {rows, wrap} = slRows(day, map);
-    host.querySelectorAll('tbody tr[data-id]').forEach((tr, i)=>{
-      const inp = tr.querySelector('.sl-time'); if(inp && rows[i]){ inp.placeholder = slHHMM(rows[i].start); inp.classList.toggle('pinned', !!rows[i].it.time); }
-    });
-    const st = host.querySelector('.sl-daystats b'); if(st) st.textContent = slHHMM(wrap);
-    const mins = rows.reduce((a, r)=>a + r.dur, 0), n = rows.filter(r=>r.it.type === 'shot').length;
-    const ds = host.querySelector('.sl-daystats'); if(ds) ds.innerHTML = n + ' shot' + (n === 1 ? '' : 's') + ' · ' + Math.round(mins / 60 * 10) / 10 + ' h · wrap <b>' + slHHMM(wrap) + '</b>';
-    const db = host.querySelector(`.sl-day[data-day="${day.id}"] span`);
-    if(db) db.textContent = (day.date ? new Date(day.date + 'T12:00:00').toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short'}) : 'no date') + ' · ' + n + ' shot' + (n === 1 ? '' : 's') + ' · wrap ' + slHHMM(wrap);
+  const el = document.createElement('div');
+  el.className = 'fb-ov';
+  el.innerHTML = '<div class="fb-ov-box" style="width:560px"><div class="fb-ov-title">Shots from the scene boards</div>' +
+    '<div class="fb-ov-sub">Every camera on a scene board is a shot. Tick what shoots on <b>' + esc((o.day || {}).name || 'this day') + '</b> — they land at the bottom in scene order; drag rows into shooting order afterwards. Greyed shots are already on a shot list.</div>' +
+    (groups.length ? '<div class="fb-row" style="margin-bottom:6px"><button class="btn" id="slAll">Tick all unscheduled</button><button class="btn" id="slNone">Untick</button></div>' +
+      groups.map(g=>'<div class="fb-pick-scene"><b>' + esc((g.sc ? 'SC ' + g.sc + ' · ' : '') + g.scene) + '</b>' +
+        g.shots.map(s=>'<label class="fb-pick"><input type="checkbox" data-key="' + s.key + '"' + (sched.has(s.key) ? ' data-dup="1"' : '') + '><span>' + esc([s.shot, s.label].filter(Boolean).join(' · ') || 'Shot') +
+          ' <i>' + esc(slCamText(s)) + (sched.has(s.key) ? ' · already listed' : '') + '</i></span></label>').join('') + '</div>').join('')
+      : '<p class="fb-dim">No cameras on any scene board yet — place them on the 2nd floor.</p>') +
+    '<div class="fb-ov-actions"><button class="btn" id="slNo">Cancel</button><span style="flex:1"></span><button class="btn primary" id="slGo">Add ticked</button></div></div>';
+  document.body.appendChild(el);
+  el.addEventListener('keydown', e=>e.stopPropagation());
+  el.querySelector('#slNo').addEventListener('click', ()=>el.remove());
+  el.addEventListener('click', e=>{ if(e.target === el) el.remove(); });
+  const allBtn = el.querySelector('#slAll');
+  if(allBtn){
+    allBtn.addEventListener('click', ()=>el.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked = !cb.dataset.dup; }));
+    el.querySelector('#slNone').addEventListener('click', ()=>el.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked = false; }));
+    el.querySelectorAll('.fb-pick input[data-dup]').forEach(cb=>{ cb.closest('.fb-pick').style.opacity = .55; });
   }
+  el.querySelector('#slGo').addEventListener('click', ()=>{
+    const map = slShotMap();
+    let n = 0;
+    // placeholder first row from a fresh card goes when real rows arrive
+    if(o.rows.length === 1 && !o.rows[0].key && !o.rows[0].block && !(o.rows[0].video || o.rows[0].audio || o.rows[0].no || o.rows[0].shot)) o.rows = [];
+    el.querySelectorAll('input[type=checkbox]:checked').forEach(cb=>{ const sh = map[cb.dataset.key]; if(sh){ o.rows.push(slRowFromShot(sh)); n++; } });
+    el.remove();
+    if(n){ markDirty(); render(); refreshSelBar(); toast(n + ' shot' + (n === 1 ? '' : 's') + ' added — drag the grips into shooting order'); }
+  });
 }
-
+// ---------------------------------------------------------------- library section (3rd floor)
+function buildShotLibSection(lib){
+  const h = document.createElement('div');
+  h.className = 'side-head';
+  h.style.marginTop = '6px';
+  h.textContent = 'Shoot days';
+  const grid = document.createElement('div');
+  grid.className = 'lib-grid';
+  const el = document.createElement('div');
+  el.className = 'lib-item';
+  el.appendChild(tileCanvas((tc, w2, h2)=>{}, 100, 100, PAL.coral, null, null, 'avscript'));
+  el.insertAdjacentHTML('beforeend', '<span>Shot list (day)</span>');
+  el.title = 'Drag onto the board — one card per shoot day. Then "+ Shots…" pulls the cameras from your scene boards.';
+  el.addEventListener('pointerdown', e=>startLibDrag(e, Object.assign(slNewCard(0, 0), {id:undefined})));
+  grid.appendChild(el);
+  const cards = slCards();
+  const info = document.createElement('div');
+  info.className = 'doc-empty';
+  info.style.padding = '2px 12px 6px';
+  const sched = slScheduledKeys().size, total = slAllShots().length;
+  info.textContent = cards.length
+    ? cards.length + ' day' + (cards.length === 1 ? '' : 's') + ' · ' + sched + ' of ' + total + ' shots scheduled' + (total > sched ? ' — select a day card and use "+ Shots…"' : '')
+    : (total ? total + ' shots on the scene boards, none scheduled yet — drop a day card first.' : 'Every camera on a scene board (2nd floor) becomes a shot here.');
+  lib.prepend(info);
+  lib.prepend(grid);
+  lib.prepend(h);
+}
 // ---------------------------------------------------------------- PDF
-function exportShotListPDF(dayId){
-  const map = slSync();
-  const d = shotlistData();
-  const days = dayId ? d.days.filter(x=>x.id === dayId) : d.days;
-  if(!days.length){ toast('No shoot days yet'); return; }
-  const doc = new DocPDF({title:'Shot list'});
-  const nShots = days.reduce((a, dy)=>a + dy.items.filter(i=>i.type === 'shot').length, 0);
-  doc.head('Shot list' + (dayId ? ' — ' + (days[0].name || 'Day') : ''), 'Shooting order' + (days.length > 1 ? ' · ' + days.length + ' shoot days' : ''),
-    [['Date', dayId && days[0].date ? docDateStr(days[0].date) : todayStr()], ['Shots', String(nShots)]]);
-  const cols = [{label:'Time', w:44, bold:true}, {label:'SC', w:34}, {label:'Shot', flex:3}, {label:'Framing · lens', flex:2}, {label:'Min', w:34, align:'r'}, {label:'Notes', flex:2}];
-  for(const dy of days){
-    const {rows, wrap} = slRows(dy, map);
-    const n = rows.filter(r=>r.it.type === 'shot').length;
-    doc.section((dy.name || 'Day') + (dy.date ? ' — ' + docDateStr(dy.date) : ''), 'call ' + (dy.call || '–') + ' · ' + n + ' shots · wrap ' + slHHMM(wrap));
-    if(dy.loc) doc.text(dy.loc, {size:9, dim:true, gap:4});
-    const trs = rows.map(r=>{
-      const it = r.it;
-      if(it.type === 'shot' && r.shot){
-        const sh = r.shot;
-        return [slHHMM(r.start), sh.sc || '', {t:[sh.shot, sh.label].filter(Boolean).join(' · ') || 'Shot', bold:true}, [sh.framing, sh.lens, sh.support, sh.setup].filter(Boolean).join(' · ') || sh.scene, String(r.dur), it.note || ''];
+function slCardRows(o){ // computed start times per row
+  let t = slMinutes((o.day || {}).call) ?? 480;
+  return (o.rows || []).map(r=>{ const dur = slDurMin(r.dur); const row = {r, start:t, dur}; t += dur; return row; }).concat([{wrap:t}]);
+}
+function exportShotListPDF(card){
+  const cards = card ? [card] : slCards();
+  if(!cards.length){ toast('No shot list cards yet — drop a day card on the 3rd floor'); return; }
+  const doc = new DocPDF({title:'Shot list', landscape:true, margin:36});
+  const nShots = cards.reduce((a, c)=>a + (c.rows || []).filter(r=>!r.block).length, 0);
+  doc.head('Shot list' + (card ? ' — ' + ((card.day || {}).name || 'Day') : ''), 'Shooting order' + (cards.length > 1 ? ' · ' + cards.length + ' shoot days' : ''),
+    [['Date', card && card.day && card.day.date ? docDateStr(card.day.date) : todayStr()], ['Shots', String(nShots)]]);
+  const cols = [{label:'Start', w:42, bold:true}, {label:'SC', w:30}, {label:'Shot', w:64, bold:true}, {label:'Min', w:30, align:'r'},
+    {label:'Camera · lens · move', flex:2}, {label:'Video', flex:3}, {label:'Audio', flex:2}, {label:'Regie notes', flex:2}];
+  for(const c of cards){
+    const rows = slCardRows(c), wrap = rows.pop().wrap, d = c.day || {};
+    const n = rows.filter(x=>!x.r.block).length;
+    doc.section((d.name || 'Day') + (d.date ? ' — ' + docDateStr(d.date) : ''), 'call ' + (d.call || '–') + ' · ' + n + ' shots · wrap ' + slHHMM(wrap));
+    const trs = rows.map(({r, start, dur})=>{
+      if(r.block){
+        const lab = (SL_BLOCKS[r.block] || ['Block'])[0] + (r.video ? ' — ' + r.video : '');
+        return [{t:slHHMM(start), bold:true, fill:[0.965, 0.96, 0.95]}, '', '', String(dur), {t:lab, dim:true, bold:true}, '', r.audio || '', r.notes || ''];
       }
-      const lab = SL_TYPES[it.type] + (it.label ? ' — ' + it.label : '') + (it.note ? '  ·  ' + it.note : '');
-      return [{t:slHHMM(r.start), bold:true, fill:[0.965, 0.96, 0.95]}, '', {t:lab, dim:true}, '', String(r.dur), ''];
+      return [slHHMM(start), r.no || '', r.shot || '', String(dur), r.cam || '', r.video || '', r.audio || '', r.notes || ''];
     });
     if(!trs.length) doc.text('Nothing scheduled on this day yet.', {dim:true});
-    else doc.table(cols, trs, {fontSize:9});
+    else doc.table(cols, trs, {fontSize:8.5});
   }
-  dlBlob(docFileName('shot-list' + (dayId ? '_' + (days[0].name || 'day').replace(/\s+/g, '-').toLowerCase() : '')), doc.blob());
+  dlBlob(docFileName('shot-list' + (card ? '_' + ((card.day || {}).name || 'day').replace(/\s+/g, '-').toLowerCase() : '')), doc.blob());
   toast('Shot list PDF exported');
 }

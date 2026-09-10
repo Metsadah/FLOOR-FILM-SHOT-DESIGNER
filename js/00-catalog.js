@@ -1347,9 +1347,11 @@ const FIELD_GEO = {titleH:26, rowH:26};
 // with optional scene-number, still and director-notes columns. The classic
 // free-text two-column AV block grown into the smart-card system.
 const AVS = {titleH:30, headH:24, rowPad:7, lineH:17, minRowH:36, grip:14, stillH:140,
-  fontPx:13.5, custW:150, w:{no:44, time:58, dur:52, still:96, audio:215, video:255, notes:170}};
+  fontPx:13.5, custW:150, w:{no:44, time:58, dur:52, still:96, audio:215, video:255, notes:170, shot:64, cam:180}};
 // which keys are single-line? everything else (incl. custom columns) wraps
-function avSingle(key){ return key === 'no' || key === 'time' || key === 'dur'; }
+function avSingle(key){ return key === 'no' || key === 'time' || key === 'dur' || key === 'shot'; }
+// columns the user may not delete (everything else is a custom column)
+const AV_FIXED = new Set(['no','shot','time','dur','cam','still','audio','video','notes']);
 // shot length: "30", "30s" or "0:30" → seconds
 function avDurSec(t){
   t = String(t || '').trim();
@@ -1367,6 +1369,27 @@ function avCols(o){
   // per-column width overrides (o.colW, unscaled px) come from separator drags
   const cw = (key, base)=>Math.round(((o.colW && o.colW[key]) || base) * S);
   const out = [];
+  if(o.mode === 'shotlist'){
+    // shot list (3rd floor): SC · SHOT · START (adds the minutes up from the
+    // day's call) · MIN · CAMERA · [STILLS] · VIDEO · AUDIO · [custom] · [NOTES]
+    out.push(['no','SC', cw('no', AVS.w.no)]);
+    out.push(['shot','SHOT', cw('shot', AVS.w.shot)]);
+    out.push(['time','START', cw('time', AVS.w.time)]);
+    out.push(['dur','MIN', cw('dur', AVS.w.dur)]);
+    out.push(['cam','CAMERA · LENS · MOVE', cw('cam', AVS.w.cam)]);
+    if(c.still){
+      const sh = o.stillH || AVS.stillH, slot = Math.round(sh*16/9) + 6;
+      let maxN = 1;
+      for(const r of (o.rows||[])) maxN = Math.max(maxN, (r.imgs||[]).length);
+      out.push(['still','STILLS', 12 + maxN*slot + 22]);
+    }
+    out.push(['video','VIDEO — SEE', cw('video', AVS.w.video)]);
+    out.push(['audio','AUDIO — HEAR', cw('audio', AVS.w.audio)]);
+    for(const cc of (o.customCols || []))
+      out.push([cc.id, (cc.label || 'COLUMN').toUpperCase(), cw(cc.id, AVS.custW)]);
+    if(c.notes) out.push(['notes','REGIE NOTES', cw('notes', AVS.w.notes)]);
+    return out;
+  }
   if(c.no) out.push(['no','SC', cw('no', AVS.w.no)]);
   // TIME adds the SEC durations up (start time per shot, computed); SEC is
   // the editable shot length in seconds

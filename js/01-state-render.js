@@ -388,7 +388,7 @@ function plSceneHead(s){
 }
 
 let activeTab = 'design'; // design | mood | script | story | org
-const BOARD_TABS = new Set(['mood','org','write']);
+const BOARD_TABS = new Set(['mood','org','write','shots']);
 // ---------------------------------------------------------------- sub-boards
 // A sub-board is a CARD that contains a full board (o.board, shot-shaped).
 // "Entering" one pushes its id onto boardStack; activeScene() then serves the
@@ -401,6 +401,7 @@ let boardStack = []; // subboard object ids, outermost first
 function rootBoard(){
   if(activeTab === 'mood' && project.moodboard) return project.moodboard;
   if(activeTab === 'org' && project.prodboard) return project.prodboard;
+  if(activeTab === 'shots' && project.shotboard) return project.shotboard;
   if(activeTab === 'write' && project.scriptboard) return project.scriptboard;
   return project.scenes.find(s => s.id === project.activeSceneId) || project.scenes[0];
 }
@@ -475,6 +476,7 @@ function updateCrumb(){
   el.title = 'Inside a sub-board — click to go back up';
   const rootName = activeTab === 'mood' ? 'Mood & inspiration'
     : activeTab === 'org' ? 'Production'
+    : activeTab === 'shots' ? 'Shot list'
     : activeTab === 'write' ? 'Script & Storyboard'
     : (rootBoard() ? rootBoard().name : 'Scene');
   el.innerHTML = '<span style="color:#4B6BFB">⬑</span>&nbsp;' + esc(rootName) +
@@ -559,6 +561,7 @@ function normalizeLoadedProject(){
   if(project.moodboard) migrateShot(project.moodboard);
   if(project.prodboard) migrateShot(project.prodboard);
   if(project.scriptboard) migrateShot(project.scriptboard);
+  if(project.shotboard) migrateShot(project.shotboard);
   if(!project.script) project.script = {text:'', type:'film'};
   normalizeProduction();
   if(!project.customProps) project.customProps = [];
@@ -654,7 +657,7 @@ function imgReferenced(id){
   const inBoard = s => s && (s.stills.includes(id) || inObjs(s.objects) ||
     (s.setups||[]).some(su=>inObjs(su.objects)));
   return project.scenes.some(inBoard) ||
-    inBoard(project.moodboard) || inBoard(project.prodboard) || inBoard(project.scriptboard);
+    inBoard(project.moodboard) || inBoard(project.prodboard) || inBoard(project.scriptboard) || inBoard(project.shotboard);
 }
 async function maybeDeleteImg(id){
   if(!imgReferenced(id)){
@@ -1572,8 +1575,14 @@ function drawObjectShape(o, ghost){
     // v0.60: TIME split into SEC (editable shot length) + TIME (adds up) —
     // an old time value was really a duration, so it moves to dur once
     o.rows.forEach(r=>{ if(r.dur === undefined){ r.dur = r.time || ''; } });
-    let runSec = 0;
-    o.rows.forEach(r=>{ r.time = avFmtTime(runSec); runSec += avDurSec(r.dur); });
+    if(o.mode === 'shotlist'){ // START = call + the MIN column so far
+      let run = (typeof slMinutes === 'function' ? slMinutes((o.day || {}).call) : null) ?? 480;
+      o.rows.forEach(r=>{ r.time = slHHMM(run); run += slDurMin(r.dur); });
+      o._wrap = slHHMM(run);
+    } else {
+      let runSec = 0;
+      o.rows.forEach(r=>{ r.time = avFmtTime(runSec); runSec += avDurSec(r.dur); });
+    }
     o.cols = o.cols || {no:false, still:false, notes:false};
     const cols = avCols(o);
     o._avCols = cols;
@@ -1602,7 +1611,13 @@ function drawObjectShape(o, ghost){
     // title + column headers read a step LARGER than the body text, and scale along
     ctx.font = '700 ' + (16*S) + 'px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
-    ctx.fillText(o.label || 'AV SCRIPT', -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    ctx.fillText(o.mode === 'shotlist' ? (o.label || slCardTitle(o)) : (o.label || 'AV SCRIPT'), -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    if(o.mode === 'shotlist' && o._wrap){ // shots · wrap, right in the title strip
+      const nSh = o.rows.filter(r=>!r.block && (r.key || r.shot || r.video)).length;
+      ctx.textAlign = 'right'; ctx.font = '600 ' + (12*S) + 'px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.ink2;
+      ctx.fillText(nSh + ' shot' + (nSh === 1 ? '' : 's') + '  ·  wrap ' + o._wrap, o.w/2 - 10, -o.h/2 + G.titleH/2 + .5);
+      ctx.textAlign = 'left';
+    }
     // column headers + separators
     ctx.font = '700 ' + (14*S) + 'px -apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink2;
@@ -1611,8 +1626,8 @@ function drawObjectShape(o, ghost){
     const headMid = -o.h/2 + G.titleH + G.headH/2 + .5;
     for(const [key,label,wd] of cols){
       ctx.fillStyle = THEME.ink2;
-      ctx.fillText(trimText(ctx, label, wd - 26), hx + 8, headMid);
-      if(selMe && !['no','time','still','audio','video','notes'].includes(key)){
+      ctx.fillText(trimText(ctx, label, wd - (AV_FIXED.has(key) ? 12 : 26)), hx + 8, headMid); // only custom columns carry a × chip
+      if(selMe && !AV_FIXED.has(key)){
         // × in the header removes this custom column (dblclick the header renames)
         ctx.beginPath(); ctx.arc(hx + wd - 11, headMid - .5, 6, 0, 7);
         ctx.fillStyle = THEME.chip; ctx.fill();
@@ -1640,6 +1655,10 @@ function drawObjectShape(o, ghost){
       const rh = rowHs[i];
       ctx.strokeStyle = THEME.line;
       ctx.beginPath(); ctx.moveTo(-o.w/2, yTop); ctx.lineTo(o.w/2, yTop); ctx.stroke();
+      if(r.block){ // break / setup / company move — a tinted band across the row
+        ctx.fillStyle = r.block === 'break' ? THEME.warnSoft : r.block === 'move' ? THEME.accentSoft : THEME.soft;
+        ctx.fillRect(-o.w/2 + G.grip, yTop, o.w - G.grip, rh);
+      }
       if(drag && drag.kind==='avrow' && drag.rowId===r.id){
         ctx.fillStyle = THEME.accent08;
         ctx.fillRect(-o.w/2, yTop, o.w, rh);
@@ -1701,7 +1720,9 @@ function drawObjectShape(o, ghost){
           const v = r[key] || '';
           if(multi){
             ctx.fillStyle = v ? (key==='audio' ? shade(o.color, .75) : THEME.body) : THEME.ph30;
-            const ph = key==='audio' ? 'lyrics / VO / sfx…' : key==='video' ? 'what we see…' : '…';
+            const ph = r.block && key !== 'video' ? '' : r.block ? (SL_BLOCKS[r.block] || ['Block'])[0] + ' — label…'
+              : key==='audio' ? (o.mode === 'shotlist' ? 'sound / dialogue…' : 'lyrics / VO / sfx…')
+              : key==='video' ? 'what we see…' : key==='cam' ? 'camera · lens · move…' : '…';
             const lines = wrapCanvasText(ctx, v || ph, wd - 16);
             ctx.textBaseline = 'alphabetic';
             lines.forEach((l, li)=> ctx.fillText(l, x0 + 8, yTop + G.rowPad + 12.5*S + li*G.lineH*S));
@@ -1709,7 +1730,11 @@ function drawObjectShape(o, ghost){
           } else {
             ctx.fillStyle = (v && !(key === 'time')) ? THEME.ink : (key === 'time' ? THEME.ink2 : THEME.ph30);
             ctx.font = '600 ' + (G.fontPx*S) + 'px -apple-system,Segoe UI,sans-serif';
-            ctx.fillText(trimText(ctx, v || (key==='time' ? '0:00' : key==='dur' ? 's' : '#'), wd - 12), x0 + 8, yTop + rh/2 + .5);
+            const sph = o.mode === 'shotlist' ? (key==='time' ? '—' : key==='dur' ? 'min' : key==='shot' ? (r.block ? '' : '1A') : (r.block ? '' : 'SC')) : (key==='time' ? '0:00' : key==='dur' ? 's' : '#');
+            if(r.block && key === 'no'){ // block rows carry their kind where the SC would be
+              ctx.font = '700 ' + (10*S) + 'px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = r.block === 'break' ? THEME.warn : r.block === 'move' ? THEME.accent : THEME.ink2;
+              ctx.fillText(trimText(ctx, (SL_BLOCKS[r.block] || ['·'])[0].toUpperCase().split(' ')[0], wd - 6), x0 + 6, yTop + rh/2 + .5);
+            } else ctx.fillText(trimText(ctx, v || sph, wd - 12), x0 + 8, yTop + rh/2 + .5);
           }
         }
         x0 += wd;

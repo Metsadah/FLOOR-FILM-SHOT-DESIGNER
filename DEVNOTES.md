@@ -303,6 +303,38 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.77 — Shot list floor is a board; the shot list card is an AV script in shot-list mode
+Feedback on v0.76: the DOM shot-list page was a dead end — it should look
+like an AV script (SC · shot # · time to shoot · camera/lens/move · video
+· audio · regie notes · stills, images droppable) and live on a board so
+notes etc. can sit next to it. So: project.shotboard (rootBoard for
+activeTab 'shots', in BOARD_TABS, migrated/snapshotted/asset-scanned like
+the other boards) + the shot list card = cat 'avscript' with
+o.mode==='shotlist' and o.day={name,date,call}. avCols(o) returns the
+shot-list columns in that mode: no(SC) · shot · time(START, minutes
+from o.day.call — slMinutes/slHHMM/slDurMin) · dur(MIN) · cam · [still]
+· video · audio · custom · [notes]. AV_FIXED (00-catalog) = columns that
+never get a × chip (replaces two inline lists). Rows: r.key
+(sceneId|camId) for pulled shots, r.cam/r.camAuto (Sync ↻ only rewrites
+cells the user has not retyped), r.block = break|setup|move → tinted
+band, kind in the SC cell, label in VIDEO. Everything else (cell editor,
+row drag, stills filmstrip, image drop from the board or OS, column
+widths, custom columns, .docx) is the AV machinery untouched.
+11-shotlist.js: ensureShotBoard (+ slMigrateOld turns v0.76
+project.shotlist days into cards once), slAllShots (cameras of every
+scene, all setups, with CAMS name/framing/lens/support/setup), slCards,
+slNewCard (borrows date/call from Production day headers), slPullOverlay
+("+ Shots…": tick shots, already-listed ones greyed), slAddBlock,
+slSyncCard, buildShotLibSection (day-card tile + status line, prepended
+above the board tools), exportShotListPDF (DocPDF landscape per day:
+Start · SC · Shot · Min · Camera · Video · Audio · Regie notes; block
+rows shaded). Selection bar in shot-list mode: day name / date / call
+inputs, + Shots…, + Row, + Break/Setup/Move, Sync ↻, PDF, .docx, Stills,
+Regie notes, + Column, A−/A+. budgetShootDays() counts the cards.
+The Documents section skips shot-list cards in the script list and
+shows one Shot list row. styles: tab-shots rules mirror tab-org; the
+.sl-* DOM CSS is gone.
+
 ## v0.76 — Shot list floor, document PDFs with house style, budget v2, prop list
 Six floors now: Ground·Mood · 1st·Script · 2nd·Shot designer · **3rd·Shot
 list** (new) · 4th·Budget · 5th·Production. Level pills hide ≤1100px.

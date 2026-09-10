@@ -515,6 +515,7 @@ async function __floorViewerBoot(token){
     if(project.moodboard) migrateShot(project.moodboard);
     if(project.prodboard) migrateShot(project.prodboard);
     if(project.scriptboard) migrateShot(project.scriptboard);
+    if(project.shotboard) migrateShot(project.shotboard);
     normalizeProduction();
     if(!project.customProps) project.customProps = [];
     if(!project.scenes.find(s=>s.id===project.activeSceneId)) project.activeSceneId = project.scenes[0].id;

@@ -723,7 +723,7 @@ function showExportPop(kind){
     `<label class="xp-row"><input type="checkbox" id="${id}" ${val?'checked':''}> ${label}</label>`);
   const boardMode = BOARD_TABS.has(activeTab);
   const what = boardMode
-    ? ({mood:'moodboard', write:'script & storyboard', org:'production board'})[activeTab] || 'board'
+    ? ({mood:'moodboard', write:'script & storyboard', org:'production board', shots:'shot list board'})[activeTab] || 'board'
     : 'scene';
   mk(`<div class="xp-title">Export ${what}</div>`);
   chk('xpGrid', 'Include grid dots', prefs.grid);

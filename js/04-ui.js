@@ -584,7 +584,57 @@ function refreshSelBar(){
       hint.textContent = 'A board within the board — name it via the Label field';
       selBar.appendChild(hint);
     }
-    if(o.cat === 'avscript'){
+    if(o.cat === 'avscript' && o.mode === 'shotlist'){
+      // the shoot day this card is: name · date · call (START adds up from the call)
+      o.day = o.day || {name:'Day 1', date:'', call:'08:00'};
+      const mkIn = (val, ph, w, type, fn)=>{
+        const i = document.createElement('input');
+        i.className = 'lbl'; i.style.width = w; i.placeholder = ph; i.value = val || ''; if(type) i.type = type;
+        i.addEventListener('change', ()=>{ fn(i.value); markDirty(); render(); refreshSelBar(); });
+        i.addEventListener('keydown', e=>{ e.stopPropagation(); if(e.key === 'Enter') i.blur(); });
+        i.addEventListener('pointerdown', e=>e.stopPropagation());
+        selBar.appendChild(i);
+        return i;
+      };
+      mkIn(o.day.name, 'Day 1', '84px', null, v=>{ o.day.name = v.trim(); }).title = 'Shoot day name';
+      mkIn(o.day.date, '', '130px', 'date', v=>{ o.day.date = v; }).title = 'Shoot date';
+      mkIn(o.day.call, '08:00', '58px', null, v=>{ o.day.call = v.trim(); }).title = 'Shooting call — the START column counts from here';
+      vsep();
+      sbtn('+ Shots…', ()=>slPullOverlay(o)).title = 'Pull cameras from the scene boards (2nd floor) as rows — camera, lens and move come along';
+      sbtn('+ Row', ()=>addAvRow(o)).title = 'A free row (a shot that is not on a board yet)';
+      sbtn('+ Break', ()=>slAddBlock(o, 'break'));
+      sbtn('+ Setup', ()=>slAddBlock(o, 'setup')).title = 'Build / lighting / rehearsal time';
+      sbtn('+ Move', ()=>slAddBlock(o, 'move')).title = 'Company move — travel to the next location';
+      sbtn('Sync ↻', ()=>slSyncCard(o)).title = 'Refresh camera · lens · move from the Shot designer (cells you retyped stay)';
+      sbtn('PDF', ()=>exportShotListPDF(o)).title = 'A4 landscape shot list for this day, in your document style';
+      sbtn('.docx', ()=>exportAvDocx(o)).title = 'Word table of this day';
+      o.cols = o.cols || {no:true, still:false, notes:true};
+      const tgl2 = (label, key)=>sbtn((o.cols[key] ? '✓ ' : '') + label, ()=>{ o.cols[key] = !o.cols[key]; markDirty(); render(); refreshSelBar(); });
+      tgl2('Stills', 'still');
+      tgl2('Regie notes', 'notes');
+      sbtn('+ Column', ()=>{
+        const name = prompt('Column name', '');
+        if(name === null) return;
+        (o.customCols = o.customCols || []).push({id:'c' + uid(), label:name.trim() || 'Column'});
+        markDirty(); render(); refreshSelBar();
+      }).title = 'Your own column (cast, sound, props…) — × in its header removes it';
+      sbtn('A−', ()=>{ o.fs = Math.max(.8, +((o.fs || 1) - .15).toFixed(2)); markDirty(); render(); refreshSelBar(); });
+      sbtn('A+', ()=>{ o.fs = Math.min(1.8, +((o.fs || 1) + .15).toFixed(2)); markDirty(); render(); refreshSelBar(); });
+      if(o.cols.still){
+        const ss = document.createElement('select');
+        ss.title = 'Still size';
+        ss.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel);';
+        for(const [v, n] of [[72,'Stills S'],[140,'Stills M'],[200,'Stills L'],[280,'Stills XL']])
+          ss.insertAdjacentHTML('beforeend', `<option value="${v}"${(o.stillH||AVS.stillH)===v?' selected':''}>${n}</option>`);
+        ss.addEventListener('change', ()=>{ o.stillH = +ss.value; markDirty(); render(); });
+        ss.addEventListener('pointerdown', e=>e.stopPropagation());
+        selBar.appendChild(ss);
+      }
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
+      hint.textContent = 'Drag the grips into shooting order · click a cell to write · drop an image on a row for a still';
+      selBar.appendChild(hint);
+    } else if(o.cat === 'avscript'){
       sbtn('+ Row', ()=>addAvRow(o));
       sbtn('Paste rows…', ()=>avPasteOverlay(o))
         .title = 'Import an AV script copied from Excel / Google Sheets (tab-separated columns)';
@@ -1270,11 +1320,11 @@ function openAvCell(o, rowId, key){
     {x:x0+3, y:yTop+2, w:wd-6, h:(hs[ri]||G.minRowH)-4}, +(G.fontPx*(o.fs||1)).toFixed(1));
 }
 function addAvRow(o, openIt){
-  o.rows.push({id:uid(), no:'', time:'', dur:'', audio:'', video:'', notes:'', imgId:null});
+  o.rows.push({id:uid(), no:'', shot:'', time:'', dur:'', cam:'', audio:'', video:'', notes:'', imgId:null, imgs:[]});
   markDirty(); render();
   if(openIt !== false){
     const r = o.rows[o.rows.length-1];
-    setTimeout(()=>openAvCell(o, r.id, o.cols && o.cols.no ? 'no' : 'dur'), 0);
+    setTimeout(()=>openAvCell(o, r.id, (o.mode === 'shotlist' || (o.cols && o.cols.no)) ? 'no' : 'dur'), 0);
   }
 }
 
@@ -1775,6 +1825,7 @@ function buildLibrary(){
   }, 90, 90, '#5B6472', null, ()=>pickBoardFile());
   lib.appendChild(bh); lib.appendChild(bg);
   if(activeTab === 'org' && typeof buildProdLibSection === 'function') buildProdLibSection(lib);
+  if(activeTab === 'shots' && typeof buildShotLibSection === 'function') buildShotLibSection(lib);
   if(activeTab === 'write' && typeof buildWriteLibSection === 'function') buildWriteLibSection(lib);
   if(activeTab === 'mood' && typeof buildMoodLibSection === 'function') buildMoodLibSection(lib);
 
@@ -1903,6 +1954,9 @@ function dropLib(e){
         for(const role of ['Director','DoP','AC','Gaffer','Sound'])
           peopleReg().push({id:uid(), name:'', role, phone:'', email:'', tag:'crew', call:''});
       }
+    } else if(libDrag.cat === 'avscript' && libDrag.mode === 'shotlist'){
+      o = Object.assign({}, libDrag, {id:uid(), x, y, rot:0, rows:[], day:Object.assign({}, libDrag.day)});
+      delete o.cw;
     } else if(libDrag.cat === 'avscript'){
       o = {id:uid(), cat:'avscript', kind:'avscript', x, y, rot:0, w:560, h:150,
            rows:[1,2,3].map(()=>({id:uid(), no:'', time:'', audio:'', video:'', notes:'', imgId:null})),
@@ -1943,7 +1997,7 @@ function dropLib(e){
         // bind to the first location no card shows yet; else start a fresh one
         normalizeProduction();
         const bound = new Set();
-        const boards = [...project.scenes, project.moodboard, project.prodboard, project.scriptboard];
+        const boards = [...project.scenes, project.moodboard, project.prodboard, project.scriptboard, project.shotboard];
         for(const b of boards) if(b) for(const ob of b.objects)
           if(ob.cat === 'fieldcard' && ob.kind === 'location' && ob.locId) bound.add(ob.locId);
         const free = project.production.locations.find(l=>!bound.has(l.id));

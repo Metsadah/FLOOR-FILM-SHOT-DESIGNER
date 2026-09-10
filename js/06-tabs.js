@@ -29,8 +29,10 @@ function switchTab(t){
     refreshSelBar();
     ensureShotImages(activeScene(), false).then(render);
   } else if(t === 'shots'){
-    if(typeof buildShotListPage === 'function') buildShotListPage();
+    ensureShotBoard();
+    buildLibrary();
     refreshSelBar();
+    ensureShotImages(activeScene(), false).then(()=>{ zoomFitIfEmptyView(); render(); });
   } else if(t === 'budget'){
     if(typeof buildBudgetPage === 'function') buildBudgetPage();
     refreshSelBar();
@@ -190,14 +192,15 @@ function collectDocCards(){
   const seen = new Set();
   const scanObjs = (objs, where)=>(objs||[]).forEach(ob=>{
     if(seen.has(ob.id)) return;
-    if(ob.cat === 'script' || ob.cat === 'avscript' || ob.kind === 'script' || ob.kind === 'avscript'){
+    if((ob.cat === 'script' || ob.cat === 'avscript' || ob.kind === 'script' || ob.kind === 'avscript') && ob.mode !== 'shotlist'){
       seen.add(ob.id); out.push({o:ob, where, av:(ob.cat === 'avscript' || ob.kind === 'avscript')});
     }
     if(ob.cat === 'subboard' && ob.board) scanObjs(ob.board.objects, where);
   });
   scanObjs(project.scriptboard && project.scriptboard.objects, '1st · Script');
+  scanObjs(project.shotboard && project.shotboard.objects, '3rd · Shot list');
   scanObjs(project.moodboard && project.moodboard.objects, 'Ground · Mood');
-  scanObjs(project.prodboard && project.prodboard.objects, '4th · Production');
+  scanObjs(project.prodboard && project.prodboard.objects, '5th · Production');
   (project.scenes || []).forEach(s=>scanObjs(s.objects, s.name));
   return out;
 }
@@ -267,10 +270,10 @@ function buildDocsSection(lib){
       ]);
     }
   }
-  if(typeof shotlistData === 'function'){
-    const sd = shotlistData();
-    const n = sd.days.reduce((a, dy)=>a + (dy.items || []).filter(i=>i.type === 'shot').length, 0);
-    row('Shot list', sd.days.length ? sd.days.length + ' day' + (sd.days.length === 1 ? '' : 's') + ' · ' + n + ' shots · 3rd floor' : 'No shoot days yet · 3rd floor', [
+  if(typeof slCards === 'function'){
+    const cs2 = slCards();
+    const n = cs2.reduce((a, c)=>a + (c.rows || []).filter(r=>!r.block).length, 0);
+    row('Shot list', cs2.length ? cs2.length + ' day' + (cs2.length === 1 ? '' : 's') + ' · ' + n + ' shots · 3rd floor' : 'No shoot days yet · 3rd floor', [
       ['PDF', ()=>exportShotListPDF(null), 'Shooting order per day, breaks and moves included'],
       ['Open', ()=>switchTab('shots'), 'Go to the 3rd floor']
     ]);
@@ -1588,7 +1591,7 @@ function collectAssetIds(){
     (s.stills||[]).forEach(id=>img.add(id));
   };
   project.scenes.forEach(scan);
-  scan(project.moodboard); scan(project.prodboard); scan(project.scriptboard);
+  scan(project.moodboard); scan(project.prodboard); scan(project.scriptboard); scan(project.shotboard);
   if(project.production && project.production.logo) img.add(project.production.logo);
   return {img:[...img], file:[...file]};
 }
