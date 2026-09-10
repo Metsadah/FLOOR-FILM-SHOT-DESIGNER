@@ -606,6 +606,7 @@ function refreshSelBar(){
       sbtn('+ Setup', ()=>slAddBlock(o, 'setup')).title = 'Build / lighting / rehearsal time';
       sbtn('+ Move', ()=>slAddBlock(o, 'move')).title = 'Company move — travel to the next location';
       sbtn('Sync ↻', ()=>slSyncCard(o)).title = 'Refresh camera · lens · move from the Shot designer (cells you retyped stay)';
+      if(typeof slRowMoveButtons === 'function'){ vsep(); slRowMoveButtons(o, sbtn); vsep(); }
       sbtn('PDF', ()=>exportShotListPDF(o)).title = 'A4 landscape shot list for this day, in your document style';
       sbtn('.docx', ()=>exportAvDocx(o)).title = 'Word table of this day';
       o.cols = o.cols || {no:true, still:false, notes:true};
@@ -1307,6 +1308,7 @@ function avCellAt(o, wx, wy){
 }
 function openAvCell(o, rowId, key){
   const G = AVS;
+  if(o.mode === 'shotlist' && o._activeRow !== rowId){ o._activeRow = rowId; refreshSelBar(); } // "→ Day 2" targets this row
   if(key === 'time') key = 'dur'; // TIME is computed — edits go to the SEC cell
   const cols = o._avCols || avCols(o);
   const hs = o._rowHs || [];

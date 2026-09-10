@@ -242,3 +242,49 @@ function exportShotListPDF(card){
   dlBlob(docFileName('shot-list' + (card ? '_' + ((card.day || {}).name || 'day').replace(/\s+/g, '-').toLowerCase() : '')), doc.blob());
   toast('Shot list PDF exported');
 }
+
+// ---------------------------------------------------------------- move a row to another day
+// the "active row" is the last row you clicked a cell of (or grabbed by its
+// grip); the selection bar then offers "→ Day 2" for every other day card
+function slMoveRow(o, rowId, target){
+  const i = (o.rows || []).findIndex(r=>r.id === rowId);
+  if(i < 0) return;
+  const [row] = o.rows.splice(i, 1);
+  if(!o.rows.length) o.rows.push({id:uid(), no:'', shot:'', time:'', dur:'', cam:'', audio:'', video:'', notes:'', imgs:[]});
+  o._activeRow = null;
+  if(target){
+    // a fresh card's empty placeholder row makes way for the real one
+    if(target.rows.length === 1 && !target.rows[0].key && !target.rows[0].block && !(target.rows[0].video || target.rows[0].no || target.rows[0].shot)) target.rows = [];
+    target.rows.push(row);
+    target._activeRow = row.id;
+  }
+  markDirty(); render(); refreshSelBar();
+  const what = row.block ? (SL_BLOCKS[row.block] || ['Row'])[0] : ([row.no ? 'SC ' + row.no : '', row.shot].filter(Boolean).join(' · ') || 'Row');
+  toast(target ? what + ' → ' + ((target.day || {}).name || 'other day') : what + ' removed from the schedule');
+}
+function slRowMoveButtons(o, sbtn){
+  const others = slCards().filter(c=>c !== o);
+  if(!others.length) return;
+  const row = (o.rows || []).find(r=>r.id === o._activeRow);
+  if(!row){
+    const hint = document.createElement('span');
+    hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
+    hint.textContent = 'Click a row to move it to another day';
+    document.getElementById('selBar').appendChild(hint);
+    return;
+  }
+  const lab = document.createElement('span');
+  lab.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 2px 0 6px;font-weight:600;';
+  lab.textContent = (row.block ? (SL_BLOCKS[row.block] || ['Row'])[0] : ([row.no ? 'SC ' + row.no : '', row.shot].filter(Boolean).join(' · ') || 'Row')) + ' →';
+  document.getElementById('selBar').appendChild(lab);
+  for(const c of others.slice(0, 6))
+    sbtn((c.day || {}).name || 'Day', ()=>slMoveRow(o, row.id, c)).title = 'Move this row to the end of ' + ((c.day || {}).name || 'that day') + (c.day && c.day.date ? ' (' + c.day.date + ')' : '');
+  if(others.length > 6){
+    const sel2 = document.createElement('select');
+    sel2.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel);';
+    sel2.insertAdjacentHTML('beforeend', '<option value="">more…</option>' + others.slice(6).map(c=>'<option value="' + c.id + '">' + esc((c.day || {}).name || 'Day') + '</option>').join(''));
+    sel2.addEventListener('change', ()=>{ const t = others.find(c=>c.id === sel2.value); if(t) slMoveRow(o, row.id, t); });
+    sel2.addEventListener('pointerdown', e=>e.stopPropagation());
+    document.getElementById('selBar').appendChild(sel2);
+  }
+}

@@ -566,7 +566,11 @@ cv.addEventListener('pointerdown', e => {
       }
       const rr = (so._rowRects||[]).find(r=> wx >= r.x && wx <= r.x + r.w &&
                                              wy >= r.y && wy <= r.y + r.h);
-      if(rr){ drag = {kind:'avrow', o:so, rowId:rr.rowId}; return; }
+      if(rr){
+        drag = {kind:'avrow', o:so, rowId:rr.rowId};
+        if(so.mode === 'shotlist' && so._activeRow !== rr.rowId){ so._activeRow = rr.rowId; refreshSelBar(); }
+        return;
+      }
     }
     if(so && so.cat === 'schedule' && !so.locked){
       const del = (so._delRects||[]).find(z=>dist(wx, wy, z.x, z.y) <= z.r);

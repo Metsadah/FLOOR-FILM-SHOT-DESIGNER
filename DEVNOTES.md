@@ -303,6 +303,16 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.78 — move a shot-list row to another day
+Shot-list cards: the last row you clicked a cell of (or grabbed by its
+grip) is the card's active row (o._activeRow, accent bar in the grip
+column while the card is selected). With two or more day cards on the
+board the selection bar shows "<row> →" + one button per other day
+(slRowMoveButtons; a "more…" select past six days). slMoveRow moves the
+row to the END of the target card (a fresh card's placeholder row makes
+way), leaves a placeholder if the source runs empty, and hands the
+active row to the target. Before a row is picked the bar says so.
+
 ## v0.77 — Shot list floor is a board; the shot list card is an AV script in shot-list mode
 Feedback on v0.76: the DOM shot-list page was a dead end — it should look
 like an AV script (SC · shot # · time to shoot · camera/lens/move · video

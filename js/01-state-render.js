@@ -1663,6 +1663,9 @@ function drawObjectShape(o, ghost){
         ctx.fillStyle = THEME.accent08;
         ctx.fillRect(-o.w/2, yTop, o.w, rh);
       }
+      if(o.mode === 'shotlist' && selMe && o._activeRow === r.id){ // the row "→ Day 2" would move
+        ctx.fillStyle = THEME.accent; ctx.fillRect(-o.w/2, yTop + 1, 3, rh - 2);
+      }
       ctx.fillStyle = selMe ? THEME.ink3 : THEME.line;
       for(const dy of [-4, 0, 4]) for(const dx of [-2, 2]){
         ctx.beginPath(); ctx.arc(-o.w/2 + G.grip/2 + dx, yTop + rh/2 + dy, 1.1, 0, 7); ctx.fill();
