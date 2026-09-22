@@ -303,6 +303,16 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.88 — landing: two real Zoutwater productions as the example
+landing/seed2.js re-creates the Velderhof TV commercial (living room,
+five chairs, A/B/C on Super 35, HMI as sun) and the fiction short Nudes
+(classroom, teachers' room with two over-shoulders) inside the test
+build and uploads plan / mood / AV / shot-list / script renders; stills
+come from zoutwater.com (landing/img/velderhof-*.jpg, nudes-*.jpg, Vimeo
+chrome cropped with sips). #example is now two blocks with hero still,
+credits, link and four renders each; heavy PNG renders converted to JPEG
+(folder 11 MB → smaller). Caption states the plans are reconstructions.
+
 ## v0.87 — plans v2: 14-day trial, promo codes, 5 collaborator seats, plan panel
 DB (migration plans_trial_promo_seats, mirrored in schema.sql §6):
 promo_codes table (RLS, no policies — functions only), plan_live(uid),
