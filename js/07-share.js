@@ -123,9 +123,18 @@ async function buildCoEditorSection(pop){
   const inv = document.createElement('button');
   inv.className = 'btn';
   inv.style.cssText = 'width:100%;';
-  inv.textContent = isShared ? '+ Invite a co-editor' : 'Enable co-editing + invite…';
-  inv.addEventListener('click', createEditorInvite);
+  inv.textContent = isShared ? '+ Invite (all floors)' : 'Enable co-editing + invite…';
+  inv.addEventListener('click', ()=>createEditorInvite(null));
   pop.appendChild(inv);
+  if(isShared){
+    const invC = document.createElement('button');
+    invC.className = 'btn';
+    invC.style.cssText = 'width:100%;margin-top:6px;';
+    invC.textContent = '+ Invite crew (no Budget, no Production)';
+    invC.title = 'A link for crew who should see the mood, script, plans and shot list — not the money or the call-sheet floor';
+    invC.addEventListener('click', ()=>createEditorInvite(['mood','write','design','shots']));
+    pop.appendChild(invC);
+  }
   const note = document.createElement('div');
   note.style.cssText = 'font-size:10px;color:var(--ink2);margin-top:6px;line-height:1.5;';
   note.textContent = isShared
@@ -144,6 +153,25 @@ async function buildCoEditorSection(pop){
       esc(m.email || m.user_id) + (m.user_id === me ? ' (you)' : '') + '</span>' +
       '<span style="color:var(--ink2)">' + esc(m.role) + '</span>';
     if(amOwner && m.user_id !== me){
+      // which floors this member may open — click a chip to toggle; all on = no restriction
+      const chips = document.createElement('span');
+      chips.style.cssText = 'display:inline-flex;gap:3px;';
+      const allF = FLOOR_NAMES;
+      let cur = Array.isArray(m.floors) ? m.floors.slice() : allF.map(f=>f[0]);
+      for(const [key, short, title] of allF){
+        const c = document.createElement('button');
+        const paint = ()=>{ const on = cur.includes(key); c.style.cssText = 'font:700 9px -apple-system,Segoe UI,sans-serif;letter-spacing:.3px;padding:2px 5px;border-radius:999px;cursor:pointer;border:1px solid ' + (on ? 'var(--accent)' : 'var(--line)') + ';background:' + (on ? 'var(--accent-soft)' : 'var(--panel)') + ';color:' + (on ? 'var(--accent)' : 'var(--ink3)') + ';'; c.title = title + (on ? ' — allowed (click to hide)' : ' — hidden (click to allow)'); };
+        c.textContent = short; paint();
+        c.addEventListener('click', async ()=>{
+          cur = cur.includes(key) ? cur.filter(k=>k !== key) : cur.concat(key);
+          const val = cur.length >= allF.length ? null : cur;
+          const {error} = await sb.from('production_members').update({floors:val}).eq('production_id', currentProjectId).eq('user_id', m.user_id);
+          if(error){ toast('Could not change access: ' + error.message); return; }
+          paint(); toast(val ? (m.email || 'Member') + ' sees ' + cur.length + ' of ' + allF.length + ' floors' : (m.email || 'Member') + ' sees every floor');
+        });
+        chips.appendChild(c);
+      }
+      row.appendChild(chips);
       const rm = document.createElement('button');
       rm.className = 'btn'; rm.textContent = '×'; rm.title = 'Remove this co-editor';
       rm.addEventListener('click', async ()=>{
@@ -162,7 +190,7 @@ async function buildCoEditorSection(pop){
     for(const i of (invites || [])){
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 2px;font-size:11px;color:var(--ink2);';
-      row.innerHTML = '<span style="flex:1">invite · ' + esc(i.code.slice(0,6)) + '… (' + esc(i.role) + ')</span>';
+      row.innerHTML = '<span style="flex:1">invite · ' + esc(i.code.slice(0,6)) + '… (' + esc(i.role) + (Array.isArray(i.floors) ? ' · ' + i.floors.map(f=>(FLOOR_NAMES.find(x=>x[0] === f) || [f, f])[1]).join(' ') : ' · all floors') + ')</span>';
       const cp = document.createElement('button');
       cp.className = 'btn'; cp.textContent = 'Copy';
       cp.addEventListener('click', async ()=>{
@@ -210,7 +238,7 @@ async function initSharedProductions(){
   const sb = shareClient();
   window.FLOOR_SHARED = new Map();
   try{
-    const {data} = await sb.from('production_members').select('production_id, role')
+    const {data} = await sb.from('production_members').select('production_id, role, floors')
       .eq('user_id', window.FLOOR_USER.id);
     const ids = (data || []).map(m=>m.production_id);
     let names = {};
@@ -219,7 +247,7 @@ async function initSharedProductions(){
       for(const p of (r.data || [])) names[p.id] = p.name;
     }
     for(const m of (data || []))
-      window.FLOOR_SHARED.set(m.production_id, {role:m.role, name:names[m.production_id] || ''});
+      window.FLOOR_SHARED.set(m.production_id, {role:m.role, floors:m.floors || null, name:names[m.production_id] || ''});
   }catch(e){ console.warn('memberships fetch failed', e); }
   wrapStorageForShared();
 }
@@ -429,14 +457,16 @@ async function convertToShared(){
     return false;
   }
 }
-async function createEditorInvite(){
+// the six floors, as the access chips and invite labels name them
+const FLOOR_NAMES = [['mood','MOOD','Ground · Mood'],['write','SCRIPT','1st · Script'],['design','SHOTS','2nd · Shot designer'],['shots','LIST','3rd · Shot list'],['budget','BUDGET','4th · Budget'],['org','PROD','5th · Production']];
+async function createEditorInvite(floors){
   const sb = shareClient();
   if(!window.FLOOR_SHARED || !FLOOR_SHARED.has(currentProjectId)){
     if(!(await convertToShared())) return;
   }
   const code = shareToken();
   const {error} = await sb.from('production_invites')
-    .insert({code, production_id:currentProjectId, role:'editor'});
+    .insert({code, production_id:currentProjectId, role:'editor', floors:Array.isArray(floors) ? floors : null});
   if(error){ toast('Could not create the invite: ' + error.message); return; }
   const url = location.origin + location.pathname + '?join=' + code;
   try{ await navigator.clipboard.writeText(url); toast('Invite link copied — valid until you revoke it'); }
@@ -451,7 +481,7 @@ async function redeemJoinCode(code){
     if(error) throw error;
     const row = data && data[0];
     if(!row) throw new Error('empty');
-    window.FLOOR_SHARED.set(row.production_id, {role:'editor', name:row.name});
+    window.FLOOR_SHARED.set(row.production_id, {role:'editor', floors:row.floors || null, name:row.name});
     const idx = (await loadProjectIndex()) || [];
     if(!idx.find(p=>p.id === row.production_id))
       idx.push({id:row.production_id, name:row.name || 'Shared production', updated:Date.now(), shared:true});

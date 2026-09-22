@@ -3,7 +3,31 @@
 // Moodboard reuses the whole canvas engine on a project-level board.
 
 // ---------------------------------------------------------------- tab switching
+// ---------------------------------------------------------------- floor access (co-editors)
+// The owner can hide floors per member (production_members.floors). This is a
+// UI boundary: the shared production is still one document, so it keeps the
+// budget out of sight and out of the way, not out of reach of a determined
+// developer with the API key. A hard boundary needs the budget in its own
+// row with its own policy — noted in DEVNOTES as the next step if needed.
+function floorAllowed(t){
+  const me = window.FLOOR_SHARED && typeof currentProjectId !== 'undefined' && FLOOR_SHARED.get(currentProjectId);
+  if(!me || me.role === 'owner' || !Array.isArray(me.floors)) return true;
+  return me.floors.includes(t);
+}
+function applyFloorAccess(){
+  let changed = false;
+  document.querySelectorAll('#tabbar button[data-tab]').forEach(b=>{
+    const ok = floorAllowed(b.dataset.tab);
+    if(b.hidden !== !ok){ b.hidden = !ok; changed = true; }
+  });
+  if(!floorAllowed(activeTab)){
+    const first = [...document.querySelectorAll('#tabbar button[data-tab]')].find(b=>!b.hidden);
+    if(first) switchTab(first.dataset.tab);
+  }
+  return changed;
+}
 function switchTab(t){
+  if(!floorAllowed(t)){ toast('This floor is not open to you in this production'); return; }
   if(activeTab === t) return;
   if(typeof exitAllSubboards === 'function') exitAllSubboards();
   closeNoteEditor(true);
@@ -278,7 +302,7 @@ function buildDocsSection(lib){
       ['Open', ()=>switchTab('shots'), 'Go to the 3rd floor']
     ]);
   }
-  if(typeof budgetCSV === 'function'){
+  if(typeof budgetCSV === 'function' && floorAllowed('budget')){
     const tot = typeof budgetTotals === 'function' ? budgetTotals() : null;
     row('Budget', tot ? budgetFmt(tot.total, budgetData().currency) + ' incl. VAT · 4th floor' : '4th floor', [
       ['PDF', ()=>exportBudgetPDF(), 'Quote-style budget'],

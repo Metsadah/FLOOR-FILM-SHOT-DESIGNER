@@ -303,6 +303,22 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.84 — floor access per co-editor, self-host guide rewritten
+production_members.floors / production_invites.floors (text[], null =
+all). Share › Co-editors: "+ Invite (all floors)" and "+ Invite crew (no
+Budget, no Production)"; per member six chips MOOD·SCRIPT·SHOTS·LIST·
+BUDGET·PROD toggle access (update on the members row). Client:
+floorAllowed(t) / applyFloorAccess() (06-tabs) hide tab buttons and
+refuse switchTab; called from syncTitle so it follows production
+switches; the Documents budget row hides too. redeem_production_invite
+now returns floors (function dropped and recreated — schema.sql carries
+the drop + an upgrade note). HONEST LIMIT: the production is still one
+document, so this hides the budget from crew in the UI; it does not stop
+someone reading the JSON with the API key. A hard boundary = budget in
+its own production_docs row + a policy on floors. SELFHOST.md rewritten:
+local vs cloud table, numbered steps, updating, people & access,
+troubleshooting.
+
 ## v0.83 — card rails, setup chips, new landing page, scan fix-ups
 Table-like cards (table, list, AV script / shot list, schedule,
 storyboard row) had half-clipped round × and + chips. Now: a RAIL pill

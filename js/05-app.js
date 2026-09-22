@@ -242,6 +242,7 @@ document.getElementById('addShot').addEventListener('click', ()=>{
   buildShotList(); syncTitle(); render(); buildStills(); buildInfo(); refreshSelBar(); syncSunBtn();
 });
 function syncTitle(){
+  if(typeof applyFloorAccess === 'function') applyFloorAccess(); // co-editor floor access follows the production
   document.getElementById('shotTitle').value = activeShot().name;
   // setup chips (A · B · + ) — lighting/blocking variants of the active scene
   // setups live in the Scene info panel — Shot designer only, with a hint

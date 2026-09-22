@@ -73,6 +73,7 @@ create table if not exists production_members (
   user_id       uuid not null references auth.users(id) on delete cascade,
   email         text not null default '',
   role          text not null default 'editor',
+  floors        text[],                 -- null = every floor; else e.g. {mood,write,design,shots}
   added_at      timestamptz not null default now(),
   primary key (production_id, user_id)
 );
@@ -87,6 +88,7 @@ create table if not exists production_invites (
   code          text primary key,
   production_id text not null references productions(id) on delete cascade,
   role          text not null default 'editor',
+  floors        text[],                 -- preset copied onto the member when redeemed
   created_by    uuid not null default auth.uid(),
   created_at    timestamptz not null default now()
 );
@@ -137,8 +139,9 @@ create policy "invites owner all" on production_invites for all to authenticated
 -- invite redemption (SECURITY DEFINER: the joiner can't see the invite row
 -- through RLS). #variable_conflict is LOAD-BEARING — the RETURNS TABLE
 -- column would otherwise shadow the insert's column name (42702).
+drop function if exists public.redeem_production_invite(text); -- return type changed in v0.84
 create or replace function public.redeem_production_invite(invite_code text)
-returns table(production_id text, name text)
+returns table(production_id text, name text, floors text[])
 language plpgsql security definer set search_path to 'public'
 as $$
 #variable_conflict use_column
@@ -148,10 +151,10 @@ begin
   if inv is null then raise exception 'invalid or revoked invite'; end if;
   if auth.uid() is null then raise exception 'sign in first'; end if;
   select u.email into em from auth.users u where u.id = auth.uid();
-  insert into production_members(production_id, user_id, email, role)
-    values (inv.production_id, auth.uid(), coalesce(em, ''), inv.role)
+  insert into production_members(production_id, user_id, email, role, floors)
+    values (inv.production_id, auth.uid(), coalesce(em, ''), inv.role, inv.floors)
     on conflict (production_id, user_id) do nothing;
-  return query select p.id, p.name from productions p where p.id = inv.production_id;
+  return query select p.id, p.name, inv.floors from productions p where p.id = inv.production_id;
 end $$;
 
 -- ---- 4 · profiles + GDPR account deletion -----------------------------------
@@ -218,3 +221,9 @@ drop policy if exists "own subscription readable" on public.subscriptions;
 create policy "own subscription readable" on public.subscriptions
   for select using (auth.uid() = user_id);
 grant select on public.subscriptions to authenticated;
+
+-- ---- upgrade note (existing installs) ----------------------------------------
+-- Run these once on a database created before v0.84:
+--   alter table production_members add column if not exists floors text[];
+--   alter table production_invites add column if not exists floors text[];
+--   (then re-run the redeem_production_invite function above)
