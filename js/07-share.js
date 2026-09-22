@@ -135,6 +135,12 @@ async function buildCoEditorSection(pop){
     invC.addEventListener('click', ()=>createEditorInvite(['mood','write','design','shots']));
     pop.appendChild(invC);
   }
+  if(window.FLOOR_BILLING && window.FLOOR_BILLING.enabled && isShared){
+    const seats = document.createElement('div');
+    seats.style.cssText = 'font-size:10.5px;color:var(--ink2);margin-top:6px;';
+    window.FLOOR_BILLING.collaborators().then(n=>{ seats.textContent = n + ' of ' + window.FLOOR_BILLING.seats + ' collaborator seats in use — collaborators work for free, they just cannot start productions of their own.'; });
+    pop.appendChild(seats);
+  }
   const note = document.createElement('div');
   note.style.cssText = 'font-size:10px;color:var(--ink2);margin-top:6px;line-height:1.5;';
   note.textContent = isShared

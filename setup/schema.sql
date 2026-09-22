@@ -227,3 +227,97 @@ grant select on public.subscriptions to authenticated;
 --   alter table production_members add column if not exists floors text[];
 --   alter table production_invites add column if not exists floors text[];
 --   (then re-run the redeem_production_invite function above)
+
+-- ---- 6 · plans v2 (v0.87): trial, promo codes, collaborator seats -----------
+alter table public.subscriptions add column if not exists note text not null default '';
+create table if not exists public.promo_codes (
+  code        text primary key,
+  days        int  not null default 90,
+  plan        text not null default 'pro',
+  uses_left   int  not null default 1,
+  expires_at  timestamptz,
+  note        text not null default '',
+  created_at  timestamptz not null default now()
+);
+alter table public.promo_codes enable row level security; -- only the functions below touch it
+create or replace function public.plan_live(uid uuid)
+returns boolean language sql stable security definer set search_path to 'public'
+as $$ select exists(select 1 from subscriptions s where s.user_id = uid
+  and (s.status in ('active','past_due')
+       or (s.status in ('canceled','trial','promo') and s.current_period_end is not null and s.current_period_end > now()))) $$;
+create or replace function public.start_trial(days int default 14)
+returns table(plan text, status text, current_period_end timestamptz)
+language plpgsql security definer set search_path to 'public'
+as $$
+begin
+  if auth.uid() is null then raise exception 'sign in first'; end if;
+  insert into subscriptions(user_id, plan, status, provider, current_period_end, note)
+    values (auth.uid(), 'pro', 'trial', 'trial', now() + make_interval(days => greatest(1, least(days, 60))), 'trial')
+    on conflict (user_id) do nothing;
+  return query select s.plan, s.status, s.current_period_end from subscriptions s where s.user_id = auth.uid();
+end $$;
+create or replace function public.redeem_promo(promo text)
+returns table(plan text, status text, current_period_end timestamptz)
+language plpgsql security definer set search_path to 'public'
+as $$
+#variable_conflict use_column
+declare c record; base timestamptz;
+begin
+  if auth.uid() is null then raise exception 'sign in first'; end if;
+  select * into c from promo_codes p where upper(p.code) = upper(trim(promo));
+  if c is null then raise exception 'That code is not valid'; end if;
+  if c.uses_left <= 0 then raise exception 'That code has been used up'; end if;
+  if c.expires_at is not null and c.expires_at < now() then raise exception 'That code has expired'; end if;
+  select greatest(coalesce(s.current_period_end, now()), now()) into base from subscriptions s where s.user_id = auth.uid()
+    and (s.status in ('trial','promo','canceled'));
+  if base is null then base := now(); end if;
+  insert into subscriptions(user_id, plan, status, provider, current_period_end, note)
+    values (auth.uid(), c.plan, 'promo', 'promo', base + make_interval(days => c.days), 'code ' || c.code)
+    on conflict (user_id) do update set
+      plan = case when subscriptions.status in ('active','past_due') then subscriptions.plan else excluded.plan end,
+      status = case when subscriptions.status in ('active','past_due') then subscriptions.status else 'promo' end,
+      current_period_end = case when subscriptions.status in ('active','past_due') then subscriptions.current_period_end else excluded.current_period_end end,
+      note = excluded.note, updated_at = now();
+  update promo_codes set uses_left = uses_left - 1 where code = c.code;
+  return query select s.plan, s.status, s.current_period_end from subscriptions s where s.user_id = auth.uid();
+end $$;
+create or replace function public.collaborator_count(owner_id uuid)
+returns int language sql stable security definer set search_path to 'public'
+as $$ select count(distinct m.user_id)::int from production_members m join productions p on p.id = m.production_id
+       where p.owner = owner_id and m.user_id <> owner_id $$;
+-- redeem_production_invite (v0.87): owner needs a live plan and a free seat — see the function above; replace it with:
+drop function if exists public.redeem_production_invite(text);
+create or replace function public.redeem_production_invite(invite_code text)
+returns table(production_id text, name text, floors text[])
+language plpgsql security definer set search_path to 'public'
+as $$
+#variable_conflict use_column
+declare inv record; em text; own uuid; already boolean; seats int := 5; used int;
+begin
+  select * into inv from production_invites i where i.code = invite_code;
+  if inv is null then raise exception 'invalid or revoked invite'; end if;
+  if auth.uid() is null then raise exception 'sign in first'; end if;
+  select p.owner into own from productions p where p.id = inv.production_id;
+  if own is null then raise exception 'invalid or revoked invite'; end if;
+  if own <> auth.uid() then
+    if not public.plan_live(own) then raise exception 'The owner of this production has no active plan right now'; end if;
+    select exists(select 1 from production_members m join productions p on p.id = m.production_id where p.owner = own and m.user_id = auth.uid()) into already;
+    if not already then
+      used := public.collaborator_count(own);
+      if used >= seats then raise exception 'This production owner has used all % collaborator seats', seats; end if;
+    end if;
+  end if;
+  select u.email into em from auth.users u where u.id = auth.uid();
+  insert into production_members(production_id, user_id, email, role, floors)
+    values (inv.production_id, auth.uid(), coalesce(em, ''), inv.role, inv.floors)
+    on conflict (production_id, user_id) do nothing;
+  return query select p.id, p.name, inv.floors from productions p where p.id = inv.production_id;
+end $$;
+revoke execute on function public.redeem_production_invite(text) from public, anon;
+grant execute on function public.redeem_production_invite(text) to authenticated;
+revoke execute on function public.start_trial(int) from public, anon;   grant execute on function public.start_trial(int) to authenticated;
+revoke execute on function public.redeem_promo(text) from public, anon; grant execute on function public.redeem_promo(text) to authenticated;
+grant execute on function public.plan_live(uuid) to authenticated;
+grant execute on function public.collaborator_count(uuid) to authenticated;
+-- Creating codes (dashboard → SQL Editor), e.g. a 90-day launch code for 50 people:
+--   insert into promo_codes(code, days, uses_left, note) values ('LAUNCH-2026', 90, 50, 'launch');

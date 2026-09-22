@@ -896,3 +896,12 @@ body.touch .side-head .setup-chip{ width:32px; height:32px; font-size:12px; }
 .rm-group.closed .rm-group-head .arr{ transform:rotate(-90deg); }
 .rm-group-body{ display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px; padding:10px 2px 2px; }
 .rm-group.closed .rm-group-body{ display:none; }
+
+/* plan panel */
+.plan-cards{ display:grid; grid-template-columns:1.2fr 1fr; gap:12px; }
+.plan-card{ border:1px solid var(--line); border-radius:var(--r-md); padding:16px; display:flex; flex-direction:column; gap:8px; background:var(--panel); }
+.plan-card.pro{ border-color:var(--accent); box-shadow:0 10px 30px rgba(75,107,251,.12); }
+.plan-card .tag{ align-self:flex-start; font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; padding:2px 8px; border-radius:999px; background:var(--accent-soft); color:var(--accent); }
+.plan-card b{ font-size:20px; letter-spacing:-.4px; } .plan-card ul{ margin:0; padding-left:16px; font-size:12.5px; color:var(--body); } .plan-card li{ margin:3px 0; }
+.plan-card p{ margin:0; font-size:12.5px; color:var(--body); } .plan-card small{ font-size:11px; color:var(--ink3); }
+@media (max-width:600px){ .plan-cards{ grid-template-columns:1fr; } }

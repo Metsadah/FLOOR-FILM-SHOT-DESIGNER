@@ -2091,8 +2091,7 @@ async function openProjectPop(){
   nw.textContent = '+ New production';
   nw.addEventListener('click', async ()=>{
     // hosted free plan: one cloud production (billing off = unlimited)
-    if(window.FLOOR_BILLING && window.FLOOR_BILLING.enabled && idx.length >= 1 &&
-       !window.FLOOR_BILLING.gate('productions')) return;
+    if(window.FLOOR_BILLING && window.FLOOR_BILLING.enabled && !window.FLOOR_BILLING.canCreate()){ window.FLOOR_BILLING.gate('productions'); return; }
     pop.classList.remove('show');
     newProductionOverlay(); // name + template (or the example production) — 14-templates.js
   });

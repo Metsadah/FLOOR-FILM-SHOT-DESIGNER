@@ -138,3 +138,39 @@ app polls its own row for ~3 min after checkout ──────────�
 - `terms.html`: same — fill in, publish, link it from the landing page.
 - Supabase → Authentication → URL configuration → Site URL = your domain.
 - Set up a support address (`hello@yourdomain`) and put it in both documents.
+
+---
+
+## Plans v2 (v0.87): trial · codes · collaborator seats
+
+How the hosted plan now works — all enforced in the database functions, the
+app only shows it:
+
+| Account | Can | Cannot |
+|---|---|---|
+| **Trial** — every new account, 14 days (`billing.trialDays`) | everything | — |
+| **Pro** — €9 / month via Paddle or Lemon Squeezy | everything; invites up to 5 collaborators (`billing.seats`) | — |
+| **Code** — a promo code gives N days of Pro | everything while it runs | — |
+| **Guest** — no live plan (trial ended, never paid) | open and edit every production they were invited to, share links, exports | start productions of their own; invite people |
+
+Collaborators cost the owner nothing: the owner's plan carries five distinct
+people across all their productions. The sixth invite is refused with a
+clear message until someone leaves or the collaborator goes Pro themselves.
+Invites also fail while the owner has no live plan.
+
+**Creating codes** — dashboard → SQL Editor:
+```sql
+insert into promo_codes(code, days, uses_left, expires_at, note)
+values ('IDFA-2026', 90, 100, '2026-12-31', 'festival'),
+       ('FILMSCHOOL', 180, 40, null, 'school class'),
+       ('CREW-DEMO', 30, 1, null, 'one-off');
+-- see who used what:
+select note, count(*) from subscriptions where status = 'promo' group by note;
+```
+Codes are case-insensitive. A code on a running trial or another code adds
+its days on top; a paying customer keeps the paid plan unchanged.
+
+**Local mode** (self-host, `billing.provider` empty) has none of this: no
+trial, no seats, everything on. That is the free product; the hosted €9 is
+convenience; a one-time self-host cloud licence (if you want one) is a
+licence-text matter, not something the code can enforce.

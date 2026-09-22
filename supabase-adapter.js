@@ -85,16 +85,20 @@
             ${field('flEmail','email','you@example.com')}
             ${field('flPass','password','Password')}
             ${btn('flGo','Sign in',true)}
-            <div style="display:flex;justify-content:space-between;margin-top:10px">
-              ${link('flForgot','Forgot password?')}
-              ${link('flToSignup','Create account')}
+            <div style="margin-top:10px">${link('flForgot','Forgot password?')}</div>
+            <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px">
+              <div style="font-size:12.5px;color:var(--ink2);margin-bottom:2px">New to Floorboard?</div>
+              ${btn('flToSignup','Create account — 14 days free',false)}
+              <div style="font-size:11.5px;color:var(--ink3);margin-top:6px;line-height:1.45">No card needed. Invited by someone? Create an account with the e-mail the invite went to — working in their productions is always free.</div>
             </div>
             <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
               ${link('flToMagic','Email me a login link instead')}
             </div>` :
           mode === 'signup' ? `
+            <div style="color:var(--ink2);font-size:12.5px;margin-bottom:2px">Every floor, 14 days, no card. Then €9 a month, or free as a collaborator.</div>
             ${field('flEmail','email','you@example.com')}
             ${field('flPass','password','Choose a password (6+ characters)')}
+            ${field('flPromo','text','Promo code (optional)')}
             <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;
                           font-size:12px;color:var(--body);line-height:1.45;cursor:pointer">
               <input id="flConsent" type="checkbox" style="margin-top:2px">
@@ -210,6 +214,7 @@
             return;
           }
           msg().textContent = 'Creating account…';
+          try{ const pc = el.querySelector('#flPromo')?.value.trim(); if(pc) localStorage.floorPromo = pc; }catch(_){}
           const {data, error} = await sb.auth.signUp({email, password:pass,
             options:{ emailRedirectTo: location.href }});
           if(error) msg().textContent = 'Could not create the account: ' + error.message;
@@ -406,18 +411,24 @@
       const plan = B.plan(), row = B.row();
       const until = row && row.current_period_end
         ? new Date(row.current_period_end).toLocaleDateString() : '';
-      planBox.innerHTML = plan === 'free'
-        ? `<b>Free plan</b> — one cloud production, no co-editing.<br>
-           <button id="apUpgrade" style="margin-top:8px;background:var(--accent);color:var(--panel);border:none;
-             border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer">
-             Upgrade to Pro${B.label ? ' · ' + B.label : ''}</button>`
-        : `<b>${plan.toUpperCase()} plan</b> ✓ — unlimited productions & co-editing.` +
-          (row && row.status === 'canceled' ? `<br>Cancelled — works until ${until}.`
-            : until ? `<br>Renews ${until}.` : '') +
-          `<br><button id="apManage" style="margin-top:8px;background:var(--panel);border:1px solid var(--line);
-             border-radius:8px;padding:7px 11px;font-size:12px;cursor:pointer">Manage subscription</button>`;
+      const st = B.status();
+      const line = st.kind === 'pro' ? '<b>Pro</b> ✓ — unlimited productions, ' + B.seats + ' collaborator seats.' + (until ? ' Renews ' + until + '.' : '')
+        : st.kind === 'canceled' ? '<b>Pro</b> — cancelled, works until ' + until + '.'
+        : st.kind === 'trial' ? '<b>Free trial</b> — ' + st.days + ' day' + (st.days === 1 ? '' : 's') + ' left, everything unlocked.'
+        : st.kind === 'promo' ? '<b>Pro via code</b> — until ' + until + '.'
+        : st.kind === 'trial-ended' ? '<b>Trial ended</b> — you can still work in productions you were invited to.'
+        : '<b>Guest</b> — you work in productions others invited you to.';
+      planBox.innerHTML = line +
+        (st.kind === 'pro' || st.kind === 'canceled'
+          ? `<br><button id="apManage" style="margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:12px;cursor:pointer">Manage subscription</button>`
+          : `<br><button id="apUpgrade" style="margin-top:8px;background:var(--accent);color:var(--panel);border:none;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer">Go Pro${B.label ? ' · ' + B.label : ''}</button>
+             <button id="apCodeBtn" style="margin-top:8px;margin-left:6px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:12px;cursor:pointer">I have a code</button>`) +
+        `<div id="apSeats" style="color:var(--ink2);font-size:11.5px;margin-top:6px"></div>`;
       planBox.querySelector('#apUpgrade')?.addEventListener('click', ()=>B.upgrade());
+      planBox.querySelector('#apCodeBtn')?.addEventListener('click', ()=>B.panel());
       planBox.querySelector('#apManage')?.addEventListener('click', ()=>B.manage());
+      if(st.kind === 'pro' || st.kind === 'trial' || st.kind === 'promo' || st.kind === 'canceled')
+        B.collaborators().then(n=>{ const s = planBox.querySelector('#apSeats'); if(s) s.textContent = n + ' of ' + B.seats + ' collaborator seats in use'; });
     };
     renderPlan();
     document.addEventListener('floor-plan-changed', renderPlan);
@@ -513,19 +524,37 @@
   const billingOn = !!(BILL.provider &&
     (BILL.provider === 'paddle' ? (BILL.token && BILL.priceId) : BILL.checkoutUrl));
   let subRow = null;
+  const TRIAL_DAYS = +(BILL.trialDays || 14), SEATS = +(BILL.seats || 5);
   function effectivePlan(row){
     if(!row) return 'free';
     const until = row.current_period_end ? Date.parse(row.current_period_end) : null;
-    // a cancelled plan keeps working until the paid period runs out
+    // paid, past-due grace, cancelled-but-paid, trial and promo periods all count while they run
     const live = row.status === 'active' || row.status === 'past_due' ||
-      (row.status === 'canceled' && until && until > Date.now());
+      (['canceled','trial','promo'].includes(row.status) && until && until > Date.now());
     return live ? (row.plan || 'pro') : 'free';
+  }
+  // human status for the account panel and the upsell: {kind, until, days}
+  function planStatus(row){
+    const until = row && row.current_period_end ? Date.parse(row.current_period_end) : null;
+    const days = until ? Math.max(0, Math.ceil((until - Date.now()) / 864e5)) : null;
+    if(!row) return {kind:'guest', until, days};
+    if(effectivePlan(row) === 'free') return {kind:row.status === 'trial' ? 'trial-ended' : 'guest', until, days:0};
+    if(row.status === 'trial') return {kind:'trial', until, days};
+    if(row.status === 'promo') return {kind:'promo', until, days};
+    if(row.status === 'canceled') return {kind:'canceled', until, days};
+    return {kind:'pro', until, days};
   }
   async function loadPlan(){
     if(!billingOn || !window.FLOOR_USER) return;
     const {data} = await sb.from('subscriptions').select('*')
       .eq('user_id', FLOOR_USER.id).maybeSingle();
     subRow = data || null;
+    if(!subRow){ // first sign-in: the trial starts now (the RPC is idempotent)
+      try{ const r = await sb.rpc('start_trial', {days:TRIAL_DAYS}); if(r.data && r.data[0]) subRow = Object.assign({user_id:FLOOR_USER.id}, r.data[0]); }catch(_){}
+    }
+    // a promo code typed at sign-up is redeemed on the first signed-in load
+    let pend = null; try{ pend = localStorage.floorPromo; }catch(_){}
+    if(pend){ try{ localStorage.removeItem('floorPromo'); }catch(_){} await window.FLOOR_BILLING.redeem(pend, true); }
   }
   ready.then(loadPlan);
   let pollTimer = null;
@@ -549,18 +578,52 @@
     label: BILL.priceLabel || '',
     plan(){ return billingOn ? effectivePlan(subRow) : 'pro'; },
     isPro(){ return this.plan() !== 'free'; },
+    status(){ return billingOn ? planStatus(subRow) : {kind:'pro', days:null}; },
+    canCreate(){ return !billingOn || this.isPro(); }, // guests work in what they were invited to
+    seats: SEATS, trialDays: TRIAL_DAYS,
     row(){ return subRow; },
     refresh: loadPlan,
-    // true = go ahead; false = shown the upsell (and maybe opened checkout)
+    async collaborators(){ try{ const r = await sb.rpc('collaborator_count', {owner_id:FLOOR_USER.id}); return r.data ?? 0; }catch(_){ return 0; } },
+    async redeem(code, quiet){
+      await ready;
+      const {data, error} = await sb.rpc('redeem_promo', {promo:String(code || '').trim()});
+      if(error){ if(!quiet && typeof toast === 'function') toast(error.message); return false; }
+      if(data && data[0]) subRow = Object.assign({user_id:FLOOR_USER.id}, subRow || {}, data[0]);
+      document.dispatchEvent(new CustomEvent('floor-plan-changed'));
+      if(typeof toast === 'function') toast('Code accepted — Floorboard Pro until ' + new Date(subRow.current_period_end).toLocaleDateString());
+      return true;
+    },
+    // true = go ahead; false = the plan panel was shown instead
     gate(feature){
       if(!billingOn || this.isPro()) return true;
-      const why = {
-        productions: 'The free plan holds one cloud production.',
-        coedit: 'Co-editing — inviting others to work in your production — is a Pro feature.',
-      }[feature] || 'This is a Pro feature.';
-      if(confirm(why + '\n\nUpgrade to Pro' + (BILL.priceLabel ? ' (' + BILL.priceLabel + ')' : '') + '?'))
-        this.upgrade();
+      this.panel(feature);
       return false;
+    },
+    panel(feature){
+      const st = planStatus(subRow);
+      const el = document.createElement('div');
+      el.className = 'fb-ov';
+      const reason = feature === 'productions' ? 'Starting a production of your own needs a plan.' : feature === 'coedit' ? 'Inviting people into your production needs a plan.' : '';
+      const head = st.kind === 'trial-ended' ? 'Your 14-day trial has ended' : 'Your plan';
+      el.innerHTML = '<div class="fb-ov-box" style="width:560px"><div class="fb-ov-title">' + head + '</div>' +
+        '<div class="fb-ov-sub">' + reason + ' You can keep working in every production you were invited to — that is always free. To start and own productions, go Pro or enter a code.</div>' +
+        '<div class="plan-cards">' +
+          '<div class="plan-card pro"><span class="tag">Pro</span><b>' + (BILL.priceLabel || '€9 / month') + '</b><ul><li>Unlimited productions, every floor</li><li>Invite up to ' + SEATS + ' collaborators — free for them</li><li>Co-editing, share links, documents in your house style</li><li>iPad app and Floor Scanner sync</li></ul><button class="btn primary" id="plUp">Upgrade to Pro</button><small>Cancel any time · billed by ' + (BILL.provider === 'paddle' ? 'Paddle' : 'Lemon Squeezy') + ', VAT handled</small></div>' +
+          '<div class="plan-card"><span class="tag" style="background:var(--soft);color:var(--ink2)">Code</span><b>Have a code?</b><p>Festival, school, crew or launch codes give a free period of Pro.</p><div class="fb-row"><input id="plCode" class="fb-inp" placeholder="e.g. LAUNCH-2026" style="text-transform:uppercase"><button class="btn" id="plRedeem">Apply</button></div><p id="plMsg" class="fb-dim"></p></div>' +
+        '</div>' +
+        '<div class="fb-ov-actions"><span class="fb-dim">' + (st.kind === 'trial' ? st.days + ' trial days left' : st.kind === 'promo' ? 'Code active until ' + new Date(st.until).toLocaleDateString() : '') + '</span><span style="flex:1"></span><button class="btn" id="plClose">Not now</button></div></div>';
+      document.body.appendChild(el);
+      el.addEventListener('keydown', e=>e.stopPropagation());
+      el.querySelector('#plClose').addEventListener('click', ()=>el.remove());
+      el.addEventListener('click', e=>{ if(e.target === el) el.remove(); });
+      el.querySelector('#plUp').addEventListener('click', ()=>{ el.remove(); this.upgrade(); });
+      el.querySelector('#plRedeem').addEventListener('click', async ()=>{
+        const c = el.querySelector('#plCode').value.trim(); if(!c) return;
+        el.querySelector('#plMsg').textContent = 'Checking…';
+        const ok = await this.redeem(c);
+        el.querySelector('#plMsg').textContent = ok ? 'Done — enjoy.' : 'That code did not work.';
+        if(ok) setTimeout(()=>el.remove(), 900);
+      });
     },
     async upgrade(){
       await ready;

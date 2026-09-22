@@ -19,6 +19,8 @@ window.FLOOR_CONFIG = {
   // without plans: every feature unlocked (self-host, local, development).
   billing: {
     provider: '',              // 'paddle' | 'lemonsqueezy' | ''
+    trialDays: 14,             // every new account starts with this many Pro days
+    seats: 5,                  // collaborators a Pro owner can invite for free
     priceLabel: '€9 / month',  // shown on the Upgrade button
     plan: 'pro',               // plan name the webhook stores for this checkout
     // Paddle Billing

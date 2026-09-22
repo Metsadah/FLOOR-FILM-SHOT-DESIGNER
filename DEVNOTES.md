@@ -303,6 +303,27 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.87 — plans v2: 14-day trial, promo codes, 5 collaborator seats, plan panel
+DB (migration plans_trial_promo_seats, mirrored in schema.sql §6):
+promo_codes table (RLS, no policies — functions only), plan_live(uid),
+start_trial(days) (idempotent insert of a trial subscriptions row),
+redeem_promo(code) (adds days on top of a running trial/code, never
+touches a paid row, decrements uses), collaborator_count(owner),
+redeem_production_invite now requires the owner to have a live plan and a
+free seat (5) unless the invitee already collaborates with that owner.
+Client (adapter): effectivePlan treats trial/promo with a future end as
+live; planStatus() → guest / trial / trial-ended / promo / pro / canceled;
+loadPlan starts the trial on first sign-in and redeems a code typed at
+sign-up (localStorage.floorPromo); FLOOR_BILLING gains status(),
+canCreate(), seats, trialDays, redeem(), collaborators(), panel() — the
+upsell is now a real plan panel (Pro card + code card) instead of
+confirm(). Account box shows the state + seats in use. Login overlay:
+"Create account — 14 days free" button under Sign in; sign-up has an
+optional promo field and the trial framing. New production gate uses
+canCreate(); the Share popup shows seats in use. Landing plan card and
+BILLING.md updated. Rule: guests keep working in what they were invited
+to — that is always free; owning productions needs trial/code/Pro.
+
 ## v0.86 — square up, group rotation, kind categories, grouped room library, login page, news
 Also: cameras carry a SENSOR (SENSORS in 00-catalog, o.sensor, default
 project.defaultSensor); fovForLens(f, sensor) uses the sensor width, the
