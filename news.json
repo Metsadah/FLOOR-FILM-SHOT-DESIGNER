@@ -1,0 +1,30 @@
+[
+  {
+    "date": "2026-09-23",
+    "title": "Floor Scanner: the iPhone companion for scouting",
+    "text": "Scan a room with LiDAR or measure it with the camera, photograph the location through a director's viewfinder with real lens sets, export a PDF — and, signed in, find it all in Floorboard's room library. Coming to the App Store; TestFlight first.",
+    "link": "landing.html#scanner",
+    "tag": "New"
+  },
+  {
+    "date": "2026-09-22",
+    "title": "Templates and an example production",
+    "text": "New productions start from a template — commercial, brand film, documentary, fiction, music video, socials — with the right tools laid out on every floor. Or open “Haver”, a 15-second commercial with five shots in three locations, to see how the floors connect.",
+    "link": "index.html?start=1",
+    "tag": "Update"
+  },
+  {
+    "date": "2026-09-22",
+    "title": "Floor access per co-editor",
+    "text": "Invite crew without the Budget and Production floors, or switch any floor on or off per member. Rooms scanned on the iPhone level themselves; the whole selection can now be turned with a handle that snaps to 90°.",
+    "link": "landing.html#plans",
+    "tag": "Update"
+  },
+  {
+    "date": "2026-09-10",
+    "title": "Floorboard has six floors",
+    "text": "FLOOR Studio became Floorboard: Mood, Script, Shot designer, Shot list, Budget and Production, each a floor of the same building. New logo, new document PDFs in your house style, a budget laid out like a quote.",
+    "link": "landing.html#floors",
+    "tag": "Release"
+  }
+]

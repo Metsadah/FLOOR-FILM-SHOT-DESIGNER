@@ -123,19 +123,60 @@
             ${btn('flGo','Email me a login link',true)}
             <div style="margin-top:10px">${link('flToSignin','Use a password instead')}</div>`;
 
+        // two panes: the form, and a welcome column with tips, news and the way to Floor Scanner
         el.innerHTML = `
-          <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:30px 34px;
-                      width:340px;box-shadow:0 18px 60px rgba(40,38,32,.14)">
-            <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px">
-              <div style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></div>Floorboard
+          <div class="fl-wrap">
+            <div class="fl-card">
+              <a href="landing.html" class="fl-logo" title="Back to the front page">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7.5 16.5h9M7.5 12.5h6M7.5 8.5h3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="15.5" cy="8.5" r="1.8" fill="#E58A6F"/></svg>
+                Floorboard <small>for film &amp; commercials</small>
+              </a>
+              <div id="flTitle" style="color:var(--ink);font-size:15px;font-weight:700;margin-top:14px">
+                ${mode==='signin' ? 'Sign in' : mode==='signup' ? 'Create your account'
+                  : mode==='forgot' ? 'Reset password' : mode==='reset' ? 'New password' : 'Email login link'}
+              </div>
+              <div id="flMsg" style="color:var(--ink2);font-size:12px;margin-top:6px;line-height:1.5"></div>
             </div>
-            <div id="flTitle" style="color:var(--ink);font-size:12.5px;font-weight:600;margin-top:10px">
-              ${mode==='signin' ? 'Sign in' : mode==='signup' ? 'Create your account'
-                : mode==='forgot' ? 'Reset password' : mode==='reset' ? 'New password' : 'Email login link'}
-            </div>
-            <div id="flMsg" style="color:var(--ink2);font-size:12px;margin-top:6px;line-height:1.5"></div>
+            <aside class="fl-side">
+              <div class="fl-block">
+                <h3>New here? Three things to try</h3>
+                <ol>
+                  <li><b>Open the example.</b> Production ▾ → + New production → <i>Open example</i>: a 15-second commercial, five shots, three locations, every floor filled in.</li>
+                  <li><b>Draw a room in a minute.</b> 2nd floor, drag the Room tool, tap a wall for a door — then drop a camera and pick a lens.</li>
+                  <li><b>Let the paperwork write itself.</b> Cameras become the shot list, people the call sheet, both a PDF in your house style.</li>
+                </ol>
+              </div>
+              <div class="fl-block fl-scanner">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg>
+                <div><h3>Scouting? Take Floor Scanner.</h3><p>The iPhone companion scans a room with LiDAR or the camera and frames photos through a real lens. Sign in with the same account and the rooms are here when you sit down to plan.</p><a href="landing.html#scanner">About Floor Scanner →</a></div>
+              </div>
+              <div class="fl-block" id="flNews"><h3>News</h3><p style="color:var(--ink2)">Loading…</p></div>
+              <div class="fl-links"><a href="landing.html">Front page</a> · <a href="news.html">News</a> · <a href="selfhost.html">Self-host</a> · <a href="privacy.html">Privacy</a></div>
+            </aside>
           </div>`;
-        el.querySelector('div > div').insertAdjacentHTML('beforeend', body);
+        if(!document.getElementById('flStyle')){
+          document.head.insertAdjacentHTML('beforeend', `<style id="flStyle">
+            .fl-wrap{display:grid;grid-template-columns:360px 380px;gap:22px;align-items:start;max-width:96vw;max-height:96vh;overflow:auto;padding:14px}
+            .fl-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 30px;box-shadow:0 18px 60px rgba(40,38,32,.14)}
+            .fl-logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;color:var(--ink);text-decoration:none;letter-spacing:-.2px}
+            .fl-logo svg{width:26px;height:26px;color:var(--accent)} .fl-logo small{font-weight:500;color:var(--ink2);font-size:12px;margin-left:4px}
+            .fl-side{display:flex;flex-direction:column;gap:12px;padding-top:6px}
+            .fl-block{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:12.5px;color:var(--body);line-height:1.5}
+            .fl-block h3{margin:0 0 8px;font-size:13px;color:var(--ink)} .fl-block ol{margin:0;padding-left:18px} .fl-block li{margin:4px 0} .fl-block p{margin:0 0 6px}
+            .fl-block a{color:var(--accent);text-decoration:none;font-weight:600}
+            .fl-scanner{display:flex;gap:12px;align-items:flex-start;background:var(--accent-soft);border-color:transparent}
+            .fl-scanner svg{width:26px;height:26px;flex:none;color:var(--accent);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-top:2px}
+            .fl-news{display:flex;flex-direction:column;gap:8px} .fl-news div{border-top:1px solid var(--line);padding-top:8px} .fl-news div:first-child{border-top:none;padding-top:0}
+            .fl-news small{color:var(--ink3);font-size:11px} .fl-news b{display:block;color:var(--ink)}
+            .fl-links{font-size:12px;color:var(--ink2);padding:0 4px} .fl-links a{color:var(--ink2)}
+            @media (max-width:820px){ .fl-wrap{grid-template-columns:1fr;max-width:100vw} .fl-side{order:2} }
+          </style>`);
+        }
+        el.querySelector('.fl-card').insertAdjacentHTML('beforeend', body);
+        fetch('news.json', {cache:'no-store'}).then(r=>r.json()).then(items=>{
+          const box = el.querySelector('#flNews'); if(!box) return;
+          box.innerHTML = '<h3>News</h3><div class="fl-news">' + items.slice(0, 2).map(n=>'<div><small>' + n.date + (n.tag ? ' · ' + n.tag : '') + '</small><b>' + n.title + '</b>' + (n.text || '').slice(0, 140) + (n.text && n.text.length > 140 ? '…' : '') + (n.link ? ' <a href="' + n.link + '">More</a>' : '') + '</div>').join('') + '</div><p style="margin:8px 0 0"><a href="news.html">All news →</a></p>';
+        }).catch(()=>{ const box = el.querySelector('#flNews'); if(box) box.remove(); });
         wire();
       }
 
@@ -449,7 +490,7 @@
     });
     el.querySelector('#apSignout')?.addEventListener('click', async ()=>{
       await sb.auth.signOut();
-      location.reload();
+      location.replace('landing.html'); // signed out → the front door, not an empty app
     });
     el.querySelector('#apDelete')?.addEventListener('click', async ()=>{
       const sure = prompt('This permanently deletes your account, ALL your projects, shares and ' +
@@ -460,7 +501,7 @@
       if(error){ msg.textContent = 'Could not delete: ' + error.message; return; }
       await sb.auth.signOut().catch(()=>{});
       alert('Your account and all data have been deleted.');
-      location.reload();
+      location.replace('landing.html');
     });
   }
 

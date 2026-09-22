@@ -74,7 +74,15 @@ function noteFont(o, base){
   const fs = o.fontSize || base || 13;
   return `${o.italic?'italic ':''}${o.bold?'700':'400'} ${fs}px -apple-system,Segoe UI,sans-serif`;
 }
-const fovForLens = f => deg(2*Math.atan(18/f));
+// sensors: [key, name, width mm]. Field of view follows the sensor a camera
+// shoots on — a 35 mm on Super 35 is a 50 mm look on full frame.
+const SENSORS = [['ff','Full frame 36×24',36],['s35','Super 35',24.89],['alexa35','ARRI Alexa 35',27.99],['minilf','ARRI Alexa Mini LF',36.70],
+  ['alexamini','ARRI Alexa Mini 16:9',23.76],['venice','Sony Venice FF',36],['vv','RED V-Raptor VV',40.96],['komodo','RED Komodo S35',27.03],
+  ['bmpcc6k','Blackmagic 6K S35',23.10],['apsc','APS-C',23.6],['m43','Micro 4/3',17.3],['16mm','16 mm',10.26]];
+const sensorWidth = key => (SENSORS.find(s=>s[0] === key) || SENSORS[0])[2];
+const SENSOR_SHORT = {s35:'S35', alexa35:'A35', minilf:'Mini LF', alexamini:'Mini', venice:'Venice', vv:'VV', komodo:'Komodo', bmpcc6k:'BM6K', apsc:'APS-C', m43:'M4/3', '16mm':'16mm'};
+const sensorShort = key => (key && key !== 'ff') ? (SENSOR_SHORT[key] || key) : '';
+const fovForLens = (f, sensor) => deg(2*Math.atan(sensorWidth(sensor)/2/f));
 
 // ---------------------------------------------------------------- prop drawing
 function shade(hex, f){

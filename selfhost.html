@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-hosting Floorboard</title>
+<meta name="description" content="Run Floorboard on your own server: the local version in ten minutes, the cloud version with your own Supabase project in half an hour.">
+<link rel="icon" href="icons/icon-32.png" sizes="32x32">
+<link rel="stylesheet" href="./tokens.css">
+<style>
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;font-size:16px}
+  a{color:var(--accent)}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 28px}
+  header{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;color:var(--ink);text-decoration:none;font-size:17px;letter-spacing:-.2px}
+  .logo svg{width:26px;height:26px;color:var(--accent)} .logo small{font-weight:500;color:var(--ink2);font-size:12px;margin-left:4px}
+  nav{display:flex;gap:20px;align-items:center} nav a{color:var(--ink2);text-decoration:none;font-size:14px}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border-radius:var(--r-md);padding:10px 16px;font-weight:600;text-decoration:none;border:1px solid var(--accent);font-size:14px}
+  .btn.ghost{background:var(--panel);color:var(--ink);border-color:var(--line)}
+  .hero{padding:64px 0 10px} .kicker{font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  h1{font-size:44px;line-height:1.06;margin:0 0 14px;letter-spacing:-1px;font-weight:800} h1 em{font-style:normal;color:var(--accent)}
+  .lead{color:var(--body);font-size:17.5px;margin:0 0 20px;max-width:680px}
+  .license{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--pal-sand);border-radius:var(--r-md);padding:14px 18px;font-size:14px;color:var(--body);max-width:760px}
+  section{padding:56px 0 0} h2{font-size:30px;line-height:1.12;margin:0 0 10px;letter-spacing:-.6px;font-weight:800}
+  .sub{color:var(--body);margin:0 0 24px;max-width:680px}
+  table.cmp{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;font-size:14.5px}
+  .cmp th,.cmp td{padding:12px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top} .cmp th{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--ink2)} .cmp tr:last-child td{border-bottom:none}
+  .cmp td:first-child{color:var(--ink2);width:26%}
+  .steps{display:grid;gap:18px}
+  .step{display:grid;grid-template-columns:1fr 1.1fr;gap:24px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px}
+  .step .n{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:13px;margin-bottom:10px}
+  .step h3{margin:0 0 8px;font-size:19px;letter-spacing:-.3px} .step p{margin:0 0 8px;color:var(--body);font-size:14.5px}
+  .step ul{margin:0;padding-left:18px;color:var(--body);font-size:14px} .step li{margin:3px 0}
+  pre{background:#1F1E1B;color:#EDEAE2;border-radius:12px;padding:14px 16px;font:12.5px/1.55 ui-monospace,Menlo,monospace;overflow:auto;margin:0}
+  pre .c{color:#8F8A7E} pre .k{color:#9CC4FF} pre .s{color:#F3C77A}
+  /* "screens": faithful little mock-ups of what the user sees — dashboard panels, the app's own switches */
+  .screen{background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(40,38,32,.10);font-size:12.5px}
+  .screen .tb{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);font-weight:600;color:var(--ink2);font-size:11.5px}
+  .screen .tb i{width:9px;height:9px;border-radius:50%;background:var(--soft);display:inline-block}
+  .screen .body{padding:14px}
+  .dash{display:grid;grid-template-columns:150px 1fr;min-height:200px}
+  .dash .side{background:var(--panel);border-right:1px solid var(--line);padding:10px 0;font-size:12px}
+  .dash .side div{padding:6px 14px;color:var(--ink2)} .dash .side div.on{color:var(--accent);background:var(--accent-soft);font-weight:600}
+  .dash .main{padding:14px;font-size:12.5px}
+  .dash label{display:block;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink2);margin:10px 0 4px}
+  .dash .field{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--panel);font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--ink);word-break:break-all}
+  .dash .field.hl{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .dash .run{display:inline-block;margin-top:10px;background:var(--ok);color:#fff;border-radius:6px;padding:5px 10px;font-weight:600;font-size:11.5px}
+  .dash .sql{background:#1F1E1B;color:#EDEAE2;border-radius:8px;padding:10px;font:11px/1.5 ui-monospace,Menlo,monospace;height:96px;overflow:hidden}
+  .callout{position:absolute;background:var(--pal-coral);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px}
+  .rel{position:relative}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:18px 20px} .card h4{margin:0 0 6px;font-size:15px} .card p{margin:0;color:var(--body);font-size:14px}
+  .faq details{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 16px;margin-bottom:8px} .faq summary{cursor:pointer;font-weight:600;font-size:14.5px} .faq p{margin:8px 0 0;color:var(--body);font-size:14px}
+  footer{margin:70px 0 0;padding:24px 0 44px;border-top:1px solid var(--line);color:var(--ink2);font-size:13px} footer a{color:var(--ink2)}
+  @media (max-width:860px){ .step,.grid3{grid-template-columns:1fr} h1{font-size:34px} nav a:not(.btn){display:none} .dash{grid-template-columns:1fr} .dash .side{display:none} }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="landing.html"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7.5 16.5h9M7.5 12.5h6M7.5 8.5h3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="15.5" cy="8.5" r="1.8" fill="#E58A6F"/></svg>Floorboard <small>self-hosting</small></a>
+  <nav><a href="#which">Which version</a><a href="#local">Local</a><a href="#cloud">Cloud</a><a href="#update">Updating</a><a href="#people">People &amp; access</a><a href="#faq">Troubleshooting</a><a class="btn ghost" href="landing.html">Front page</a></nav>
+</div></header>
+
+<div class="hero"><div class="wrap">
+  <p class="kicker">Run it yourself</p>
+  <h1>Your server, your data,<br>the <em>whole</em> app.</h1>
+  <p class="lead">Floorboard is a folder of static files: HTML, CSS and JavaScript, no build step and no server code of its own. Hosting it yourself means putting that folder behind a web server. Ten minutes for the local version, half an hour with accounts and sync.</p>
+  <div class="license"><b>License.</b> Floorboard is source-available under the <a href="LICENSE">Elastic License 2.0</a>. Running it for yourself, your crew or your company — paid productions included — is allowed and encouraged. Offering Floorboard itself as a hosted or managed service to others is not.</div>
+</div></div>
+
+<section id="which"><div class="wrap">
+  <h2>Which version do you want?</h2>
+  <p class="sub">Both versions have every floor, every export and the iPad layout. Start local; switching to cloud later is a two-line change in one file.</p>
+  <table class="cmp">
+    <tr><th></th><th>Local</th><th>Cloud</th></tr>
+    <tr><td>Accounts, sign-in</td><td>none</td><td>e-mail + password, magic link</td></tr>
+    <tr><td>Where work is saved</td><td>in the browser that made it (IndexedDB)</td><td>your own Supabase database, synced across devices</td></tr>
+    <tr><td>Co-editing, share links, Floor Scanner sync</td><td>no</td><td>yes</td></tr>
+    <tr><td>Backups</td><td>Production ▾ → Export .floorproj</td><td>automatic (Supabase), plus .floorproj</td></tr>
+    <tr><td>Setup</td><td>copy the folder, done</td><td>copy the folder + a free Supabase project</td></tr>
+  </table>
+</div></section>
+
+<section id="local"><div class="wrap">
+  <p class="kicker">Ten minutes</p>
+  <h2>1 · The local version</h2>
+  <div class="steps">
+    <div class="step"><div><span class="n">1</span><h3>Get the folder</h3><p>Download the release zip and unpack it, or clone the repository. Everything the app needs is inside; nothing has to be installed.</p></div>
+      <div class="screen"><div class="tb"><i></i><i></i><i></i> floorboard/</div><div class="body" style="font:12.5px ui-monospace,Menlo,monospace;color:var(--ink2);line-height:1.7">index.html<br>landing.html · selfhost.html · news.html<br>config.js <span style="color:var(--pal-coral)">← the only file you edit</span><br>js/ · icons/ · setup/ · tokens.css · styles.css<br>manifest.json · service-worker.js</div></div></div>
+    <div class="step"><div><span class="n">2</span><h3>Leave the keys empty</h3><p>Open <code>config.js</code>. Two empty strings mean: local mode, no accounts, work stays in this browser.</p></div>
+      <pre><span class="c">// config.js</span>
+window.FLOOR_CONFIG = {
+  supabaseUrl: <span class="s">''</span>,
+  supabaseKey: <span class="s">''</span>,
+  <span class="c">// billing stays off: every feature unlocked</span>
+};</pre></div>
+    <div class="step"><div><span class="n">3</span><h3>Serve it over http</h3><p>Any static server works. Opening <code>index.html</code> straight from disk mostly works too, but offline mode and “install as app” need http(s).</p><ul><li>Python: one line, good for trying it out.</li><li>Docker: the included <code>Dockerfile</code> or plain nginx.</li><li>Or drop the folder on Netlify, Cloudflare Pages, GitHub Pages.</li></ul></div>
+      <pre><span class="c"># on a Mac or Linux machine with Python</span>
+python3 -m http.server 8080
+
+<span class="c"># or with Docker (nginx)</span>
+docker run -d -p 8080:80 \
+  -v "$PWD":/usr/share/nginx/html:ro nginx:alpine
+
+<span class="c"># or the included Dockerfile</span>
+docker build -t floorboard . && docker run -d -p 8080:80 floorboard</pre></div>
+    <div class="step"><div><span class="n">4</span><h3>Open it, install it</h3><p>Go to <code>http://localhost:8080</code>. From the browser menu you can install it as an app; it then works offline.</p><p><b>Where is my work?</b> In the browser profile that made it. Clearing site data deletes it — export a <code>.floorproj</code> (Production ▾) before you clean up or move machines. That one file holds everything, images included.</p></div>
+      <div class="screen"><div class="tb"><i></i><i></i><i></i> Floorboard · Production ▾</div><div class="body"><div style="display:flex;flex-direction:column;gap:6px;max-width:260px"><div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--panel)">Haver — 15" commercial <span style="float:right;color:var(--ink3)">✓</span></div><div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--panel)">Licht — Van Gogh brand film</div><div style="border:1px solid var(--accent);border-radius:8px;padding:8px 10px;background:var(--accent-soft);color:var(--accent);font-weight:600">Export .floorproj</div><div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--panel)">Import .floorproj…</div><div style="background:var(--accent);color:#fff;border-radius:8px;padding:8px 10px;font-weight:600;text-align:center">+ New production</div></div></div></div></div>
+  </div>
+</div></section>
+
+<section id="cloud"><div class="wrap">
+  <p class="kicker">Half an hour</p>
+  <h2>2 · The cloud version</h2>
+  <p class="sub">You bring the database; Floorboard talks to it directly from the browser. <a href="https://supabase.com" rel="noopener">Supabase</a> is what the app is built for and its free tier is enough for a small company.</p>
+  <div class="steps">
+    <div class="step"><div><span class="n">1</span><h3>Create a Supabase project</h3><p>Sign up at supabase.com, New project, pick a region near you, choose a strong database password (you will not need it in Floorboard). Wait until the project shows “Active”.</p></div>
+      <div class="screen rel"><div class="tb"><i></i><i></i><i></i> supabase.com · New project</div><div class="dash"><div class="side"><div class="on">Projects</div><div>Organization</div><div>Billing</div></div><div class="main"><label>Name</label><div class="field">floorboard</div><label>Region</label><div class="field">West EU (Ireland)</div><label>Database password</label><div class="field">••••••••••••••••</div><span class="run" style="background:var(--accent)">Create new project</span></div></div></div></div>
+    <div class="step"><div><span class="n">2</span><h3>Create the tables</h3><p>Dashboard → <b>SQL Editor</b> → New query → paste the whole of <code>setup/schema.sql</code> → <b>Run</b>. This creates the tables, the row-level-security rules (every user only ever sees their own rows and the productions they were invited to), the sharing functions and the photo bucket for Floor Scanner.</p><p>Green “Success” at the bottom, once. Running it again later is harmless.</p></div>
+      <div class="screen rel"><div class="tb"><i></i><i></i><i></i> Supabase · SQL Editor</div><div class="dash"><div class="side"><div>Table Editor</div><div class="on">SQL Editor</div><div>Authentication</div><div>Storage</div><div>Project Settings</div></div><div class="main"><div class="sql">-- Floorboard schema (setup/schema.sql)<br>create table if not exists kv (<br>&nbsp;&nbsp;user_id uuid not null default auth.uid(),<br>&nbsp;&nbsp;key text not null, value text not null, …<br>alter table kv enable row level security;<br>create policy "users manage their own rows" …</div><span class="run">▶ Run</span> <span style="color:var(--ok);font-size:11.5px;margin-left:8px">Success. No rows returned</span></div></div><span class="callout" style="right:14px;top:44px">paste, run, done</span></div></div>
+    <div class="step"><div><span class="n">3</span><h3>Copy two keys into config.js</h3><p><b>Project Settings → API</b>. The Project URL and the <i>publishable</i> (anon) key. The publishable key is meant to be in the page; the security rules from step 2 protect the data. Never put the service-role key here.</p></div>
+      <div><div class="screen rel" style="margin-bottom:10px"><div class="tb"><i></i><i></i><i></i> Supabase · Project Settings › API</div><div class="dash"><div class="side"><div>General</div><div class="on">API</div><div>Auth</div><div>Storage</div></div><div class="main"><label>Project URL</label><div class="field hl">https://abcdefghijkl.supabase.co</div><label>Publishable key (anon)</label><div class="field hl">sb_publishable_…</div><label>Service role key</label><div class="field" style="color:var(--ink3)">secret — do not use in the app</div></div></div></div>
+      <pre>window.FLOOR_CONFIG = {
+  supabaseUrl: <span class="s">'https://abcdefghijkl.supabase.co'</span>,
+  supabaseKey: <span class="s">'sb_publishable_…'</span>,
+};</pre></div></div>
+    <div class="step"><div><span class="n">4</span><h3>Tell Supabase where the app lives</h3><p><b>Authentication → URL Configuration</b>. <i>Site URL</i> = the address you host the app on. Add the same address to <i>Redirect URLs</i>. Using Floor Scanner on iPhone? Add <code>floorboardscout://login</code> too, so the sign-in mail opens the app.</p></div>
+      <div class="screen rel"><div class="tb"><i></i><i></i><i></i> Supabase · Authentication › URL Configuration</div><div class="dash"><div class="side"><div>Users</div><div>Policies</div><div>Providers</div><div class="on">URL Configuration</div><div>Emails</div></div><div class="main"><label>Site URL</label><div class="field hl">https://floorboard.yourcompany.com</div><label>Redirect URLs</label><div class="field">https://floorboard.yourcompany.com/**</div><div class="field hl" style="margin-top:4px">floorboardscout://login</div><span class="run" style="background:var(--accent)">Save</span></div></div></div></div>
+    <div class="step"><div><span class="n">5</span><h3>Deploy the folder</h3><p>Any static host: Netlify, Cloudflare Pages, GitHub Pages, Vercel, or your own nginx / Apache. No server settings beyond serving the files; https is required for sign-in.</p><p>Then open the site and sign in with your e-mail. The first account is created on the spot.</p></div>
+      <pre><span class="c"># Netlify CLI, for example</span>
+npx netlify deploy --prod --dir=.
+
+<span class="c"># or nginx: serve the folder, nothing else</span>
+server {
+  listen 443 ssl;
+  server_name floorboard.yourcompany.com;
+  root /srv/floorboard;
+  index index.html;
+}</pre></div>
+    <div class="step"><div><span class="n">6</span><h3>Recommended: your own mail sender</h3><p><b>Authentication → Emails → SMTP settings</b>. Without it, sign-in mails come from Supabase’s shared sender with a very low hourly limit — fine for you alone, not for a crew signing up on the same afternoon. Any SMTP provider works (Resend, Postmark, Mailgun, your own).</p><ul><li>Backups: daily on paid Supabase plans; on the free plan export the database now and then, or rely on <code>.floorproj</code> exports.</li><li>Plan gates are off in a self-hosted copy: everything is unlocked. See <a href="BILLING.md">BILLING.md</a> only if you want to sell access yourself.</li></ul></div>
+      <div class="screen rel"><div class="tb"><i></i><i></i><i></i> Supabase · Authentication › Emails › SMTP</div><div class="dash"><div class="side"><div>Templates</div><div class="on">SMTP settings</div></div><div class="main"><label>Enable custom SMTP</label><div class="field">● on</div><label>Sender</label><div class="field">Floorboard &lt;hello@yourcompany.com&gt;</div><label>Host · port</label><div class="field">smtp.resend.com · 465</div></div></div></div></div>
+  </div>
+</div></section>
+
+<section id="update"><div class="wrap">
+  <h2>3 · Updating</h2>
+  <div class="grid3">
+    <div class="card"><h4>Replace the files</h4><p>Every file except <code>config.js</code>. Reload the page; the version chip top right shows the new number. Hard-reload once if it does not: the offline cache hands over on the second load.</p></div>
+    <div class="card"><h4>Database changes</h4><p>Ordinary updates need nothing. When a release adds tables or columns, the notes at the end of <code>setup/schema.sql</code> say what to run — each statement is written so running it twice is harmless.</p></div>
+    <div class="card"><h4>iPad app</h4><p>The iPad app is a shell around the same files. Self-hosters point it at their own copy in <code>config.ios.js</code> and build it with Xcode; see <a href="IPAD.md">IPAD.md</a>.</p></div>
+  </div>
+</div></section>
+
+<section id="people"><div class="wrap">
+  <h2>4 · People and access</h2>
+  <div class="grid3">
+    <div class="card"><h4>One account per person</h4><p>Everyone signs in with their own e-mail; productions belong to the account that created them.</p></div>
+    <div class="card"><h4>Co-editing with floor access</h4><p>The owner enables it per production (Share → Co-editors) and hands out invite links: <i>all floors</i>, or <i>crew</i> — mood, script, plans and shot list, but not Budget and Production. Per member, the owner switches floors on or off with the chips next to their name.</p></div>
+    <div class="card"><h4>Read-only links &amp; Floor Scanner</h4><p>Share links show a frozen copy to anyone with the link; viewers can drop comment pins, nothing else. Floor Scanner on iPhone signs in with the same account; scanned rooms and location photos appear in the room library.</p></div>
+  </div>
+</div></section>
+
+<section id="faq"><div class="wrap">
+  <h2>5 · Troubleshooting</h2>
+  <div class="faq">
+    <details><summary>The sign-in mail never arrives</summary><p>Check Supabase → Authentication → Logs, and the hourly limit of the built-in sender. Set up SMTP (step 6); that removes the limit.</p></details>
+    <details><summary>“Invalid redirect” after clicking the mail link</summary><p>The address you host on is missing from Redirect URLs (step 4). Add it with a trailing <code>/**</code> to cover every page.</p></details>
+    <details><summary>Works locally, not on the server</summary><p>The app is served over plain http (sign-in needs https), or the folder is served from a sub-path while the Site URL points elsewhere. The app itself is path-independent; sign-in is not.</p></details>
+    <details><summary>A colleague sees no productions</summary><p>They are signed in with a different e-mail than the invite was sent to, or the invite was revoked. Send a fresh invite link from Share → Co-editors.</p></details>
+    <details><summary>The version chip does not change after an update</summary><p>Hard-reload once; the offline cache hands over on the second load. On iPad, remove and re-add the home-screen app if it insists.</p></details>
+    <details><summary>How many people can use one Supabase project?</summary><p>The free tier allows 50,000 monthly active users, 500 MB of database and 1 GB of file storage — far beyond a production company. Two things to know: a free project pauses after a week without traffic (reopen it in the dashboard), and Floor Scanner photos count toward the file storage. The paid plan removes the pause, adds daily backups and more storage.</p></details>
+  </div>
+</div></section>
+
+<footer><div class="wrap"><a href="landing.html">Floorboard</a> · <a href="SELFHOST.md">This guide as Markdown</a> · <a href="news.html">News</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></div></footer>
+</body>
+</html>

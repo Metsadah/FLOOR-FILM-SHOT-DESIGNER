@@ -74,6 +74,27 @@
   .step b{display:flex;align-items:center;gap:8px;font-size:14px}
   .step b i{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-style:normal;font-size:11px;font-weight:800}
   .step p{margin:6px 0 0;font-size:13px;color:var(--ink2);line-height:1.45}
+  .howto{display:grid;grid-template-columns:1.25fr 1fr;gap:26px;align-items:start}
+  .stage{position:relative} .stage-imgs{position:relative;aspect-ratio:3/2;background:#fff}
+  .stage-imgs img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .45s ease;background:#fff}
+  .stage-imgs img.on{opacity:1}
+  .stage-bar{height:3px;background:var(--soft)} .stage-bar i{display:block;height:100%;width:0;background:var(--accent)}
+  @keyframes stagebar{from{width:0}to{width:100%}}
+  .stepsl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .stepsl li{padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--panel);cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
+  .stepsl li:hover,.stepsl li.on{border-color:var(--accent);box-shadow:0 8px 24px rgba(75,107,251,.10);transform:translateX(4px)}
+  .stepsl b{display:flex;align-items:center;gap:9px;font-size:14px}
+  .stepsl b i{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-style:normal;font-size:11px;font-weight:800;flex:none}
+  .stepsl b i svg{width:14px;height:14px}
+  .stepsl p{margin:6px 0 0;font-size:13px;color:var(--ink2);line-height:1.45}
+  .stepsl li.scan{background:var(--accent-soft);border-color:transparent} .stepsl li.scan.on,.stepsl li.scan:hover{border-color:var(--accent)}
+  .stepsl li.scan b i{background:var(--pal-coral)}
+  .stepsl p a{color:var(--accent);font-weight:600;text-decoration:none}
+  .hero-scan{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:8px 12px 8px 8px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--panel);font-size:13px;color:var(--ink2);text-decoration:none}
+  .hero-scan i{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff}
+  .hero-scan i svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .hero-scan b{color:var(--ink)}
+  @media (max-width:980px){ .howto{grid-template-columns:1fr} }
   .note{margin-top:18px;background:var(--accent-soft);border-radius:var(--r-md);padding:14px 18px;font-size:14px;color:var(--ink);display:flex;gap:12px;align-items:center}
   .note svg{width:22px;height:22px;flex:none;color:var(--accent)}
   /* feature rows */
@@ -154,6 +175,7 @@
       <a href="#example">Example</a>
       <a href="#scanner">Floor Scanner</a>
       <a href="#plans">Plans</a>
+      <a href="news.html">News</a>
       <a class="btn" href="index.html?start=1">Open the app</a>
     </nav>
   </div>
@@ -170,6 +192,7 @@
         <a class="btn ghost" href="#draw">See how it works</a>
         <small>No install · one free cloud production</small>
       </div>
+      <a class="hero-scan" href="#scanner"><i><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg></i><span><b>Floor Scanner</b> for iPhone: scan the location, plan it here →</span></a>
     </div>
     <div class="frame" aria-label="Floorboard, the Shot designer">
       <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Licht — Van Gogh brand film · Scene 1 · Atelier</span></div>
@@ -200,16 +223,39 @@
     <p class="kicker">How it works</p>
     <h2>A floor plan in a minute, to scale.</h2>
     <p class="lead">One unit is one centimetre. Drag a room, tap the walls for doors and windows, drop furniture with real sizes, then bring in the crew. Every object is a thing the film needs, not a drawing.</p>
-    <div class="steps">
-      <div class="step"><img src="landing/img/step1.png" alt="Four walls of a room"><div><b><i>1</i>Draw the room</b><p>Drag a rectangle for four walls at once, or draw wall by wall. Snaps to 90° and to wall ends; the middle handle bows a wall into a curve.</p></div></div>
-      <div class="step"><img src="landing/img/step2.png" alt="The room with doors and windows"><div><b><i>2</i>Doors and windows</b><p>Tap a wall to place a door, a window or an opening, then slide it along. Select it for width and the door swing.</p></div></div>
-      <div class="step"><img src="landing/img/step3.png" alt="The room with a table, chairs, cabinet and plant"><div><b><i>3</i>Dress the set</b><p>Tables, sofas, kitchens, beds, cars, trees — from the library, all at their real size. Trace a location from a satellite capture or a scan.</p></div></div>
-      <div class="step"><img src="landing/img/step4.png" alt="The room with cameras, cast, lights and the sun"><div><b><i>4</i>Cast, cameras, light</b><p>Cameras with lens and field of view, cast with names, LED, Fresnel, HMI and bounce with their throw — and the sun for the time of day.</p></div></div>
+    <div class="howto" id="howto">
+      <div class="stage frame">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name" id="stageName">Scene 1 · Atelier — walls</span></div>
+        <div class="stage-imgs">
+          <img src="landing/img/step1.png" alt="Four walls of a room" class="on" data-step="0">
+          <img src="landing/img/step2.png" alt="The room with doors and windows" data-step="1">
+          <img src="landing/img/step3.png" alt="The room with a table, chairs, cabinet and plant" data-step="2">
+          <img src="landing/img/step4.png" alt="The room with cameras, cast, lights and the sun" data-step="3">
+          <img src="landing/img/room-thumb.jpg" alt="A scanned room in the room library" data-step="4">
+        </div>
+        <div class="stage-bar"><i></i></div>
+      </div>
+      <ol class="stepsl">
+        <li class="on" data-step="0"><b><i>1</i>Draw the room</b><p>Drag a rectangle for four walls at once, or wall by wall. Snaps to 90° and to wall ends; the middle handle bows a wall into a curve.</p></li>
+        <li data-step="1"><b><i>2</i>Doors and windows</b><p>Tap a wall to place a door, a window or an opening, then slide it along. Select it for width and the door swing.</p></li>
+        <li data-step="2"><b><i>3</i>Dress the set</b><p>Tables, sofas, kitchens, beds, cars, trees — from the library, all at their real size. Or trace a satellite capture as an underlay.</p></li>
+        <li data-step="3"><b><i>4</i>Cast, cameras, light</b><p>Cameras with lens, sensor and field of view, cast with names, LED, Fresnel, HMI and bounce with their throw — and the sun for the time of day.</p></li>
+        <li data-step="4" class="scan"><b><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg></i>Or skip the drawing: scan it</b><p><b>Floor Scanner</b> on your iPhone walks the room with LiDAR or measures it with the camera — walls, doors, windows and furniture land in your room library, ready to insert in any scene. <a href="#scanner">About Floor Scanner →</a></p></li>
+      </ol>
     </div>
-    <div class="note">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg>
-      <span>Scouted a location? <b>Floor Scanner</b> on your iPhone measures the room with LiDAR or the camera and puts it in your room library, walls, doors and furniture included. <a href="#scanner">More below</a>.</span>
-    </div>
+    <script>
+    (function(){
+      const box = document.getElementById('howto'); if(!box) return;
+      const imgs = [...box.querySelectorAll('.stage-imgs img')], items = [...box.querySelectorAll('.stepsl li')], nameEl = document.getElementById('stageName'), bar = box.querySelector('.stage-bar i');
+      const names = ['Scene 1 · Atelier — walls', 'Scene 1 · Atelier — doors & windows', 'Scene 1 · Atelier — set dressing', 'Scene 1 · Atelier — cast, cameras, light', 'Room library — scanned with Floor Scanner'];
+      let cur = 0, paused = false;
+      function show(i){ cur = i; imgs.forEach(im=>im.classList.toggle('on', +im.dataset.step === i)); items.forEach(li=>li.classList.toggle('on', +li.dataset.step === i)); nameEl.textContent = names[i]; bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = paused ? 'none' : 'stagebar 3.2s linear forwards'; }
+      items.forEach(li=>{ li.addEventListener('mouseenter', ()=>{ paused = true; show(+li.dataset.step); }); li.addEventListener('click', ()=>{ paused = true; show(+li.dataset.step); }); });
+      box.addEventListener('mouseleave', ()=>{ paused = false; show(cur); });
+      setInterval(()=>{ if(!paused) show((cur + 1) % imgs.length); }, 3200);
+      show(0);
+    })();
+    </script>
   </div>
 </section>
 
@@ -221,7 +267,7 @@
         <h3>See the shot before you light it.</h3>
         <p>A camera in Floorboard is a real camera: pick the lens and the field of view follows, set framing, support and shot name. Cast has names, lights have a throw.</p>
         <ul>
-          <li>Lens presets 16–135 mm on full frame; purple handles set field of view and reach in one drag.</li>
+          <li>Lens presets 10–135 mm on the sensor you shoot on — full frame, Super 35, Alexa 35, Mini LF, APS-C, Micro 4/3 and more; purple handles set field of view and reach in one drag.</li>
           <li>Movement: keyframes for cast and cameras, dolly track, jib and technocrane a camera can ride. Press play.</li>
           <li>Setups A / B for lighting or blocking variants of the same scene.</li>
           <li>Sun and north for the time of day; drop a still on a camera as its viewfinder frame.</li>
@@ -337,6 +383,21 @@
   </div>
 </section>
 
+<section id="news">
+  <div class="wrap">
+    <p class="kicker">News</p>
+    <h2>What changed lately.</h2>
+    <div class="grid3" id="newsGrid"><div class="card"><p>Loading…</p></div></div>
+    <p style="margin-top:14px"><a href="news.html">All news →</a></p>
+  </div>
+</section>
+<script>
+fetch('news.json', {cache:'no-store'}).then(r=>r.json()).then(items=>{
+  const g = document.getElementById('newsGrid');
+  g.innerHTML = items.slice(0, 3).map(n=>'<a class="card" href="' + (n.link || 'news.html') + '" style="text-decoration:none;color:inherit;display:block"><small style="color:var(--ink3);font-size:12px">' + n.date + (n.tag ? ' · ' + n.tag : '') + '</small><h4 style="margin:6px 0 6px">' + n.title + '</h4><p>' + (n.text || '') + '</p></a>').join('');
+}).catch(()=>{ document.getElementById('news').remove(); });
+</script>
+
 <section id="everywhere">
   <div class="wrap">
     <p class="kicker">Works where you work</p>
@@ -362,11 +423,11 @@
         <ul>
           <li>Full source, <a href="LICENSE">Elastic License 2.0</a></li>
           <li>Works completely offline in your browser, or with your own free Supabase project for sync and co-editing</li>
-          <li>Docker image and a 10-minute <a href="SELFHOST.md">install guide</a></li>
+          <li>Docker image and a 10-minute <a href="selfhost.html">install guide</a></li>
           <li>You own the data, no account with us</li>
           <li>Need a hand? <span class="fill">[supported self-host: €199 / year — setup call, e-mail support, update notes]</span></li>
         </ul>
-        <a class="btn ghost" href="SELFHOST.md">Read the self-host guide</a>
+        <a class="btn ghost" href="selfhost.html">Read the self-host guide</a>
       </div>
       <div class="plan pro">
         <span class="tag">Hosted</span>

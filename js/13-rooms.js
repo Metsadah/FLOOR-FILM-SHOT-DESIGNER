@@ -23,7 +23,57 @@ function roomBBox(room){
   if(x0 === Infinity) return {x0:0, y0:0, x1:0, y1:0, w:0, h:0};
   return {x0, y0, x1, y1, w:x1 - x0, h:y1 - y0};
 }
+// ---------------------------------------------------------------- square up
+// Scans come in a degree or two off, and dragging glued corners can leave a
+// wall at 91°. squareUp: rotate everything so the dominant wall direction is
+// horizontal, snap each wall that is within 12° of an axis onto it (around
+// its midpoint), then re-glue corners that drifted apart. Works on a room
+// (walls + props) and on the app's own walls/objects (same shapes).
+function squareUpWalls(walls, objs, opts){
+  const o = opts || {};
+  if(!walls || !walls.length) return 0;
+  const norm2 = a=>{ while(a > Math.PI/4) a -= Math.PI/2; while(a < -Math.PI/4) a += Math.PI/2; return a; };
+  // dominant direction (mod 90°), length-weighted
+  let sx = 0, sy = 0;
+  for(const w of walls){ const L = Math.hypot(w.x2 - w.x1, w.y2 - w.y1); const a = Math.atan2(w.y2 - w.y1, w.x2 - w.x1) * 4; sx += Math.cos(a) * L; sy += Math.sin(a) * L; }
+  const theta = Math.atan2(sy, sx) / 4; // in (-45°, 45°]
+  let cx = 0, cy = 0, n = 0;
+  for(const w of walls){ cx += w.x1 + w.x2; cy += w.y1 + w.y2; n += 2; }
+  cx /= n; cy /= n;
+  const rot = (p, a)=>{ const c = Math.cos(a), s2 = Math.sin(a); const dx = p.x - cx, dy = p.y - cy; return {x:cx + dx * c - dy * s2, y:cy + dx * s2 + dy * c}; };
+  const apply = a=>{
+    for(const w of walls){ const p1 = rot({x:w.x1, y:w.y1}, a), p2 = rot({x:w.x2, y:w.y2}, a); w.x1 = p1.x; w.y1 = p1.y; w.x2 = p2.x; w.y2 = p2.y; if(w.mid){ w.mid = rot(w.mid, a); } }
+    for(const ob of (objs || [])){ const p = rot({x:ob.x, y:ob.y}, a); ob.x = p.x; ob.y = p.y; ob.rot = (ob.rot || 0) + a; if(ob.pts) ob.pts = ob.pts.map(q=>Object.assign({}, q, rot(q, a))); if(ob.path) ob.path = ob.path.map(q=>Object.assign({}, q, rot(q, a), q.rot != null ? {rot:q.rot + a} : {})); if(ob.p1) ob.p1 = rot(ob.p1, a); if(ob.p2) ob.p2 = rot(ob.p2, a); }
+  };
+  if(o.rotateAll !== false && Math.abs(theta) > 0.002) apply(-theta);
+  let snapped = 0;
+  for(const w of walls){
+    if(w.mid) continue; // curved walls stay as drawn
+    const a = Math.atan2(w.y2 - w.y1, w.x2 - w.x1), d = norm2(a);
+    if(Math.abs(d) < 0.001 || Math.abs(d) > (o.tolerance || 12) * Math.PI / 180) continue;
+    const q = a - d, L = Math.hypot(w.x2 - w.x1, w.y2 - w.y1), mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2;
+    w.x1 = mx - Math.cos(q) * L / 2; w.y1 = my - Math.sin(q) * L / 2; w.x2 = mx + Math.cos(q) * L / 2; w.y2 = my + Math.sin(q) * L / 2;
+    snapped++;
+  }
+  // re-glue corners: endpoints that were together (within 30 cm) meet again
+  const ends = []; for(const w of walls){ ends.push({w, k:'1'}); ends.push({w, k:'2'}); }
+  const P = e=>({x:e.w['x' + e.k], y:e.w['y' + e.k]});
+  const seen = new Set();
+  for(let i = 0; i < ends.length; i++){
+    if(seen.has(i)) continue;
+    const grp = [i];
+    for(let j = i + 1; j < ends.length; j++){ if(seen.has(j) || ends[j].w === ends[i].w) continue; const a = P(ends[i]), b = P(ends[j]); if(Math.hypot(a.x - b.x, a.y - b.y) <= 30) grp.push(j); }
+    if(grp.length > 1){
+      // meet at the corner an axis-aligned pair would make; otherwise the average
+      let gx = 0, gy = 0; for(const g of grp){ const p = P(ends[g]); gx += p.x; gy += p.y; }
+      gx /= grp.length; gy /= grp.length;
+      for(const g of grp){ const e = ends[g]; const other = e.k === '1' ? {x:e.w.x2, y:e.w.y2} : {x:e.w.x1, y:e.w.y1}; const horiz = Math.abs(other.y - P(e).y) < Math.abs(other.x - P(e).x); if(horiz){ e.w['x' + e.k] = gx; e.w['y' + e.k] = other.y; } else { e.w['x' + e.k] = other.x; e.w['y' + e.k] = gy; } seen.add(g); }
+    }
+  }
+  return snapped;
+}
 function roomNormalise(room){
+  if(room.source === 'roomplan' || room.source === 'arkit') squareUpWalls(room.walls, room.props); // scans come in a little off
   const b = roomBBox(room);
   const cx = b.x0 + b.w / 2, cy = b.y0 + b.h / 2;
   for(const w of room.walls || []){ w.x1 -= cx; w.y1 -= cy; w.x2 -= cx; w.y2 -= cy; }
@@ -132,7 +182,7 @@ async function roomLibraryOverlay(){
     '<input id="rmFilter" class="fb-inp" placeholder="Filter by name or location" style="flex:1;min-width:180px"><span id="rmCount" class="fb-dim" style="flex:none"></span></div>' +
     '<div id="rmSaveForm" class="fb-row" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="rmName" class="fb-inp" placeholder="Room name (Kitchen, Studio 2…)" style="flex:1;min-width:160px">' +
     '<input id="rmLoc" class="fb-inp" placeholder="Location (address or place)" style="flex:1;min-width:160px"><button class="btn primary" id="rmSaveGo">Save</button><button class="btn" id="rmSaveNo">Cancel</button></div>' +
-    '<div id="rmGrid" class="rm-grid"><p class="fb-dim">Loading…</p></div>' +
+    '<div id="rmGrid" class="rm-groups"><p class="fb-dim">Loading…</p></div>' +
     '<div class="fb-ov-actions"><span class="fb-dim">Insert puts the room at the middle of your view; furniture comes as props you can move.</span><span style="flex:1"></span><button class="btn" id="rmClose">Close</button></div></div>';
   document.body.appendChild(el);
   el.addEventListener('keydown', e=>e.stopPropagation());
@@ -157,6 +207,8 @@ async function roomLibraryOverlay(){
   });
   const grid = el.querySelector('#rmGrid');
   let rooms = [];
+  const collapsed = new Set(); try{ JSON.parse(localStorage.floorRoomGroupsClosed || '[]').forEach(x=>collapsed.add(x)); }catch(_){}
+  const remember = ()=>{ try{ localStorage.floorRoomGroupsClosed = JSON.stringify([...collapsed]); }catch(_){} };
   const draw = async ()=>{
     rooms = await roomsList(true);
     const q = el.querySelector('#rmFilter').value.trim().toLowerCase();
@@ -164,17 +216,27 @@ async function roomLibraryOverlay(){
     el.querySelector('#rmCount').textContent = list.length + ' room' + (list.length === 1 ? '' : 's');
     if(!list.length){
       grid.innerHTML = '<p class="fb-dim" style="grid-column:1/-1;padding:18px 4px">' + (rooms.length ? 'Nothing matches.' :
-        'No rooms yet. Draw a room in a scene and save it here — or scan one with the Scout app once it is out.') + '</p>';
+        'No rooms yet. Draw a room in a scene and save it here — or scan one with Floor Scanner on your iPhone.') + '</p>';
       return;
     }
-    grid.innerHTML = list.map(r=>`
+    // grouped by location — a scouting trip stays together; groups fold away
+    const groups = [];
+    for(const r of list){ const key = (r.location || '').trim() || 'No location'; let g = groups.find(x=>x.key === key); if(!g){ g = {key, rooms:[], newest:''}; groups.push(g); } g.rooms.push(r); if((r.updatedAt || '') > g.newest) g.newest = r.updatedAt || ''; }
+    groups.sort((x, y)=> (x.key === 'No location') - (y.key === 'No location') || y.newest.localeCompare(x.newest));
+    const card = r=>`
       <div class="rm-card" data-id="${r.id}">
         <div class="rm-thumb">${r.thumb ? '<img src="' + r.thumb + '" alt="">' : ''}</div>
         <div class="rm-meta"><b>${esc(r.name || 'Room')}</b><span>${esc(r.location || '')}</span>
           <small>${r.bbox ? (r.bbox.w / 100).toFixed(1) + ' × ' + (r.bbox.h / 100).toFixed(1) + ' m · ' : ''}${(r.walls || []).length} walls · ${(r.props || []).length} pieces</small>
           <i class="rm-src rm-${esc(r.source || 'manual')}">${ROOM_SOURCES[r.source] || 'Drawn'}</i></div>
         <div class="rm-actions"><button class="btn primary" data-act="insert">Insert</button><button class="btn" data-act="rename" title="Rename / relocate">✎</button><button class="btn" data-act="del" title="Delete from the library">×</button></div>
-      </div>`).join('');
+      </div>`;
+    grid.innerHTML = groups.map(g=>{
+      const open = q ? true : !collapsed.has(g.key);
+      return '<div class="rm-group' + (open ? '' : ' closed') + '" data-key="' + esc(g.key) + '"><button class="rm-group-head"><span class="arr">▾</span><b>' + esc(g.key) + '</b><span>' + g.rooms.length + ' room' + (g.rooms.length === 1 ? '' : 's') + '</span></button>' +
+        '<div class="rm-group-body">' + (open ? g.rooms.map(card).join('') : '') + '</div></div>';
+    }).join('');
+    grid.querySelectorAll('.rm-group-head').forEach(h=>h.addEventListener('click', ()=>{ const k = h.parentElement.dataset.key; if(collapsed.has(k)) collapsed.delete(k); else collapsed.add(k); remember(); draw(); }));
   };
   el.querySelector('#rmFilter').addEventListener('input', draw);
   grid.addEventListener('click', async e=>{

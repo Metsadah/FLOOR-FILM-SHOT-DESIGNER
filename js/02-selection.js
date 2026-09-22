@@ -153,6 +153,17 @@ function drawSelection(shot){
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
+    // one frame around everything, with a rotate handle on top (drag = turn the group, snaps to 15° / 90°)
+    const mb = multiBounds(shot);
+    if(mb){
+      ctx.setLineDash([3/s, 4/s]); ctx.lineWidth = 1/s; ctx.strokeStyle = THEME.accent; ctx.globalAlpha = .7;
+      ctx.strokeRect(mb.minX - 10/s, mb.minY - 10/s, mb.maxX - mb.minX + 20/s, mb.maxY - mb.minY + 20/s);
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+      const hx = (mb.minX + mb.maxX)/2, hy = mb.minY - 10/s;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx, hy - 22/s); ctx.globalAlpha = .5; ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(hx, hy - 30/s, H_R/s, 0, 7);
+      ctx.fillStyle = THEME.warn; ctx.fill(); ctx.strokeStyle = THEME.card; ctx.lineWidth = 2/s; ctx.stroke();
+    }
     ctx.restore();
     return;
   }
@@ -316,4 +327,19 @@ function drawToolPreview(){
     }
     ctx.restore();
   }
+}
+
+// bounds of a multi selection (objects + walls), world units
+function multiBounds(shot){
+  if(!sel || sel.type !== 'multi') return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const add = (x, y)=>{ minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); };
+  for(const id of sel.ids){ const o = shot.objects.find(x=>x.id === id); if(!o) continue; const r = Math.hypot(o.w || 20, o.h || 20)/2; add(o.x - r, o.y - r); add(o.x + r, o.y + r); (o.pts || []).forEach(p=>add(p.x, p.y)); }
+  for(const id of (sel.wallIds || [])){ const w = shot.walls.find(x=>x.id === id); if(!w) continue; add(w.x1, w.y1); add(w.x2, w.y2); }
+  return minX === Infinity ? null : {minX, minY, maxX, maxY};
+}
+function multiRotateHandle(shot){
+  const mb = multiBounds(shot); if(!mb) return null;
+  const s = view.scale;
+  return {x:(mb.minX + mb.maxX)/2, y:mb.minY - 10/s - 30/s, cx:(mb.minX + mb.maxX)/2, cy:(mb.minY + mb.maxY)/2};
 }

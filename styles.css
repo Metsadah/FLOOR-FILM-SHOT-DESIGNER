@@ -888,3 +888,11 @@ body.touch .side-head .setup-chip{ width:32px; height:32px; font-size:12px; }
 .tpl:hover{ border-color:var(--border2); } .tpl.on{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); background:var(--accent-soft); }
 .tpl-example{ display:flex; gap:14px; align-items:center; margin-top:14px; padding:12px 14px; border:1px dashed var(--border2); border-radius:var(--r-md); }
 .tpl-example > div{ flex:1; display:flex; flex-direction:column; gap:2px; } .tpl-example b{ font-size:13px; } .tpl-example span{ font-size:11.5px; color:var(--ink2); line-height:1.45; }
+
+/* room library: grouped by location */
+.rm-groups{ max-height:56vh; overflow:auto; padding:2px; display:flex; flex-direction:column; gap:10px; }
+.rm-group-head{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:8px 10px; border:1px solid var(--line); border-radius:var(--r-md); background:var(--hover); color:var(--ink); font-size:13px; }
+.rm-group-head b{ flex:1; } .rm-group-head span{ font-size:11.5px; color:var(--ink2); } .rm-group-head .arr{ flex:none; font-size:10px; color:var(--ink3); transition:transform .12s; }
+.rm-group.closed .rm-group-head .arr{ transform:rotate(-90deg); }
+.rm-group-body{ display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px; padding:10px 2px 2px; }
+.rm-group.closed .rm-group-body{ display:none; }

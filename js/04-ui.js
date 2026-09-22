@@ -148,6 +148,19 @@ function refreshSelBar(){
         markDirty(); refreshSelBar();
         toast('Ungrouped — items move on their own again');
       });
+    sbtn('↻ 90°', ()=>{
+      const mb = multiBounds(shot); if(!mb) return;
+      const cx = (mb.minX + mb.maxX)/2, cy = (mb.minY + mb.maxY)/2, R = p=>({x:cx - (p.y - cy), y:cy + (p.x - cx)});
+      for(const o of mObjs){ if(o.locked) continue; const p = R(o); o.x = p.x; o.y = p.y; o.rot = norm((o.rot || 0) + Math.PI/2); if(o.p1) o.p1 = R(o.p1); if(o.p2) o.p2 = R(o.p2); if(o.mid) o.mid = R(o.mid); if(o.pts) o.pts = o.pts.map(q=>Object.assign({}, q, R(q))); if(o.path) o.path = o.path.map(q=>Object.assign({}, q, R(q), q.rot != null ? {rot:norm(q.rot + Math.PI/2)} : {})); }
+      for(const w of mWalls){ if(w.locked) continue; const a = R({x:w.x1, y:w.y1}), b = R({x:w.x2, y:w.y2}); w.x1 = a.x; w.y1 = a.y; w.x2 = b.x; w.y2 = b.y; if(w.mid) w.mid = R(w.mid); }
+      markDirty(); render();
+    }).title = 'Turn the selection a quarter turn clockwise (drag the amber handle for any angle — it snaps to 15° and 90°)';
+    if(mWalls.length)
+      sbtn('Square up', ()=>{
+        const n = squareUpWalls(mWalls, mObjs);
+        markDirty(); render(); refreshSelBar();
+        toast(n ? n + ' wall' + (n === 1 ? '' : 's') + ' snapped to 90° and corners re-joined' : 'Walls were already square — corners re-joined');
+      }).title = 'Straighten: rotate so the main wall is level, snap walls near 90° onto it, re-join the corners';
     sbtn('Duplicate', duplicateSelection);
     sbtn('→ Sub-board', groupIntoSubboard)
       .title = 'Tuck this selection into its own named sub-board (double-click it to open)';
@@ -309,10 +322,27 @@ function refreshSelBar(){
       const ks = document.createElement('select');
       ks.title = 'Change what this piece is (keeps its position)';
       ks.style.cssText = 'font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);max-width:150px;';
-      const kinds = [...new Set(CATS.flatMap(c=>c.items).filter(i=>i.cat === 'prop' && PROPS[i.kind] && !GEAR_KINDS.has(i.kind) && !PROPLIST_SKIP.has(i.kind) && i.kind !== 'track').map(i=>i.kind))];
-      if(!kinds.includes(o.kind)) kinds.unshift(o.kind);
-      for(const k of kinds) ks.insertAdjacentHTML('beforeend', '<option value="' + k + '"' + (k === o.kind ? ' selected' : '') + '>' + esc(PROPS[k].name || k) + '</option>');
-      ks.addEventListener('change', ()=>{ const k = ks.value; if(!PROPS[k]) return; o.kind = k; o.w = PROPS[k].w; o.h = PROPS[k].h; markDirty(); render(); refreshSelBar(); });
+      // grouped like the library, current kind first, Custom… at the end
+      const seenK = new Set();
+      if(!CATS.some(c=>c.items.some(i=>i.kind === o.kind))) ks.insertAdjacentHTML('beforeend', '<option value="' + o.kind + '" selected>' + esc(PROPS[o.kind].name || o.kind) + '</option>');
+      for(const c of CATS){
+        const ks2 = c.items.filter(i=>i.cat === 'prop' && PROPS[i.kind] && !GEAR_KINDS.has(i.kind) && !PROPLIST_SKIP.has(i.kind) && i.kind !== 'track' && !seenK.has(i.kind)).map(i=>i.kind);
+        if(!ks2.length) continue;
+        const og = document.createElement('optgroup'); og.label = c.name;
+        for(const k of ks2){ seenK.add(k); og.insertAdjacentHTML('beforeend', '<option value="' + k + '"' + (k === o.kind ? ' selected' : '') + '>' + esc(PROPS[k].name || k) + '</option>'); }
+        ks.appendChild(og);
+      }
+      ks.insertAdjacentHTML('beforeend', '<optgroup label="Other"><option value="__custom">Custom… (name + size)</option></optgroup>');
+      ks.addEventListener('change', ()=>{
+        const k = ks.value;
+        if(k === '__custom'){
+          const name = prompt('What is it?', o.label || ''); if(name === null){ refreshSelBar(); return; }
+          const size = prompt('Size in cm, width × depth', Math.round(o.w) + ' x ' + Math.round(o.h)); if(size === null){ refreshSelBar(); return; }
+          const m = /(\d+)\D+(\d+)/.exec(size); if(m){ o.w = +m[1]; o.h = +m[2]; }
+          o.kind = 'crate'; o.label = name.trim(); markDirty(); render(); refreshSelBar(); return;
+        }
+        if(!PROPS[k]) return; o.kind = k; o.w = PROPS[k].w; o.h = PROPS[k].h; markDirty(); render(); refreshSelBar();
+      });
       ks.addEventListener('pointerdown', e=>e.stopPropagation());
       selBar.appendChild(ks);
     }
@@ -848,13 +878,24 @@ function refreshSelBar(){
         markDirty(); render();
       });
       selBar.appendChild(typ);
+      // sensor first: the same focal length gives a different field of view per format
+      const sen = document.createElement('select');
+      sen.title = 'Sensor / film format this camera shoots on — the lens presets follow it';
+      for(const [k, n] of SENSORS) sen.insertAdjacentHTML('beforeend', `<option value="${k}">${n}</option>`);
+      sen.value = o.sensor || project.defaultSensor || 'ff';
+      sen.addEventListener('change', ()=>{
+        o.sensor = sen.value; project.defaultSensor = sen.value; // new cameras follow the last choice
+        if(o.lens) o.fov = fovForLens(o.lens, o.sensor);
+        markDirty(); render(); refreshSelBar();
+      });
+      selBar.appendChild(sen);
       const lens = document.createElement('select');
-      lens.title = 'Lens preset (full frame)';
+      lens.title = 'Lens preset on ' + (SENSORS.find(s=>s[0] === (o.sensor || 'ff')) || SENSORS[0])[1];
       lens.insertAdjacentHTML('beforeend', `<option value="">Lens: custom</option>`);
-      for(const f of LENSES) lens.insertAdjacentHTML('beforeend', `<option value="${f}">${f} mm</option>`);
+      for(const f of LENSES) lens.insertAdjacentHTML('beforeend', `<option value="${f}">${f} mm · ${Math.round(fovForLens(f, o.sensor || 'ff'))}°</option>`);
       lens.value = o.lens || '';
       lens.addEventListener('change', ()=>{
-        if(lens.value){ o.lens = +lens.value; o.fov = fovForLens(o.lens); }
+        if(lens.value){ o.lens = +lens.value; o.fov = fovForLens(o.lens, o.sensor || project.defaultSensor || 'ff'); }
         else o.lens = null;
         markDirty(); render();
       });
@@ -2080,7 +2121,7 @@ function dropLib(e){
         label: libDrag.label || '',
         path: [],
       };
-      if(libDrag.cat === 'camera'){ o.fov = libDrag.fov; o.range = libDrag.range; o.lens = null; }
+      if(libDrag.cat === 'camera'){ o.fov = libDrag.fov; o.range = libDrag.range; o.lens = null; o.sensor = project.defaultSensor || 'ff'; }
       if(libDrag.cat === 'note'){ o.text = ''; }
       if(libDrag.props) Object.assign(o, libDrag.props);
       if(libDrag.kind === 'actor' && !o.label){

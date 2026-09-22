@@ -431,6 +431,13 @@ cv.addEventListener('pointerdown', e => {
   // ---- select tool ----
   // group move: with a multi selection, grabbing any selected object or wall drags them all
   if(sel && sel.type === 'multi'){
+    const rh = typeof multiRotateHandle === 'function' ? multiRotateHandle(shot) : null;
+    if(rh && dist(wx, wy, rh.x, rh.y) <= (H_R + 6)/view.scale){
+      const snap = multiMoveDrag(shot, wx, wy);
+      snap.items.forEach(it=>{ it.rot0 = it.o.rot || 0; });
+      drag = Object.assign(snap, {kind:'rotateMulti', cx:rh.cx, cy:rh.cy, a0:Math.atan2(wy - rh.cy, wx - rh.cx)});
+      return;
+    }
     const hitO = hitObject(shot, wx, wy) || hitTrack(shot, wx, wy);
     const hitW = !hitO && hitWall(shot, wx, wy);
     if((hitO && sel.ids.includes(hitO.id)) ||
@@ -770,6 +777,30 @@ cv.addEventListener('pointermove', e => {
     case 'marquee':
       drag.x2 = wx; drag.y2 = wy;
       break;
+    case 'rotateMulti': {
+      // turn the whole selection around its centre; snaps to 15°, firmly to 90°, Shift = free
+      let d = norm(Math.atan2(wy - drag.cy, wx - drag.cx) - drag.a0);
+      if(!e.shiftKey){
+        const q90 = Math.round(d/rad(90))*rad(90), q15 = Math.round(d/rad(15))*rad(15);
+        if(Math.abs(norm(d - q90)) < rad(6)) d = q90; else if(Math.abs(norm(d - q15)) < rad(3)) d = q15;
+      }
+      const c = Math.cos(d), s2 = Math.sin(d);
+      const R = p=>({x:drag.cx + (p.x - drag.cx)*c - (p.y - drag.cy)*s2, y:drag.cy + (p.x - drag.cx)*s2 + (p.y - drag.cy)*c});
+      for(const it of drag.items){
+        const ob = it.o, p = R({x:it.x, y:it.y});
+        ob.x = p.x; ob.y = p.y; ob.rot = norm(it.rot0 + d);
+        if(it.p1) ob.p1 = R(it.p1); if(it.p2) ob.p2 = R(it.p2); if(it.mid) ob.mid = R(it.mid);
+        if(it.pts) ob.pts = it.pts.map(q=>Object.assign({}, q, R(q)));
+        if(it.path) ob.path = it.path.map(q=>Object.assign({}, q, R(q), q.rot != null ? {rot:norm(q.rot + d)} : {}));
+      }
+      for(const it of (drag.wallItems || [])){
+        const p1 = R({x:it.x1, y:it.y1}), p2 = R({x:it.x2, y:it.y2});
+        it.w.x1 = p1.x; it.w.y1 = p1.y; it.w.x2 = p2.x; it.w.y2 = p2.y;
+        if(it.mid) it.w.mid = R(it.mid);
+      }
+      markDirty();
+      break;
+    }
     case 'moveMulti': {
       const dx = wx - drag.wx, dy = wy - drag.wy;
       for(const it of drag.items){

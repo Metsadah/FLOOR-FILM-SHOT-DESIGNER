@@ -303,6 +303,31 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.86 — square up, group rotation, kind categories, grouped room library, login page, news
+Also: cameras carry a SENSOR (SENSORS in 00-catalog, o.sensor, default
+project.defaultSensor); fovForLens(f, sensor) uses the sensor width, the
+lens select shows the resulting angle, chips and shot list append the
+format when it is not full frame. selfhost.html = the guide as a page in
+the landing style with mock dashboard screens; landing.html has an
+interactive "floor plan in a minute" stage (hover the steps, Floor
+Scanner as the fifth way in) and a hero badge for Floor Scanner.
+squareUpWalls(walls, objs) (13-rooms): level the dominant wall direction,
+snap walls within 12° onto an axis around their midpoint, re-join
+corners within 30 cm; applied to scanned rooms in roomNormalise and via
+"Square up" on the multi-selection bar. Multi selection: one dashed
+frame + amber rotate handle (multiBounds / multiRotateHandle in
+02-selection; drag kind rotateMulti snaps 15°, firmly 90°, Shift free)
+and a "↻ 90°" button. Prop Kind select is grouped by library category
+with "Custom… (name + size)" (kind crate + label). Room library groups
+rooms per location (collapsible, remembered in localStorage). Sign out
+→ landing.html. Login overlay = two panes: form + welcome column (three
+tips, Floor Scanner, latest news from news.json, links). news.json +
+news.html + a News section on the landing page. Floor Scanner
+(583477a): tap-to-edit plan with category picker + custom piece, turn
+left/right, square up, scans levelled on import, scanners now pause
+the AR session and linger 0.45 s before dismissing (CoreMotion
+EXC_BAD_ACCESS on fast teardown).
+
 ## v0.85 — production templates and the example production
 js/14-templates.js. "+ New production" opens newProductionOverlay: name +
 Blank / Commercial / Brand film / Documentary / Fiction / Music video /

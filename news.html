@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Floorboard — news</title>
+<meta name="description" content="What changed in Floorboard and Floor Scanner: releases, new floors, the iPhone companion.">
+<link rel="icon" href="icons/icon-32.png" sizes="32x32">
+<link rel="stylesheet" href="./tokens.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;font-size:16px}
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--line)} header .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;color:var(--ink);text-decoration:none;font-size:17px} .logo svg{width:26px;height:26px;color:var(--accent)} .logo small{font-weight:500;color:var(--ink2);font-size:12px;margin-left:4px}
+  nav a{color:var(--ink2);text-decoration:none;font-size:14px;margin-left:18px}
+  h1{font-size:34px;letter-spacing:-.7px;margin:48px 0 6px} .lead{color:var(--body);margin:0 0 30px}
+  article{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:20px 22px;margin-bottom:14px}
+  article small{color:var(--ink3);font-size:12px;font-weight:600;letter-spacing:.3px} article h2{margin:6px 0 8px;font-size:20px;letter-spacing:-.3px} article p{margin:0;color:var(--body)} article a{color:var(--accent);font-weight:600;text-decoration:none}
+  .tag{display:inline-block;background:var(--accent-soft);color:var(--accent);font-size:10.5px;font-weight:800;letter-spacing:.7px;padding:2px 7px;border-radius:20px;text-transform:uppercase;margin-left:6px}
+  footer{margin:60px 0 0;padding:22px 0 40px;border-top:1px solid var(--line);color:var(--ink2);font-size:13px} footer a{color:var(--ink2)}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="landing.html"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7.5 16.5h9M7.5 12.5h6M7.5 8.5h3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="15.5" cy="8.5" r="1.8" fill="#E58A6F"/></svg>Floorboard <small>for film &amp; commercials</small></a>
+  <nav><a href="landing.html">Front page</a><a href="landing.html#scanner">Floor Scanner</a><a href="index.html?start=1">Open the app</a></nav>
+</div></header>
+<main class="wrap">
+  <h1>News</h1>
+  <p class="lead">Releases, new floors and what is coming. Short, and only when something changed.</p>
+  <div id="list"><article><p>Loading…</p></article></div>
+</main>
+<footer><div class="wrap"><a href="landing.html">Floorboard</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></div></footer>
+<script>
+fetch('news.json', {cache:'no-store'}).then(r=>r.json()).then(items=>{
+  document.getElementById('list').innerHTML = items.map(n=>'<article><small>' + n.date + '</small>' + (n.tag ? '<span class="tag">' + n.tag + '</span>' : '') + '<h2>' + n.title + '</h2><p>' + (n.text || '') + (n.link ? ' <a href="' + n.link + '">More →</a>' : '') + '</p></article>').join('');
+}).catch(()=>{ document.getElementById('list').innerHTML = '<article><p>No news yet.</p></article>'; });
+</script>
+</body>
+</html>

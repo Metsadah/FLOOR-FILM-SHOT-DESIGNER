@@ -97,7 +97,7 @@ function slAllShots(){
         const camName = (typeof CAMS !== 'undefined' && CAMS[ob.kind] && CAMS[ob.kind].name) || '';
         out.push({key:s.id + '|' + ob.id, sceneId:s.id, camId:ob.id, si,
           sc:s.scene || '', scene:s.sceneDesc || s.name || '', shot:(sh && sh.name) || '', label:ob.label || '',
-          framing:ob.framing || '', lens:ob.lens ? ob.lens + 'mm' : '', support:ob.support || '', setup:suName, camName,
+          framing:ob.framing || '', lens:ob.lens ? ob.lens + 'mm' + (typeof sensorShort === 'function' && sensorShort(ob.sensor) ? ' (' + sensorShort(ob.sensor) + ')' : '') : '', support:ob.support || '', setup:suName, camName,
           sceneDur:s.duration || 0});
       }
     }
