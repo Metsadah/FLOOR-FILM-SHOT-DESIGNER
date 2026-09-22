@@ -83,3 +83,22 @@ anchors), close the polygon, then add doors/windows by tapping wall points;
   current scene's walls + furniture as a room, or insert a saved room at
   the middle of the view (optionally replacing the scene's walls).
 - Inserted furniture becomes ordinary props; walls become ordinary walls.
+
+## Locations & photos (Floorboard Scout)
+
+The Scout app groups rooms under a **location** and adds photos. Same kv
+store, one more key prefix:
+
+| key                     | value (JSON string)                                        |
+|-------------------------|------------------------------------------------------------|
+| `sd:location:<id>`      | `{id, name, address, notes, createdAt, updatedAt, photos:[…], roomIds:[…], coverId, kind:"location"}` |
+| `sd:room:<id>`          | a room as above, plus `locationId` and `location` (name)   |
+
+`photos[]` entries: `{id, createdAt, focal, sensor, aspect, note, w, h, path,
+remote}` — `focal` (mm), `sensor` and `aspect` come from the viewfinder;
+`path` is the object in the private Storage bucket **`scout`**:
+`<user id>/<photo id>.jpg` (full, ≤2400 px) and `<user id>/<photo id>_t.jpg`
+(thumbnail, 480 px). Bucket policies allow each user their own folder only.
+
+The web app's room library already lists Scout rooms; a Locations panel
+(Production floor) that shows photos and notes is the next web step.
