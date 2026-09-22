@@ -490,14 +490,13 @@ cv.addEventListener('pointerdown', e => {
       drag = {kind:'frame', o:so, sx:wx, sy:wy, dx0:so.frameDX ?? 70, dy0:so.frameDY ?? -85};
       return;
     }
-    if(so && so.cat === 'sbrow' && !so.locked &&
-       so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
+    if(so && so.cat === 'sbrow' && !so.locked && zoneHit(so._plusRow, wx, wy)){
       addSbRowBelow(so); // chain the next shot row, scenes below shift down
       return;
     }
     if(so && so.cat === 'table' && !so.locked){
       // + chips live outside the frame — catch them here so they always respond
-      const hp = z => z && dist(wx, wy, z.x, z.y) <= z.r;
+      const hp = z => zoneHit(z, wx, wy);
       if(hp(so._plusRow)){
         so.cells.push(so.cells[0].map(()=>'' ));
         markDirty(); render();
@@ -512,7 +511,7 @@ cv.addEventListener('pointerdown', e => {
       }
     }
     if(so && so.cat === 'avscript' && !so.locked){
-      if(so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
+      if(zoneHit(so._plusRow, wx, wy)){
         addAvRow(so);
         return;
       }
@@ -595,7 +594,7 @@ cv.addEventListener('pointerdown', e => {
     }
     if(so && so.cat === 'listcard' && !so.locked){
       // list-card chips live outside the frame, so catch them here (before hitObject)
-      if(so._plusRow && dist(wx, wy, so._plusRow.x, so._plusRow.y) <= so._plusRow.r){
+      if(zoneHit(so._plusRow, wx, wy)){
         addListPerson(so);
         return;
       }
@@ -1229,7 +1228,7 @@ cv.addEventListener('pointerup', e => {
       if(o._playZone && up.x >= o._playZone.x1 && up.x <= o._playZone.x2 &&
          typeof toggleAudio === 'function') toggleAudio(o);
     } else if(o.cat === 'table'){
-      const hitPlus = z => z && dist(up.x, up.y, z.x, z.y) <= z.r;
+      const hitPlus = z => zoneHit(z, up.x, up.y);
       if(hitPlus(o._plusRow)){
         o.cells.push(o.cells[0].map(()=>'' ));
         markDirty(); render();
@@ -1240,7 +1239,7 @@ cv.addEventListener('pointerup', e => {
         if(typeof openTableCell === 'function') openTableCell(o, 0, o.cells[0].length-1);
       }
     } else if(o.cat === 'listcard'){
-      const hitPlus = z => z && dist(up.x, up.y, z.x, z.y) <= z.r;
+      const hitPlus = z => zoneHit(z, up.x, up.y);
       const del = (o._rowDels||[]).find(z=>dist(up.x, up.y, z.x, z.y) <= z.r);
       if(hitPlus(o._plusRow)){
         addListPerson(o);

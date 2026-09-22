@@ -304,6 +304,18 @@ function refreshSelBar(){
       hint.textContent = 'Right corner adds rows & cols \u00b7 LEFT corner scales the table \u00b7 Tab/Enter hop cells';
       selBar.appendChild(hint);
     }
+    if(o.cat === 'prop' && PROPS[o.kind] && !GEAR_KINDS.has(o.kind) && !PROPLIST_SKIP.has(o.kind) && o.kind !== 'track' && !String(o.kind).startsWith('custom_')){
+      // a scanned "box" becomes a sofa, a kitchen, a bed — same object, new kind and real size
+      const ks = document.createElement('select');
+      ks.title = 'Change what this piece is (keeps its position)';
+      ks.style.cssText = 'font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);max-width:150px;';
+      const kinds = [...new Set(CATS.flatMap(c=>c.items).filter(i=>i.cat === 'prop' && PROPS[i.kind] && !GEAR_KINDS.has(i.kind) && !PROPLIST_SKIP.has(i.kind) && i.kind !== 'track').map(i=>i.kind))];
+      if(!kinds.includes(o.kind)) kinds.unshift(o.kind);
+      for(const k of kinds) ks.insertAdjacentHTML('beforeend', '<option value="' + k + '"' + (k === o.kind ? ' selected' : '') + '>' + esc(PROPS[k].name || k) + '</option>');
+      ks.addEventListener('change', ()=>{ const k = ks.value; if(!PROPS[k]) return; o.kind = k; o.w = PROPS[k].w; o.h = PROPS[k].h; markDirty(); render(); refreshSelBar(); });
+      ks.addEventListener('pointerdown', e=>e.stopPropagation());
+      selBar.appendChild(ks);
+    }
     if(o.cat === 'prop' && (o.kind === 'stairs' || o.kind === 'stairs_curved')){
       sbtn(o.kind === 'stairs_curved' ? 'Curved: on' : 'Curved: off', ()=>
         swapPropKind(o, o.kind === 'stairs' ? 'stairs_curved' : 'stairs'));
@@ -1019,10 +1031,23 @@ function refreshSelBar(){
     const w = shot.walls.find(w=>w.id===sel.wallId);
     const op = w && w.openings[sel.index];
     if(!op){ sel=null; selBar.classList.remove('show'); return; }
-    const info = document.createElement('span');
-    info.style.cssText='font-size:11.5px;color:var(--ink2);padding:0 4px;text-transform:capitalize;';
-    info.textContent = op.type;
-    selBar.appendChild(info);
+    if(op.type !== 'outlet'){ // a scan can mistake a cabinet wall for a door — switch the type or close it up
+      const ts = document.createElement('select');
+      ts.title = 'What this is: door, window or an open passage';
+      ts.style.cssText = 'font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);';
+      for(const [v, l] of [['door','Door'],['window','Window'],['gap','Opening']])
+        ts.insertAdjacentHTML('beforeend', '<option value="' + v + '"' + (op.type === v ? ' selected' : '') + '>' + l + '</option>');
+      ts.addEventListener('change', ()=>{ op.type = ts.value; if(op.type !== 'window') op.curtain = false; markDirty(); render(); refreshSelBar(); });
+      ts.addEventListener('pointerdown', e=>e.stopPropagation());
+      selBar.appendChild(ts);
+      sbtn('Close up', ()=>{ w.openings.splice(sel.index, 1); sel = null; markDirty(); render(); refreshSelBar(); })
+        .title = 'Remove this opening — the wall becomes solid again';
+    } else {
+      const info = document.createElement('span');
+      info.style.cssText='font-size:11.5px;color:var(--ink2);padding:0 4px;text-transform:capitalize;';
+      info.textContent = op.type;
+      selBar.appendChild(info);
+    }
     if(op.type === 'door'){
       sbtn('Flip swing', ()=>{ op.flip=!op.flip; markDirty(); render(); });
       sbtn('Flip hinge', ()=>{ op.hinge=!op.hinge; markDirty(); render(); });

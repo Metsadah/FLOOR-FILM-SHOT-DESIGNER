@@ -303,6 +303,22 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.83 — card rails, setup chips, new landing page, scan fix-ups
+Table-like cards (table, list, AV script / shot list, schedule,
+storyboard row) had half-clipped round × and + chips. Now: a RAIL pill
+outside the right edge (drawRail: × per row, + on row boundaries where
+insert exists) and a labelled "+ Add row" pill under the card
+(drawAddPill; rect zone — zoneHit accepts circle or rect zones). Setups
+A/B/×/+ are 26 px round .setup-chip buttons, centred. Openings: the
+selection bar gets a Door / Window / Opening select and "Close up"
+(removes the opening) — for scans that mistook a cabinet wall for a
+door; furniture props get a Kind select (CATS furniture kinds, size
+follows) so a scanned box becomes a sofa. landing.html rebuilt around
+real renders of an example production ("Licht": atelier, wheat field,
+café) made by landing/seed.js in the test build and uploaded through the
+dev server (POST /upload) — landing/img/*.png. Deployed folder now
+includes landing/ (seed.js excluded from the zips).
+
 ## Scout (iPhone) — companion app, lives in floor-ipad/scout
 Native SwiftUI (no Capacitor; the web UI is not for a phone). Locations →
 rooms (FloorboardScanKit: RoomPlan / ARKit, shared with the iPad plugin,

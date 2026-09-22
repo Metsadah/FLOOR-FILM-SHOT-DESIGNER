@@ -259,10 +259,7 @@ function syncTitle(){
   const mk = (txt, on, fn, tip)=>{
     const b = document.createElement('button');
     b.textContent = txt; b.title = tip || '';
-    b.style.cssText = 'font:600 10.5px -apple-system,Segoe UI,sans-serif;padding:3px 8px;' +
-      'border-radius:12px;cursor:pointer;border:1px solid ' + (on ? 'var(--accent)' : 'var(--line)') +
-      ';background:' + (on ? 'rgba(75,107,251,.12)' : 'var(--panel)') +
-      ';color:' + (on ? 'var(--accent)' : 'var(--ink2)') + ';';
+    b.className = 'setup-chip' + (on ? ' on' : '') + (txt === '×' || txt === '+' ? ' util' : '');
     b.addEventListener('click', fn);
     wrapEl.appendChild(b);
     return b;

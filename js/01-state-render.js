@@ -763,6 +763,67 @@ if(window.ResizeObserver){
   new ResizeObserver(()=>resize()).observe(wrap);
 }
 
+// ---------------------------------------------------------------- card rails
+// Row actions of a selected card live on a RAIL outside its right edge and an
+// "+ Add row" pill under it — fully visible, never clipped by the card or its
+// selection outline. Every table-like card (table, list, AV script, schedule,
+// storyboard row) uses these, so they look and behave the same everywhere.
+const RAIL = {x:24, r:10, pillH:26};
+function railPill(cx, cy, w, h){ // card-local pill background
+  ctx.beginPath(); ctx.roundRect(cx - w/2, cy - h/2, w, h, h/2);
+  ctx.fillStyle = THEME.card; ctx.fill();
+  ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1; ctx.stroke();
+}
+function railGlyph(cx, cy, glyph, danger){
+  ctx.beginPath(); ctx.arc(cx, cy, 8, 0, 7);
+  ctx.fillStyle = danger ? THEME.dangerSoft : THEME.soft; ctx.fill();
+  ctx.fillStyle = danger ? THEME.danger : THEME.ink2;
+  ctx.font = '700 ' + (glyph === '+' ? 13 : 12) + 'px -apple-system,Segoe UI,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(glyph, cx, cy + (glyph === '+' ? .5 : 1));
+  ctx.textAlign = 'left';
+}
+// items: [{cy, glyph:'×'|'+', ...zoneData}] (card-local y) → draws the rail and
+// returns world-space circle zones ({x,y,r,...zoneData}) for the hit tests
+function drawRail(o, items){
+  if(!items.length) return [];
+  const cx = o.w/2 + RAIL.x;
+  const ys = items.map(i=>i.cy);
+  const y0 = Math.min(...ys) - 13, y1 = Math.max(...ys) + 13;
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(cx - 13, y0, 26, y1 - y0, 13);
+  ctx.fillStyle = THEME.card; ctx.fill();
+  ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1; ctx.stroke();
+  const zones = [];
+  for(const it of items){
+    railGlyph(cx, it.cy, it.glyph, it.glyph === '×');
+    const {cy, glyph, ...data} = it;
+    zones.push(Object.assign({x:o.x + cx, y:o.y + cy, r:RAIL.r + 3}, data));
+  }
+  ctx.restore();
+  return zones;
+}
+// the "+ Add row" pill under the card → world-space rect zone
+function drawAddPill(o, label, side){
+  ctx.save();
+  ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
+  const w = Math.ceil(ctx.measureText(label).width) + 28, h = RAIL.pillH;
+  const cx = side === 'right' ? o.w/2 + RAIL.x + 13 + w/2 - 13 : 0;
+  const cy = side === 'right' ? 0 : o.h/2 + 8 + h/2;
+  railPill(cx, cy, w, h);
+  ctx.fillStyle = THEME.ink2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(label, cx, cy + .5);
+  ctx.textAlign = 'left';
+  ctx.restore();
+  return {x:o.x + cx - w/2, y:o.y + cy - h/2, w, h};
+}
+// hit test that accepts both zone shapes (circle {x,y,r} and rect {x,y,w,h})
+function zoneHit(z, wx, wy){
+  if(!z) return false;
+  if(z.r != null) return dist(wx, wy, z.x, z.y) <= z.r;
+  return wx >= z.x && wx <= z.x + z.w && wy >= z.y && wy <= z.y + z.h;
+}
+
 function render(){
   if(!project) return;
   const shot = activeShot();
@@ -1391,19 +1452,10 @@ function drawObjectShape(o, ghost){
     ctx.restore();
     ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.stroke();
-    // add-row / add-column chips when selected
+    // add-row / add-column pills when selected
     if(sel && sel.type==='object' && sel.id===o.id && !ghost){
-      ctx.font = '700 13px -apple-system,Segoe UI,sans-serif';
-      ctx.textAlign = 'center';
-      for(const [px, py, key] of [[0, o.h/2+15, '_plusRow'], [o.w/2+15, 0, '_plusCol']]){
-        ctx.beginPath(); ctx.arc(px, py, 10, 0, 7);
-        ctx.fillStyle = THEME.card; ctx.fill();
-        ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1.4; ctx.stroke();
-        ctx.fillStyle = THEME.ink2;
-        ctx.fillText('+', px, py+1);
-        o[key] = {x:o.x+px, y:o.y+py, r:14};
-      }
-      ctx.textAlign = 'left';
+      o._plusRow = drawAddPill(o, '+ Row');
+      o._plusCol = drawAddPill(o, '+ Column', 'right');
     } else { o._plusRow = null; o._plusCol = null; }
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'listcard'){
@@ -1494,28 +1546,10 @@ function drawObjectShape(o, ghost){
     ctx.restore();
     ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.stroke();
-    // chips when selected: + adds a person, × per row removes one from the registry
+    // selected: rail with × per row, "+ Add …" pill below
     if(selMe){
-      ctx.textAlign = 'center';
-      ctx.font = '700 13px -apple-system,Segoe UI,sans-serif';
-      ctx.beginPath(); ctx.arc(0, o.h/2+15, 10, 0, 7);
-      ctx.fillStyle = THEME.card; ctx.fill();
-      ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1.4; ctx.stroke();
-      ctx.fillStyle = THEME.ink2;
-      ctx.fillText('+', 0, o.h/2+16);
-      o._plusRow = {x:o.x, y:o.y + o.h/2 + 15, r:14};
-      o._rowDels = [];
-      ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
-      rows.forEach((p, r)=>{
-        const cy = -o.h/2 + G.titleH + G.headH + r*G.rowH + G.rowH/2;
-        ctx.beginPath(); ctx.arc(o.w/2 + 14, cy, 8, 0, 7);
-        ctx.fillStyle = THEME.card; ctx.fill();
-        ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1.2; ctx.stroke();
-        ctx.fillStyle = THEME.ink2;
-        ctx.fillText('×', o.w/2 + 14, cy + 1);
-        o._rowDels.push({personId:p.id, x:o.x + o.w/2 + 14, y:o.y + cy, r:11});
-      });
-      ctx.textAlign = 'left';
+      o._plusRow = drawAddPill(o, '+ Add ' + (spec.tag === 'crew' ? 'crew member' : spec.tag === 'cast' ? 'cast member' : 'contact'));
+      o._rowDels = drawRail(o, rows.map((p, r)=>({cy:-o.h/2 + G.titleH + G.headH + r*G.rowH + G.rowH/2, glyph:'×', personId:p.id})));
     } else { o._plusRow = null; o._rowDels = null; }
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'fieldcard'){
@@ -1749,35 +1783,18 @@ function drawObjectShape(o, ghost){
     ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.stroke();
     if(selMe){
-      ctx.textAlign = 'center';
-      ctx.font = '700 13px -apple-system,Segoe UI,sans-serif';
-      ctx.beginPath(); ctx.arc(0, o.h/2+15, 10, 0, 7);
-      ctx.fillStyle = THEME.card; ctx.fill();
-      ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1.4; ctx.stroke();
-      ctx.fillStyle = THEME.ink2; ctx.fillText('+', 0, o.h/2+16);
-      o._plusRow = {x:o.x, y:o.y + o.h/2 + 15, r:14};
-      o._rowDels = []; o._rowIns = [];
-      ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+      // rail: + on every row boundary (insert there), × at every row centre; "+ Row" pill below
+      o._plusRow = drawAddPill(o, o.mode === 'shotlist' ? '+ Row' : '+ Row');
+      const items = [];
       let cy = -o.h/2 + G.titleH + G.headH;
       o.rows.forEach((r, i)=>{
-        // small + ON the row's top boundary inserts a row right there
-        ctx.beginPath(); ctx.arc(o.w/2 + 14, cy, 6, 0, 7);
-        ctx.fillStyle = THEME.card; ctx.fill();
-        ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1.1; ctx.stroke();
-        ctx.fillStyle = THEME.ink2;
-        ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
-        ctx.fillText('+', o.w/2 + 14, cy + .5);
-        o._rowIns.push({idx:i, x:o.x + o.w/2 + 14, y:o.y + cy, r:8});
-        const mid = cy + rowHs[i]/2;
-        ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
-        ctx.beginPath(); ctx.arc(o.w/2 + 14, mid, 8, 0, 7);
-        ctx.fillStyle = THEME.card; ctx.fill();
-        ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1.2; ctx.stroke();
-        ctx.fillStyle = THEME.ink2; ctx.fillText('×', o.w/2 + 14, mid + 1);
-        o._rowDels.push({rowId:r.id, x:o.x + o.w/2 + 14, y:o.y + mid, r:11});
+        items.push({cy, glyph:'+', idx:i, kind:'ins'});
+        items.push({cy:cy + rowHs[i]/2, glyph:'×', rowId:r.id, kind:'del'});
         cy += rowHs[i];
       });
-      ctx.textAlign = 'left';
+      const zones = drawRail(o, items);
+      o._rowIns = zones.filter(z=>z.kind === 'ins');
+      o._rowDels = zones.filter(z=>z.kind === 'del');
     } else { o._plusRow = null; o._rowDels = null; o._rowIns = null; }
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'colcard'){
@@ -1926,18 +1943,13 @@ function drawObjectShape(o, ghost){
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.stroke();
     // × chips remove BLOCK rows (scenes only untick) when selected
     if(selMe){
-      ctx.textAlign = 'center'; ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+      const items = [];
       let cy2 = -o.h/2 + titleH + pad + 35 + rowH/2 - 9;
       rows.forEach((r)=>{
-        if(r.it.type !== 'scene'){
-          ctx.beginPath(); ctx.arc(o.w/2 + 14, cy2, 8, 0, 7);
-          ctx.fillStyle = THEME.card; ctx.fill();
-          ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1.2; ctx.stroke();
-          ctx.fillStyle = THEME.ink2; ctx.fillText('×', o.w/2 + 14, cy2 + 1);
-          o._delRects.push({itemId:r.it.id, x:o.x + o.w/2 + 14, y:o.y + cy2, r:11});
-        }
+        if(r.it.type !== 'scene') items.push({cy:cy2, glyph:'×', itemId:r.it.id});
         cy2 += rowH;
       });
+      o._delRects = drawRail(o, items);
       ctx.textAlign = 'left';
     }
     ctx.textBaseline = 'alphabetic';
@@ -2599,15 +2611,7 @@ function drawObjectShape(o, ghost){
     ctx.restore();
     // + chip below when selected: chain the next shot row of this scene
     if(sel && sel.type==='object' && sel.id===o.id && !ghost){
-      ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-      ctx.font = '700 13px -apple-system,Segoe UI,sans-serif';
-      ctx.beginPath(); ctx.arc(0, o.h/2+15, 10, 0, 7);
-      ctx.fillStyle = THEME.card; ctx.fill();
-      ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1.4; ctx.stroke();
-      ctx.fillStyle = THEME.ink2;
-      ctx.fillText('+', 0, o.h/2+16);
-      ctx.textAlign = 'left';
-      o._plusRow = {x:o.x, y:o.y + o.h/2 + 15, r:14};
+      o._plusRow = drawAddPill(o, '+ Next row');
     } else o._plusRow = null;
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'image'){

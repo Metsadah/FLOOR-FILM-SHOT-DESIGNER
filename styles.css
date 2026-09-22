@@ -871,3 +871,12 @@ body.touch #roomLibBtn svg{ width:20px; height:20px; }
 .rm-method.off{ opacity:.6; }
 .rm-method.off i{ color:var(--danger); }
 @media (max-width:600px){ .rm-methods{ grid-template-columns:1fr; } }
+
+/* setups: A · B chips + utility buttons — round, centred, one size */
+#setupChips{ gap:6px !important; }
+.side-head .setup-chip, .setup-chip{ display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; padding:0; border-radius:50%;
+  border:1px solid var(--line); background:var(--panel); color:var(--ink2); font:600 11px -apple-system,"Segoe UI",sans-serif; line-height:1; cursor:pointer; }
+.side-head .setup-chip.on, .setup-chip.on{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+.side-head .setup-chip.util, .setup-chip.util{ font-size:14px; font-weight:500; }
+.setup-chip:hover{ border-color:var(--accent); color:var(--accent); }
+body.touch .side-head .setup-chip{ width:32px; height:32px; font-size:12px; }
