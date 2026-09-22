@@ -51,7 +51,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
       <div id="sharePop"></div>
       <button class="btn primary" id="exportBtn" title="Export the current view">Export</button>
       <div id="exportPop"></div>
-      <span id="verChip" title="Floorboard version">v0.80</span><button class="hbtn" id="themeBtn" title="Light / dark / system theme">◐</button><button id="helpBtn" title="How to use">?</button>
+      <span id="verChip" title="Floorboard version">v0.81</span><button class="hbtn" id="themeBtn" title="Light / dark / system theme">◐</button><button class="hbtn" id="roomLibBtn" title="Room library — scouted and scanned rooms, across productions"><svg viewBox="0 0 24 24" style="width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/><path d="M15.5 4.5v3"/></svg></button><button id="helpBtn" title="How to use">?</button>
       <button class="btn drawer-btn" id="panelToggle" title="Show / hide the Scene info panel">☷</button>
       <button class="btn" id="accountBtn" title="Account & privacy" style="display:none;padding:5px 9px">
         <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;vertical-align:-2px">
@@ -95,9 +95,6 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
         <button data-tool="room" data-tip="Draw room (R)">
           <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1"/></svg>
         </button>
-        <button id="roomLibBtn" data-tip="Room library — save this room, or insert a scouted / scanned one">
-          <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/><path d="M15.5 4.5v3"/></svg>
-        </button>
         <button data-tool="door" data-tip="Add door — click a wall (D)">
           <svg viewBox="0 0 24 24"><path d="M2.5 19h5M16.5 19h5"/><path d="M7.5 19V7"/><path d="M7.5 7a12 12 0 0 1 9 12" stroke-dasharray="2 2.4"/><path d="M7.5 7l1.6.6"/></svg>
         </button>
@@ -138,6 +135,7 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
         <button id="zoomIn">+</button>
       </div>
       <div id="inkBar"></div>
+      <button id="hintToggle" title="Show / hide the tool hint">ⓘ</button>
       <div id="hint"></div>
     </div>
 
@@ -217,51 +215,87 @@ if(!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@
 <div id="helpOverlay">
   <div id="helpCard">
     <button id="helpClose">×</button>
-    <h2>How to use FLOOR</h2>
+    <h2>Floorboard — the floor is yours</h2>
+    <div class="sub">Six floors, one production. Pick a floor below; the guide opens on the one you are working on.</div>
+    <div class="help-nav">
+      <button data-help="mood">Ground · Mood</button><button data-help="write">1st · Script</button><button data-help="design">2nd · Shot designer</button>
+      <button data-help="shots">3rd · Shot list</button><button data-help="budget">4th · Budget</button><button data-help="org">5th · Production</button>
+      <button data-help="rooms">Rooms</button><button data-help="ipad" class="touch-only">iPad</button><button data-help="keys" class="kbd-only">Shortcuts</button>
+    </div>
+
+    <div class="helpSec" data-help="mood">
+      <h3>Ground floor · Mood</h3>
+      <p>A free board for tone, references and colour. Drag images, GIFs, video, audio and files onto it (or use the <b>+ Media</b> button in the toolbar), pin links, write sticky notes, text and columns, and group things in <b>sub-boards</b>. Colour cards hold palettes; the pencil draws freehand — lovely with a pencil.</p>
+      <p>Everything on a board can be moved, resized, rotated, locked, duplicated and sent to front or back from its selection bar. Double-tap a note or text to write in it.</p>
+    </div>
+
+    <div class="helpSec" data-help="write">
+      <h3>1st floor · Script</h3>
+      <p><b>Import script…</b> takes a screenplay (.txt, .fountain, .pdf) or an AV table exported from Excel / Sheets (.tsv / .csv). Every scene heading — or every SC number — becomes a scene in the Shot designer. <b>Write script…</b> lets you paste or type one.</p>
+      <p>The <b>AV script</b> card is a table: SC · TIME (adds up) · SEC · stills · audio · video · regie notes, plus your own columns. Drop an image on a row for a still. <b>Break down → scenes</b> keeps scenes in step with the rows; a removed row renames its scene "old" rather than deleting your work. Export the script or the AV script as PDF or .docx from the selection bar, or from the Production floor's Documents.</p>
+      <p><b>Storyboard rows</b> chain frames per scene; scene stills also show in the Shot designer's Scene info.</p>
+    </div>
+
     <div class="helpSec" data-help="design">
-    <div class="sub">Sketch the set, drop in camera and cast, block the movement — all by direct manipulation. 1 unit = 1 cm, grid dots are 50 cm apart.</div>
+      <h3>2nd floor · Shot designer</h3>
+      <p>The floor plan of every scene. 1 unit = 1 cm, grid dots are 50 cm apart. <b>Wall</b> drags a wall (snaps to 90° and to wall ends), <b>Room</b> drags four at once; <b>door</b>, <b>window</b> and <b>opening</b> go on a wall with a tap, then slide along it. Select an opening for its width and door swing. Walls can be curved by their middle handle and locked so set dressing stays put.</p>
+      <p><b>Cameras, cast and light</b> come from the library on the left. Purple handles set a camera's field of view and reach; the selection bar has lens presets, framing, support (tripod, gimbal, dolly…) and a shot name — all of that flows into the <b>Shot list</b> on the 3rd floor. Drop a still on a camera for a director's-viewfinder frame.</p>
+      <p><b>Movement</b>: → Add movement, then + Move point. Every point is a keyframe with its own facing and framing. Dolly track, jib and technocrane are real rigs: a camera dropped on them rides along. ▶ plays all movement.</p>
+      <p><b>Setups</b> (Scene info panel) are lighting or blocking variants of the same scene. The <b>sun</b> button sets time of day and north. <b>Underlay</b> an image (a satellite capture, a scan) behind the walls to trace a real location — or open the <b>Room library</b> (house icon, top right) to save this room or insert a scouted one.</p>
+    </div>
 
-    <h3>Build the set</h3>
-    <p><b>Wall</b> <kbd>W</kbd> — drag to draw; snaps to 90° / 45° and to wall ends (<kbd>Shift</kbd> = free angle). <b>Room</b> <kbd>R</kbd> drags out four walls at once. <b>Doors &amp; windows</b>: pick the tool, click a wall, drag the opening along it; select it for width and door-swing flip.</p>
+    <div class="helpSec" data-help="shots">
+      <h3>3rd floor · Shot list</h3>
+      <p>A board with one <b>shot list card per shoot day</b>. It is an AV-style table in shooting order: SC · SHOT · START · MIN · CAMERA · LENS · MOVE · stills · video · audio · regie notes. <b>+ Shots…</b> pulls every camera from your scene boards with its camera, lens and support prefilled (still editable; <b>Sync ↻</b> refreshes what you did not retype).</p>
+      <p>Add <b>Break</b>, <b>Setup</b> and <b>Company move</b> rows with minutes; START counts from the day's call, so the wrap time is always visible. Drag rows by their grip into order; tap a row and use <b>→ Day 2</b> to move it to another day. <b>PDF</b> exports the day (or all days) in your document style; <b>.docx</b> gives a Word table.</p>
+    </div>
 
-    <h3>Objects</h3>
-    <p>Drag anything from the library onto the canvas. Drag to move (<kbd>Shift</kbd> = grid snap), amber handle rotates, corner handle resizes, double-click to name. Props use real-world sizes. Cast comes in recognisable roles — protagonist (solid circle), antagonist (diamond), extra (open ring), child — plus animals (dog, cat, horse, or a generic one you can resize into anything). Custom props: rectangle, circle — or <b>draw your own outline</b> click by click (double-click or <kbd>Enter</kbd> closes it). Windows can get a <b>curtain</b> via their selection bar.</p>
+    <div class="helpSec" data-help="budget">
+      <h3>4th floor · Budget</h3>
+      <p>Laid out like a quote: pre-production, production, post-production and variable costs, each with as many lines as you need (qty × rate, with a note). <b>Standard lines</b> drops the usual items for a phase; <b>From crew / cast list</b> takes people from the registry with their role, qty = number of shoot days; <b>Gear from boards</b> lists what is on the scene boards. Drag lines between phases.</p>
+      <p>Set a target per phase, a contingency % and VAT %; the cards show where you stand. Export a quote-style <b>PDF</b> or <b>CSV</b>.</p>
+    </div>
 
-    <h3>Cameras &amp; lenses</h3>
-    <p>Standard, gimbal, GoPro / crash cam and drone — switchable on any placed camera. Purple handles set field of view <i>and</i> reach in one drag, or pick a lens preset (16–135&nbsp;mm full frame) in the selection bar.</p>
+    <div class="helpSec" data-help="org">
+      <h3>5th floor · Production</h3>
+      <p>The producer's floor. <b>Documents</b> (top of the library) lists every exportable document — scripts, AV scripts, prop and gear lists, call sheets, shot list, budget — with PDF / .docx / CSV buttons, and <b>STYLE</b> sets the accent colour, header, logo and footer every PDF uses.</p>
+      <p>Production cards: <b>Day header</b> (date, calls, sunrise / sunset, locations in visiting order), <b>Crew</b>, <b>Cast</b> and <b>Client</b> lists (one shared people registry with real roles), <b>Location</b> and <b>Production info</b>, <b>Weather</b>, the <b>Day schedule</b> strip, <b>Prop list</b> and <b>Gear list</b>, and the live <b>Call sheet</b> that composes them — export it as an A4 document or mail it to crew, cast or client.</p>
+      <p>The prop list only holds what travels with you: add rows yourself or <b>Pick from boards…</b>; × removes a row, <b>Remove ticked</b> clears the packed ones.</p>
+    </div>
 
-    <h3>Movement, dolly track &amp; jib</h3>
-    <p>Cameras, cast, vehicles and grip / lights can move: <b>→ Add movement</b>, then keep extending with <b>+ Move point</b>. Every path point is a keyframe with its own ghost: a rotate handle for facing / look direction, and on cameras its own FOV handles — framing can change along the move. Toggle curved / straight per path. Jib and technocrane keyframes work around the <b>base</b>: "+ Arm keyframe" adds a ghost with its own base point and a purple head handle, so the arm can swing and extend between positions — even while the base stays put. Hit <b>▶</b> (or <kbd>P</kbd>) to play all movement in the shot as a looping animation.</p>
-    <p><b>Dolly track</b> (Grip &amp; light) is laid as a curve of track points. Drop a camera near either end and it snaps on, taking the whole track as its movement path. The <b>jib arm</b> and <b>technocrane</b> have a purple head handle — drag it to swing <i>and</i> extend the arm around a fixed base. Drop a camera on the head to mount it: it rides the arm and keeps its aim relative to it, so swinging the arm pans the shot. Drop the crane's base anywhere on a dolly track and it clips on: from then on, dragging it slides the base along the rails (the arm stays adjustable), and pulling it well clear — or "Release from track" — unclips it.</p>
+    <div class="helpSec" data-help="rooms">
+      <h3>Rooms &amp; scouting</h3>
+      <p>The <b>Room library</b> (house icon, top right) keeps every space you scouted, across productions: walls with doors, windows and openings, plus the furniture that belongs to the location. In the Shot designer, <b>Save this scene as a room</b> stores what you drew; <b>Insert</b> places a saved room in any scene, optionally replacing its walls.</p>
+      <p>Scans arrive here too: the Floorboard Scout app measures rooms with <b>LiDAR</b> on Pro iPhones and iPads, and with the <b>camera (AR)</b> on every other device — less precise, still a real plan. Both are labelled by their source in the library.</p>
+    </div>
 
-    <h3>Sun &amp; time of day</h3>
-    <p>The ☀ button drops a sun indicator on the shot. Drag the amber handle around the disc to set where the sun stands — the time of day follows (or type a time in the selection bar). Arrows show the light direction across the set. The <b>N</b> marker has its own handle: drag it to rotate north to match your location's real orientation.</p>
+    <div class="helpSec" data-help="ipad">
+      <h3>On the iPad</h3>
+      <p>One finger drags an object or, on empty floor, pans. Two fingers pinch to zoom. Tap to select; the selection bar appears above the object. ☰ and ☷ collapse the side panels for a wide canvas. With a pencil, drawing walls, ink and moving things is precise; your palm is ignored while the pencil is down.</p>
+      <p>The small ⓘ at the bottom left shows or hides the tool hint. Keyboard shortcuts only matter with a keyboard attached — connect one and the Shortcuts tab appears here.</p>
+    </div>
 
-    <h3>Scene info</h3>
-    <p>The <b>Scene info</b> panel holds the shoot name, scene number and description, the script, plus date, start time, duration (10-minute steps) and preferred weather. When you add a new shot, date / duration / weather carry over and the start time continues where the previous shot wraps. <b>Walls</b> can be <b>locked</b> via the selection bar so you can't nudge your set by accident. Corners stay glued: dragging a wall pulls connected endpoints along, and the selection bar can switch to "drag moves all N walls" to slide a whole structure at once. Drag a wall's <b>middle handle</b> to bow it into a curve (drag back to the center to straighten). The <b>gap tool</b> cuts an open passage in any wall (select the gap to widen or delete it). Cameras take a one-line <b>description</b> and a <b>Frame…</b> image — a director's-viewfinder still pinned beside the camera that you can drag anywhere; both travel into the PDF. <b>Annotate:</b> the pencil tool draws freehand ink (lovely with an Apple Pencil), the Board section of the library has plain <b>text</b> <kbd>T</kbd>, <b>lines/arrows</b> (weight, dash, label), <b>links</b> (double-click opens them), a live <b>Info card</b> mirroring the Scene info panel, and a <b>Production note</b> template for crew, address and contacts. Notes take a title plus bold / italic / size styling. Anything can be <b>locked</b> (selection bar) so set dressing stays put, sent to <b>front / back</b>, and every label chip can be dragged to a better spot once its object is selected. On touch screens, pinch to zoom; the ☰ and ☷ buttons open the panels. <b>Reference images:</b> drop image files straight onto the canvas — each becomes a resizable still on the plan. Any pinned image can become an <b>underlay</b> (its selection bar): it drops behind the walls at half opacity — perfect for tracing a location from a satellite screenshot. Take a Google Maps capture with north up, drop it in, toggle Underlay, scale it against the ruler, trace the building and roads, and rotate the sun's N handle to match. Sticky notes <kbd>N</kbd> go anywhere; double-click to type.</p>
-
-    <h3>Export</h3>
-    <p>The <b>Export</b> button adapts to where you are: on the designer it offers the scene as PNG (whole or cropped area) or a PDF with one page per scene — plan, shot list, script and stills. On the boards it exports that board as PNG or a one-page PDF.</p>
-
-    <h3>Shortcuts</h3>
-    <div class="cols">
-      <div class="krow"><span>Select tool</span><kbd>V</kbd></div>
-      <div class="krow"><span>Multi-select (drag a box)</span><kbd>M</kbd></div>
-      <div class="krow"><span>Wall / Room</span><span><kbd>W</kbd> <kbd>R</kbd></span></div>
-      <div class="krow"><span>Door tool</span><kbd>D</kbd></div>
-      <div class="krow"><span>Sticky note</span><kbd>N</kbd></div>
-      <div class="krow"><span>Zoom to fit</span><kbd>F</kbd></div>
-      <div class="krow"><span>Undo / redo</span><span><kbd>Ctrl/⌘ Z</kbd> · <kbd>⇧</kbd> to redo</span></div>
-      <div class="krow"><span>Pan</span><span>drag empty / <kbd>Space</kbd>+drag</span></div>
-      <div class="krow"><span>Delete selection</span><kbd>Del</kbd></div>
-      <div class="krow"><span>Duplicate</span><kbd>Ctrl/⌘ D</kbd></div>
-      <div class="krow"><span>Free angle / grid snap</span><kbd>Shift</kbd></div>
-      <div class="krow"><span>Cancel / deselect</span><kbd>Esc</kbd></div>
-      <div class="krow"><span>Close drawn outline</span><kbd>Enter</kbd></div>
+    <div class="helpSec" data-help="keys">
+      <h3>Shortcuts</h3>
+      <div class="cols">
+        <div class="krow"><span>Select tool</span><kbd>V</kbd></div>
+        <div class="krow"><span>Multi-select (drag a box)</span><kbd>M</kbd></div>
+        <div class="krow"><span>Wall / Room</span><span><kbd>W</kbd> <kbd>R</kbd></span></div>
+        <div class="krow"><span>Door tool</span><kbd>D</kbd></div>
+        <div class="krow"><span>Text / Sticky note</span><span><kbd>T</kbd> <kbd>N</kbd></span></div>
+        <div class="krow"><span>Play movement</span><kbd>P</kbd></div>
+        <div class="krow"><span>Zoom to fit</span><kbd>F</kbd></div>
+        <div class="krow"><span>Undo / redo</span><span><kbd>Ctrl/⌘ Z</kbd> · <kbd>⇧</kbd> to redo</span></div>
+        <div class="krow"><span>Pan</span><span>drag empty / <kbd>Space</kbd>+drag</span></div>
+        <div class="krow"><span>Delete selection</span><kbd>Del</kbd></div>
+        <div class="krow"><span>Duplicate / copy</span><span><kbd>Ctrl/⌘ D</kbd> <kbd>Ctrl/⌘ C</kbd></span></div>
+        <div class="krow"><span>Free angle / grid snap</span><kbd>Shift</kbd></div>
+        <div class="krow"><span>Cancel / deselect</span><kbd>Esc</kbd></div>
+        <div class="krow"><span>Close drawn outline</span><kbd>Enter</kbd></div>
+      </div>
     </div>
   </div>
 </div>
-
 <script src="./js/00-theme.js"></script>
 <script src="./js/00-catalog.js"></script>
 <script src="./js/00-icons.js"></script>

@@ -829,7 +829,6 @@ body.touch .logo-mark{ width:30px; height:30px; }
 #mediaLayer .media-el{ position:absolute; left:0; top:0; transform-origin:center center; object-fit:fill; border-radius:2px; }
 
 /* ---------------- room library ---------------- */
-body.tab-mood #roomLibBtn, body.tab-org #roomLibBtn, body.tab-write #roomLibBtn, body.tab-shots #roomLibBtn{ display:none !important; }
 .rm-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px; max-height:56vh; overflow:auto; padding:2px; }
 .rm-card{ border:1px solid var(--line); border-radius:var(--r-md); background:var(--panel); overflow:hidden; display:flex; flex-direction:column; }
 .rm-thumb{ aspect-ratio:1/1; background:#fff; display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--line); }
@@ -844,3 +843,20 @@ body.tab-mood #roomLibBtn, body.tab-org #roomLibBtn, body.tab-write #roomLibBtn,
 .rm-actions{ display:flex; gap:6px; padding:0 10px 10px; }
 .rm-actions .btn{ padding:5px 10px; font-size:12px; }
 .rm-actions .btn.primary{ flex:1; }
+
+/* ---------------- help: floor tabs; hint: foldable on touch ---------------- */
+.help-nav{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px; }
+.help-nav button{ padding:6px 11px; border:1px solid var(--line); border-radius:var(--r-pill); font-size:12px; color:var(--ink2); background:var(--panel); }
+.help-nav button.on{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent-soft); font-weight:600; }
+.help-nav .touch-only, .help-nav .kbd-only{ display:none; }
+body.touch .help-nav .touch-only{ display:inline-block; }
+body:not(.touch) .help-nav .kbd-only, body.kbd .help-nav .kbd-only{ display:inline-block; }
+#helpCard .helpSec{ display:none; }
+#helpCard .helpSec.on{ display:block; }
+#helpCard h3{ margin-top:8px; }
+#hintToggle{ display:none; position:absolute; left:14px; bottom:14px; width:34px; height:34px; border-radius:50%; border:1px solid var(--border); background:var(--panel); color:var(--ink2); font-size:16px; z-index:5; }
+#hintToggle.on{ color:var(--accent); border-color:var(--accent); }
+body.touch #hintToggle{ display:inline-flex; align-items:center; justify-content:center; }
+body.touch #hint{ display:none; left:56px; bottom:16px; max-width:60%; }
+body.touch.hint-open #hint{ display:block; }
+body.touch #roomLibBtn svg{ width:20px; height:20px; }

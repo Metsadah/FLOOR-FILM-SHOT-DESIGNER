@@ -137,11 +137,12 @@ async function roomLibraryOverlay(){
   el.addEventListener('keydown', e=>e.stopPropagation());
   el.querySelector('#rmClose').addEventListener('click', ()=>el.remove());
   el.addEventListener('click', e=>{ if(e.target === el) el.remove(); });
-  const s = activeScene();
-  const hasRoom = (s.walls || []).length > 0;
+  const onDesign = activeTab === 'design';
+  const s = onDesign ? activeScene() : (project.scenes.find(x=>x.id === project.activeSceneId) || project.scenes[0]);
+  const hasRoom = onDesign && (s.walls || []).length > 0;
   const saveBtn = el.querySelector('#rmSave'), form = el.querySelector('#rmSaveForm');
   saveBtn.disabled = !hasRoom;
-  saveBtn.title = hasRoom ? '' : 'Draw walls in this scene first (Wall / Room tools)';
+  saveBtn.title = onDesign ? (hasRoom ? '' : 'Draw walls in this scene first (Wall / Room tools)') : 'Saving works from the Shot designer (2nd floor) — the scene you are in becomes the room';
   saveBtn.addEventListener('click', ()=>{ form.style.display = 'flex'; el.querySelector('#rmName').value = s.sceneDesc || ''; el.querySelector('#rmName').focus(); });
   el.querySelector('#rmSaveNo').addEventListener('click', ()=>{ form.style.display = 'none'; });
   el.querySelector('#rmSaveGo').addEventListener('click', async ()=>{
@@ -177,8 +178,9 @@ async function roomLibraryOverlay(){
     const btn = e.target.closest('button[data-act]'); if(!btn) return;
     const card = btn.closest('.rm-card'); const room = rooms.find(r=>r.id === card.dataset.id); if(!room) return;
     if(btn.dataset.act === 'insert'){
+      if(!onDesign){ switchTab('design'); }
       let replace = false;
-      if((s.walls || []).length) replace = confirm('This scene already has walls.\n\nOK = replace them with "' + room.name + '"\nCancel = add the room next to them');
+      if((activeScene().walls || []).length) replace = confirm('This scene already has walls.\n\nOK = replace them with "' + room.name + '"\nCancel = add the room next to them');
       insertRoomIntoScene(room, {replace});
       el.remove();
     } else if(btn.dataset.act === 'rename'){

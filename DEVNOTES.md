@@ -303,6 +303,17 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.81 — help rewritten per floor, room library in the topbar, foldable hint
+The ? guide was still the FLOOR-era single page. Now #helpCard has a
+.help-nav with one section per floor (+ Rooms, iPad on touch, Shortcuts
+on desktop or once a physical key is typed → body.kbd) and opens on the
+active floor (showHelpSec). #roomLibBtn moved from the toolbar to the
+topbar next to ?; the overlay works from any floor (Save only on the
+Shot designer, Insert switches to it first). The tool hint (#hint) folds
+behind a ⓘ toggle on touch (body.hint-open, localStorage.floorHintOpen)
+and uses touch wording without shortcut references unless a keyboard
+showed up. Web and iPad are the same code — sync.sh copies it.
+
 ## v0.80 — room library (step 1 of the scouting / LiDAR plan)
 js/13-rooms.js + ROOMS.md. A room = walls (with door/window/gap openings)
 + furniture props, cm units, normalised to bbox centre (0,0). Stored as

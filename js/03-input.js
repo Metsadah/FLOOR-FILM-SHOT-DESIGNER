@@ -1884,7 +1884,14 @@ function setTool(t){
     gap:'Click a wall to cut a gap in it — select the gap to widen or remove it',
     crop:'Drag a rectangle around the area you want to export',
   };
-  document.getElementById('hint').textContent = hints[t] || '';
+  const touchNoKbd = document.body.classList.contains('touch') && !document.body.classList.contains('kbd');
+  const hintsTouch = {
+    select:'Drag to move · handles rotate / resize · one finger on empty floor pans · pinch to zoom',
+    wall:'Drag to draw a wall — snaps to 90° and wall ends · keeps drawing until you pick another tool',
+    poly:'Tap to add outline points · double-tap to close the shape',
+    draw:'Draw freehand — pencil or finger · strokes become selectable objects',
+  };
+  document.getElementById('hint').textContent = (touchNoKbd && hintsTouch[t]) || hints[t] || '';
   render();
 }
 document.querySelectorAll('#toolbar button[data-tool]').forEach(b =>

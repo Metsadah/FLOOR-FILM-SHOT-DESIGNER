@@ -1048,14 +1048,29 @@ document.getElementById('panelToggle').addEventListener('click', ()=>{
 });
 
 // ---------------------------------------------------------------- help
+function showHelpSec(key){
+  document.querySelectorAll('#helpCard .helpSec').forEach(el=>el.classList.toggle('on', el.dataset.help === key));
+  document.querySelectorAll('#helpCard .help-nav button').forEach(b=>b.classList.toggle('on', b.dataset.help === key));
+  const card = document.getElementById('helpCard'); if(card) card.scrollTop = 0;
+}
 function toggleHelp(show){
-  if(show){
-    const key = ['mood','write','org'].includes(activeTab) ? activeTab : 'design';
-    document.querySelectorAll('#helpCard .helpSec').forEach(el=>
-      el.classList.toggle('on', el.dataset.help === key));
-  }
+  if(show) showHelpSec(['mood','write','design','shots','budget','org'].includes(activeTab) ? activeTab : 'design');
   document.getElementById('helpOverlay').classList.toggle('show', show);
 }
+document.querySelectorAll('#helpCard .help-nav button').forEach(b=>b.addEventListener('click', ()=>showHelpSec(b.dataset.help)));
+// a physical keyboard reveals itself by typing — then shortcuts are worth showing on a tablet too
+document.addEventListener('keydown', e=>{
+  if(document.body.classList.contains('kbd')) return;
+  if(e.key && e.key.length === 1 && !e.metaKey && !e.ctrlKey){ document.body.classList.add('kbd'); if(typeof setTool === 'function' && typeof tool !== 'undefined') setTool(tool); }
+}, true);
+// tool hint: on touch screens it is folded away behind ⓘ (remembered)
+(function(){
+  const t = document.getElementById('hintToggle'); if(!t) return;
+  let open = false; try{ open = localStorage.floorHintOpen === '1'; }catch(_){}
+  const apply = ()=>{ document.body.classList.toggle('hint-open', open); t.classList.toggle('on', open); };
+  t.addEventListener('click', ()=>{ open = !open; try{ localStorage.floorHintOpen = open ? '1' : '0'; }catch(_){} apply(); });
+  apply();
+})();
 document.getElementById('helpBtn').addEventListener('click', ()=>toggleHelp(true));
 document.getElementById('helpClose').addEventListener('click', ()=>toggleHelp(false));
 document.getElementById('helpOverlay').addEventListener('click', function(e){
