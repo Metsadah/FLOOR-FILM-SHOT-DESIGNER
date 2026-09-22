@@ -526,6 +526,9 @@ function downscale(file, maxDim, q){
 }
 // stores with progressively stronger compression until the backend accepts it
 async function storeImageFile(file){
+  if(file.type === 'image/gif' && typeof storeGifFile === 'function'){ // animated GIFs keep their frames
+    try{ const gid = await storeGifFile(file); if(gid) return gid; toast('GIF over 3 MB — kept as a still'); }catch(_){}
+  }
   const tiers = [[1000,.72],[800,.6],[620,.5],[460,.4],[340,.35]];
   let lastErr = null;
   for(const [d,q] of tiers){
@@ -980,7 +983,7 @@ if(window.FLOOR_MODE === 'shot'){
   // start with the canvas wide open; the panel toggle brings Scene info back
   let hr = null; try{ hr = localStorage.floorHideR; }catch(_){}
   if(hr === undefined || hr === null) document.body.classList.add('hideR');
-  document.getElementById('loadScriptBtn').addEventListener('click', ()=>loadScriptOverlay());
+  // Import script… / Write script… are wired in 12-media.js; CSS shows them in lite mode
 }
 
 // ---------------------------------------------------------------- theme (light / dark / system)

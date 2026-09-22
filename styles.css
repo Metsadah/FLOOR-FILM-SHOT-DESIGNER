@@ -13,7 +13,7 @@
   /* minmax(0,1fr): the topbar's min-content width must NEVER widen the app
      past the viewport (it silently pushed the Scene info panel off-screen
      on iPad — every row overflows together) */
-  #app{display:grid; grid-template-rows:60px auto 1fr; grid-template-columns:minmax(0,1fr); height:100%;}
+  #app{display:grid; grid-template-rows:calc(60px + env(safe-area-inset-top)) auto 1fr; grid-template-columns:minmax(0,1fr); height:100%;}
   #topbar{
     display:flex; align-items:center; gap:10px; padding:0 14px;
     background:var(--panel); border-bottom:1px solid var(--border); min-width:0;
@@ -664,8 +664,9 @@ body.hideL #libToggle, body.hideR #panelToggle{
    ?mode=shot (or config.mode) — the iPad spin-off. One tab, no share/
    co-edit chrome, a Load-script button instead of the Script tab. */
 body.lite #tabbar, body.lite #shareBtn, body.lite #installBtn{ display:none !important; }
-body.lite #loadScriptBtn{ display:inline-flex !important; }
-body.lite #app{ grid-template-rows:60px 1fr; } /* tabbar is display:none → it leaves the grid, so TWO rows */
+.scriptbtn{ display:none; }
+body.lite .scriptbtn, body.tab-write .scriptbtn{ display:inline-flex; }
+body.lite #app{ grid-template-rows:calc(60px + env(safe-area-inset-top)) 1fr; } /* tabbar is display:none → it leaves the grid, so TWO rows */
 
 /* touch: no drop-to-delete target (fingers land on the bottom edge constantly) */
 body.touch #trashCan{ display:none !important; }
@@ -810,3 +811,19 @@ body.tab-shots #rightPanel, body.tab-shots #panelToggle, body.tab-shots #sceneLb
 body.tab-shots #toolbar button[data-tool="wall"], body.tab-shots #toolbar button[data-tool="room"],
 body.tab-shots #toolbar button[data-tool="door"], body.tab-shots #toolbar button[data-tool="window"],
 body.tab-shots #toolbar button[data-tool="gap"], body.tab-shots #sunBtn, body.tab-shots #playBtn{ display:none !important; }
+
+/* ---------------- native iPad / PWA: never under the status bar, fingertip topbar ---------------- */
+#topbar{ padding-top:env(safe-area-inset-top); }
+body.touch #app{ grid-template-rows:calc(68px + env(safe-area-inset-top)) auto 1fr; }
+body.touch.lite #app{ grid-template-rows:calc(68px + env(safe-area-inset-top)) 1fr; }
+body.touch #topbar{ gap:10px; }
+body.touch #topbar .btn{ min-height:42px; padding:9px 15px; font-size:14.5px; border-radius:var(--r-md); white-space:nowrap; }
+body.touch #topbar .hbtn, body.touch #helpBtn{ width:42px; height:42px; font-size:18px; border-radius:var(--r-md); }
+body.touch #topbar .drawer-btn{ font-size:19px; }
+body.touch #shotTitle{ font-size:15.5px; padding:8px 10px; }
+body.touch #saveState{ font-size:12.5px; }
+body.touch #verChip{ display:none; }
+body.touch .logo-mark{ width:30px; height:30px; }
+/* the media layer: animated GIFs / playing videos ride on top of the canvas */
+#mediaLayer{ position:absolute; inset:0; overflow:hidden; pointer-events:none; } /* after #cv in the DOM, before the toolbar & bars */
+#mediaLayer .media-el{ position:absolute; left:0; top:0; transform-origin:center center; object-fit:fill; border-radius:2px; }

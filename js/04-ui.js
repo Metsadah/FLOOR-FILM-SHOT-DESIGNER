@@ -183,6 +183,10 @@ function refreshSelBar(){
       vsep();
     }
 
+    if(o.cat === 'image' && o.videoId){
+      sbtn(o.playing ? '■ Stop' : '▸ Play', ()=>toggleBoardVideo(o)).title = 'Plays right here on the board (loops)';
+      sbtn(o.muted ? '🔇 Muted' : '🔊 Sound', ()=>{ o.muted = !o.muted; markDirty(); render(); refreshSelBar(); });
+    }
     if(o.cat === 'image'){
       sbtn(o.underlay ? 'Underlay: on' : 'Underlay: off', ()=>{
         o.underlay = !o.underlay; markDirty(); render(); refreshSelBar();

@@ -303,6 +303,29 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.79 — iPad topbar, Import/Write script, + Media, GIF & video, plan symbols
+iPad feedback: the topbar sat under the iOS status bar and its buttons
+were small. #topbar now pads env(safe-area-inset-top) everywhere (grid
+row heights include it; Capacitor keeps contentInset "never" so the
+canvas still runs edge to edge) and body.touch grows every topbar
+control to 42px. "Load script…" split in two: **Import script…** (file
+picker → scenes; a .tsv/.csv/tab table becomes an AV script card on the
+1st floor + scenes via breakDownAvCard — avRowsFromTable maps SC/VIDEO/
+AUDIO/SEC/NOTES headers, Dutch too) and **Write script…** (the old
+paste overlay). Both show in lite mode and on the Script floor
+(.scriptbtn). **+ Media** toolbar button = the OS drop handler, now
+addFilesAt(files,x,y) in 03-input, from a file picker at the view
+centre. **GIF**: storeImageFile keeps image/gif bytes ≤3 MB (storeGif
+File); js/12-media.js runs a DOM #mediaLayer over the canvas (after #cv,
+before the bars) that positions an <img> per visible GIF with the view
+transform after every render (render is wrapped there) — drawImage only
+ever shows frame 1. **Video**: image object with videoId (dataURL in
+sd:file, ≤4.5 MB) + poster imgId (frame at 0.4s); ▸ Play/■ Stop and
+sound toggle on the bar; while playing a <video> rides in the media
+layer (autoplay-with-sound rejection falls back to muted). videoId is
+collected with the file assets. Door / opening / window toolbar icons
+are the floor-plan symbols (leaf + swing arc, broken wall, double line).
+
 ## v0.78 — move a shot-list row to another day
 Shot-list cards: the last row you clicked a cell of (or grabbed by its
 grip) is the card's active row (o._activeRow, accent bar in the grip

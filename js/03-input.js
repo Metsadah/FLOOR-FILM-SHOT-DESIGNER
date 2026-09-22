@@ -1577,7 +1577,12 @@ cv.addEventListener('drop', async e => {
   const files = [...e.dataTransfer.files];
   if(!files.length) return;
   const {sx, sy} = evtPos(e);
-  let {x, y} = toWorld(sx, sy);
+  const {x, y} = toWorld(sx, sy);
+  await addFilesAt(files, x, y);
+});
+// files → board objects at (x,y): images (GIFs animate), video, audio, PDFs, other files.
+// Shared by OS drag & drop and the + Media toolbar button.
+async function addFilesAt(files, x, y){
   for(const f of files){
     if(f.type.startsWith('image/')){
       // dropped ON an AV script row? → it becomes one of that beat's stills
@@ -1597,6 +1602,8 @@ cv.addEventListener('drop', async e => {
       } else {
         await addBoardImage(f, x, y);
       }
+    } else if(f.type.startsWith('video/') && typeof addBoardVideoAt === 'function'){
+      await addBoardVideoAt(f, x, y);
     } else if(f.type.startsWith('audio/') && typeof addBoardAudioAt === 'function'){
       await addBoardAudioAt(f, x, y);
     } else if((f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) &&
@@ -1610,7 +1617,7 @@ cv.addEventListener('drop', async e => {
     }
     x += 60; y += 60;
   }
-});
+}
 
 document.addEventListener('keydown', e => {
   const tag = document.activeElement && document.activeElement.tagName;

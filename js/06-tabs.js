@@ -1574,6 +1574,7 @@ function collectAssetIds(){
   const scanObjs = objs=>(objs||[]).forEach(ob=>{
     if(ob.imgId) img.add(ob.imgId);
     if(ob.fileId) file.add(ob.fileId);
+    if(ob.videoId) file.add(ob.videoId);
     if(ob.cat === 'avscript') // AV rows carry their own stills
       (ob.rows||[]).forEach(r=>{
         if(r.imgId) img.add(r.imgId);

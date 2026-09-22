@@ -2613,6 +2613,13 @@ function drawObjectShape(o, ghost){
   } else if(o.cat === 'image'){
     const im = imgCache[o.imgId];
     if(o.underlay) ctx.globalAlpha = ghost ? .18 : .55;
+    if(o.videoId && !o.playing && !ghost){ // ▸ badge — the media layer takes over while playing
+      const r = Math.min(22, o.w * .12);
+      ctx.save(); ctx.translate(0, 0);
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fillStyle = 'rgba(20,19,17,.55)'; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-r*.3, -r*.42); ctx.lineTo(r*.46, 0); ctx.lineTo(-r*.3, r*.42); ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.restore();
+    }
     if(o.caption && !o.underlay){
       ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
@@ -2625,6 +2632,8 @@ function drawObjectShape(o, ghost){
       ctx.drawImage(im, -o.w/2, -o.h/2, o.w, o.h);
       ctx.strokeStyle = 'rgba(40,38,32,.18)'; ctx.lineWidth = 1.5/Math.max(view.scale,.3);
       ctx.strokeRect(-o.w/2, -o.h/2, o.w, o.h);
+    } else if(o.videoId){ // video without a poster: dark slate
+      ctx.fillStyle = '#2A2926'; ctx.fillRect(-o.w/2, -o.h/2, o.w, o.h);
     } else {
       ctx.fillStyle = '#E8E6E1';
       ctx.fillRect(-o.w/2, -o.h/2, o.w, o.h);
