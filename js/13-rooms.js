@@ -128,6 +128,7 @@ async function roomLibraryOverlay(){
   el.innerHTML = '<div class="fb-ov-box" style="width:760px"><div class="fb-ov-title">Room library</div>' +
     '<div class="fb-ov-sub">Every room you scouted, in one place across productions. Save the room drawn in this scene, or drop a saved one onto the board. Scans from the Floorboard Scout app (LiDAR on Pro devices, AR on the rest) land here too.</div>' +
     '<div class="fb-row" style="margin-bottom:10px;flex-wrap:wrap"><button class="btn primary" id="rmSave">Save this scene as a room…</button>' +
+    (scanPlugin() ? '<button class="btn" id="rmScan">Scan a room…</button>' : '<span class="fb-dim" style="flex:none" title="Scanning needs the camera — it lives in the iPad app and the Scout app">Scan: iPad / Scout app</span>') +
     '<input id="rmFilter" class="fb-inp" placeholder="Filter by name or location" style="flex:1;min-width:180px"><span id="rmCount" class="fb-dim" style="flex:none"></span></div>' +
     '<div id="rmSaveForm" class="fb-row" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="rmName" class="fb-inp" placeholder="Room name (Kitchen, Studio 2…)" style="flex:1;min-width:160px">' +
     '<input id="rmLoc" class="fb-inp" placeholder="Location (address or place)" style="flex:1;min-width:160px"><button class="btn primary" id="rmSaveGo">Save</button><button class="btn" id="rmSaveNo">Cancel</button></div>' +
@@ -145,6 +146,8 @@ async function roomLibraryOverlay(){
   saveBtn.title = onDesign ? (hasRoom ? '' : 'Draw walls in this scene first (Wall / Room tools)') : 'Saving works from the Shot designer (2nd floor) — the scene you are in becomes the room';
   saveBtn.addEventListener('click', ()=>{ form.style.display = 'flex'; el.querySelector('#rmName').value = s.sceneDesc || ''; el.querySelector('#rmName').focus(); });
   el.querySelector('#rmSaveNo').addEventListener('click', ()=>{ form.style.display = 'none'; });
+  const scanBtn = el.querySelector('#rmScan');
+  if(scanBtn) scanBtn.addEventListener('click', ()=>{ el.remove(); scanRoomOverlay(); });
   el.querySelector('#rmSaveGo').addEventListener('click', async ()=>{
     const room = roomFromScene(s, el.querySelector('#rmName').value, el.querySelector('#rmLoc').value);
     await roomSave(room);
@@ -199,3 +202,60 @@ async function roomLibraryOverlay(){
   const b = document.getElementById('roomLibBtn');
   if(b) b.addEventListener('click', ()=>roomLibraryOverlay());
 })();
+
+// ---------------------------------------------------------------- scanning (native plugin)
+// Two methods, always both on screen so nobody wonders where LiDAR went:
+//   LiDAR (RoomPlan) — Pro iPhones / iPads only; walls, openings AND furniture
+//   Camera (ARKit)   — every device; tap the floor corners, then doors / windows
+function scanPlugin(){
+  const C = window.Capacitor;
+  if(!C || !(C.isNativePlatform ? C.isNativePlatform() : C.isNative)) return null;
+  return (C.Plugins && C.Plugins.FloorboardScan) || null;
+}
+async function scanRoomOverlay(){
+  const P = scanPlugin();
+  if(!P){ toast('Scanning needs the camera — use the iPad app or the Scout app'); return; }
+  let cap = {lidar:false, ar:true};
+  try{ cap = await P.capabilities(); }catch(_){}
+  const el = document.createElement('div');
+  el.className = 'fb-ov';
+  el.innerHTML = '<div class="fb-ov-box" style="width:560px"><div class="fb-ov-title">Scan a room</div>' +
+    '<div class="fb-ov-sub">Give the room a name, pick a method. Both give you walls with doors and windows you can edit afterwards; LiDAR also finds the furniture.</div>' +
+    '<div class="fb-row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap"><input id="scName" class="fb-inp" placeholder="Room name (Kitchen, Studio 2…)" style="flex:1;min-width:160px"><input id="scLoc" class="fb-inp" placeholder="Location" style="flex:1;min-width:140px"></div>' +
+    '<div class="rm-methods">' +
+      '<button class="rm-method' + (cap.lidar ? '' : ' off') + '" data-m="lidar"><b>LiDAR scan</b><span>Walk around the room with the camera. Walls, doors, windows and furniture come out measured — the most precise option.</span>' +
+        '<i>' + (cap.lidar ? 'Available on this device' : 'Needs a Pro iPhone or iPad with a LiDAR sensor — not on this device') + '</i></button>' +
+      '<button class="rm-method' + (cap.ar ? '' : ' off') + '" data-m="camera"><b>Measure with camera</b><span>Point at the floor and tap each corner of the room, close it, then tap the start and end of every door or window. Works on every device; a little less precise.</span>' +
+        '<i>' + (cap.ar ? 'Available on this device' : 'This device cannot run AR') + '</i></button>' +
+    '</div>' +
+    '<div class="fb-ov-actions"><span class="fb-dim">Tip: clear the floor corners of clutter and move slowly — good light helps both methods.</span><span style="flex:1"></span><button class="btn" id="scNo">Cancel</button></div></div>';
+  document.body.appendChild(el);
+  el.addEventListener('keydown', e=>e.stopPropagation());
+  el.querySelector('#scNo').addEventListener('click', ()=>el.remove());
+  el.addEventListener('click', e=>{ if(e.target === el) el.remove(); });
+  el.querySelectorAll('.rm-method').forEach(b=>b.addEventListener('click', async ()=>{
+    if(b.classList.contains('off')) { toast(b.querySelector('i').textContent); return; }
+    const name = el.querySelector('#scName').value.trim() || 'Scanned room';
+    const location = el.querySelector('#scLoc').value.trim();
+    el.remove();
+    try{
+      const res = b.dataset.m === 'lidar' ? await P.scanLidar({name}) : await P.scanCamera({name});
+      const room = res && res.room;
+      if(!room || !room.walls || !room.walls.length){ toast('The scan came back empty — try again with the whole room in view'); return; }
+      room.v = 1; room.id = uid(); room.name = name; room.location = location;
+      room.source = room.source || (b.dataset.m === 'lidar' ? 'roomplan' : 'arkit');
+      room.createdAt = room.updatedAt = new Date().toISOString();
+      room.props = room.props || []; room.notes = room.notes || '';
+      roomNormalise(room);
+      room.thumb = roomThumb(room);
+      await roomSave(room);
+      toast('"' + name + '" saved — ' + room.walls.length + ' walls, ' + room.props.length + ' pieces (' + (ROOM_SOURCES[room.source] || room.source) + ')');
+      roomLibraryOverlay();
+    }catch(e){
+      const code = e && (e.code || (e.data && e.data.code));
+      if(code === 'cancelled' || /cancel/i.test(e && e.message || '')) { roomLibraryOverlay(); return; }
+      toast('Scan failed: ' + (e && e.message || e));
+      console.warn('[scan]', e);
+    }
+  }));
+}

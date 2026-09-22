@@ -303,6 +303,24 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.82 — room scanning (step 2): native plugin, two methods
+floor-ipad/plugins/floorboard-scan — a local Capacitor 8 Swift plugin
+(SPM, path dependency; npx cap sync adds it to CapApp-SPM). Methods:
+capabilities() → {lidar, ar}; scanLidar({name}) → RoomPlan
+(RoomCaptureView, iOS 16+, LiDAR only; RoomPlanConverter maps walls →
+segments via the wall transform ± dimensions.x/2, doors/windows/
+openings → {t,w} on their parent wall (parentIdentifier on iOS 17,
+nearest wall before), objects → props with our kinds); scanCamera
+({name}) → ARMeasureViewController (ARSCNView, horizontal planes,
+coaching overlay: tap corners → close → two taps per door / window /
+opening, projected onto the nearest wall). Both return the ROOMS.md
+room in cm with ARKit x→x, z→y; the web side (13-rooms.js
+scanRoomOverlay) normalises, renders the thumb, saves to the library.
+The chooser always shows BOTH methods; the unavailable one is greyed
+with the reason. Web build shows "Scan: iPad / Scout app" instead.
+App: deployment target 16.0, device family iPhone+iPad (the iPhone 13
+Pro is the LiDAR test device), NSCameraUsageDescription.
+
 ## v0.81 — help rewritten per floor, room library in the topbar, foldable hint
 The ? guide was still the FLOOR-era single page. Now #helpCard has a
 .help-nav with one section per floor (+ Rooms, iPad on touch, Shortcuts
