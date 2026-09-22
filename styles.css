@@ -880,3 +880,11 @@ body.touch #roomLibBtn svg{ width:20px; height:20px; }
 .side-head .setup-chip.util, .setup-chip.util{ font-size:14px; font-weight:500; }
 .setup-chip:hover{ border-color:var(--accent); color:var(--accent); }
 body.touch .side-head .setup-chip{ width:32px; height:32px; font-size:12px; }
+
+/* new production: templates */
+.tpl-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; }
+.tpl{ text-align:left; display:flex; flex-direction:column; gap:4px; padding:12px 13px; border:1px solid var(--line); border-radius:var(--r-md); background:var(--panel); color:var(--ink); cursor:pointer; }
+.tpl b{ font-size:13.5px; } .tpl span{ font-size:11.5px; color:var(--ink2); line-height:1.4; }
+.tpl:hover{ border-color:var(--border2); } .tpl.on{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); background:var(--accent-soft); }
+.tpl-example{ display:flex; gap:14px; align-items:center; margin-top:14px; padding:12px 14px; border:1px dashed var(--border2); border-radius:var(--r-md); }
+.tpl-example > div{ flex:1; display:flex; flex-direction:column; gap:2px; } .tpl-example b{ font-size:13px; } .tpl-example span{ font-size:11.5px; color:var(--ink2); line-height:1.45; }

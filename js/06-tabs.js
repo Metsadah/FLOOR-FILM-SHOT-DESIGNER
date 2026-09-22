@@ -2093,16 +2093,8 @@ async function openProjectPop(){
     // hosted free plan: one cloud production (billing off = unlimited)
     if(window.FLOOR_BILLING && window.FLOOR_BILLING.enabled && idx.length >= 1 &&
        !window.FLOOR_BILLING.gate('productions')) return;
-    await flushSave();
-    const id = uid();
-    const fresh = {v:4, scenes:[newShot(1)], activeSceneId:null, customProps:[], shootName:''};
-    fresh.activeSceneId = fresh.scenes[0].id;
-    await window.storage.set('sd:project:' + id, JSON.stringify(fresh));
-    const idx2 = (await loadProjectIndex()) || [];
-    idx2.push({id, name:'Untitled production', updated:Date.now()});
-    await saveProjectIndex(idx2);
-    await window.storage.set('sd:current', id);
-    location.reload();
+    pop.classList.remove('show');
+    newProductionOverlay(); // name + template (or the example production) — 14-templates.js
   });
   pop.appendChild(nw);
   if(idx.length > 1){

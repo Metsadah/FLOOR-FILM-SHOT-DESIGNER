@@ -303,6 +303,23 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.85 — production templates and the example production
+js/14-templates.js. "+ New production" opens newProductionOverlay: name +
+Blank / Commercial / Brand film / Documentary / Fiction / Music video /
+Socials. Each template (TEMPLATES[].build) lays empty tools out per
+floor: scenes, an AV script card (commercial-type jobs) or a script card
+(fiction, documentary), mood board with title + three notes + Idea /
+Do-don't / Look cards, production board (day header, crew, cast/client
+as fits, location, prop list, call sheet), budget with the standard
+lines at rate 0, one shot-list day card. buildExampleProject() = "Haver
+— 15\" commercial": bedroom (dawn), kitchen (ground floor), street; 5
+shots with lenses, supports and moves; AV script summing to 15 s; a shot
+list day with move/setup/break; crew, cast and client rows (names
+empty, roles set); prop list per scene; location card; budget with
+rates and targets. createProductionFromData stores + indexes + reloads.
+Copy now says "for film, commercials & series" (title, landing eyebrow
+and logo tag; Floor Scanner empty state and About).
+
 ## v0.84 — floor access per co-editor, self-host guide rewritten
 production_members.floors / production_invites.floors (text[], null =
 all). Share › Co-editors: "+ Invite (all floors)" and "+ Invite crew (no
