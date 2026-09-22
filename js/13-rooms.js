@@ -1,0 +1,199 @@
+// Floorboard — 13-rooms.js · the room library
+// Rooms you scouted, drawn by hand or scanned (LiDAR / AR, via the Scout app
+// later) live in ONE library per account, independent of productions. From
+// the Shot designer: "Save this scene as a room" and "Insert room…".
+//
+// STORAGE: window.storage keys 'sd:room:<id>' (JSON string) — per browser in
+// local mode, per user in the cloud (kv table), so the Scout app writes the
+// very same rows. Format (ROOMS.md has the full spec), units = cm, y down:
+//   {v:1, id, name, location, source:'manual'|'roomplan'|'arkit', createdAt,
+//    updatedAt, walls:[{x1,y1,x2,y2, openings:[{t,w,type,flip}]}],
+//    props:[{kind,x,y,rot,w,h,label}], notes, thumb, bbox:{w,h}}
+// Coordinates are normalised so the room's bounding-box centre is (0,0).
+'use strict';
+const ROOM_PREFIX = 'sd:room:';
+const ROOM_SOURCES = {manual:'Drawn', roomplan:'LiDAR scan', arkit:'AR scan', import:'Imported'};
+let _rooms = null; // cache: [{...room}] newest first
+
+function roomBBox(room){
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const add = (x, y)=>{ x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  for(const w of room.walls || []){ add(w.x1, w.y1); add(w.x2, w.y2); }
+  for(const p of room.props || []){ const r = Math.max(p.w || 40, p.h || 40) / 2; add(p.x - r, p.y - r); add(p.x + r, p.y + r); }
+  if(x0 === Infinity) return {x0:0, y0:0, x1:0, y1:0, w:0, h:0};
+  return {x0, y0, x1, y1, w:x1 - x0, h:y1 - y0};
+}
+function roomNormalise(room){
+  const b = roomBBox(room);
+  const cx = b.x0 + b.w / 2, cy = b.y0 + b.h / 2;
+  for(const w of room.walls || []){ w.x1 -= cx; w.y1 -= cy; w.x2 -= cx; w.y2 -= cy; }
+  for(const p of room.props || []){ p.x -= cx; p.y -= cy; }
+  room.bbox = {w:Math.round(b.w), h:Math.round(b.h)};
+  return room;
+}
+// the room drawn in this scene (walls + furniture; cameras, cast and light stay out)
+function roomFromScene(s, name, location){
+  const isFurniture = o=>o.cat === 'prop' && !(typeof GEAR_KINDS !== 'undefined' && GEAR_KINDS.has(o.kind)) &&
+    !(typeof PROPLIST_SKIP !== 'undefined' && PROPLIST_SKIP.has(o.kind));
+  const room = {
+    v:1, id:uid(), name:(name || s.sceneDesc || s.name || 'Room').trim(), location:(location || '').trim(), source:'manual',
+    createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
+    walls:(s.walls || []).map(w=>({x1:w.x1, y1:w.y1, x2:w.x2, y2:w.y2,
+      openings:(w.openings || []).filter(o=>o.type !== 'outlet').map(o=>({t:o.t, w:o.w, type:o.type, flip:!!o.flip}))})),
+    props:(s.objects || []).filter(isFurniture).map(o=>({kind:o.kind, x:o.x, y:o.y, rot:o.rot || 0, w:o.w, h:o.h, label:o.label || ''})),
+    notes:''
+  };
+  roomNormalise(room);
+  room.thumb = roomThumb(room);
+  return room;
+}
+// small light-theme plan: walls via the real renderer, furniture as soft blocks
+function roomThumb(room, size){
+  const S = size || 220;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const b = roomBBox(room);
+  const k = Math.min((S - 24) / Math.max(b.w, 1), (S - 24) / Math.max(b.h, 1), 1.5);
+  const run = ()=>{
+    const prevCtx = ctx, prevView = Object.assign({}, view);
+    ctx = c.getContext('2d');
+    try{
+      ctx.fillStyle = THEME.card; ctx.fillRect(0, 0, S, S);
+      ctx.setTransform(k, 0, 0, k, S / 2 - (b.x0 + b.w / 2) * k, S / 2 - (b.y0 + b.h / 2) * k);
+      view.scale = k;
+      for(const p of room.props || []){
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot || 0);
+        ctx.fillStyle = THEME.soft; ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5 / k;
+        ctx.beginPath(); ctx.roundRect(-(p.w || 40) / 2, -(p.h || 40) / 2, p.w || 40, p.h || 40, 4 / k); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+      const fake = {walls:(room.walls || []).map(w=>({id:'t', x1:w.x1, y1:w.y1, x2:w.x2, y2:w.y2, openings:(w.openings || []).map(o=>({id:'o', t:o.t, w:o.w, type:o.type, flip:o.flip}))}))};
+      if(typeof drawWalls === 'function') drawWalls(fake);
+    } finally { ctx = prevCtx; Object.assign(view, prevView); }
+  };
+  if(typeof withLightTheme === 'function') withLightTheme(run); else run();
+  return c.toDataURL('image/jpeg', .82);
+}
+// ---------------------------------------------------------------- storage
+async function roomsList(force){
+  if(_rooms && !force) return _rooms;
+  const out = [];
+  try{
+    const {keys} = await window.storage.list(ROOM_PREFIX);
+    const rows = await Promise.all((keys || []).map(k=>window.storage.get(k).catch(()=>null)));
+    for(const r of rows){
+      if(!r || !r.value) continue;
+      try{ const room = typeof r.value === 'string' ? JSON.parse(r.value) : r.value; if(room && room.walls) out.push(room); }catch(_){}
+    }
+  }catch(e){ console.warn('rooms list failed', e); }
+  out.sort((a, b)=>String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  _rooms = out;
+  return out;
+}
+async function roomSave(room){
+  room.updatedAt = new Date().toISOString();
+  await window.storage.set(ROOM_PREFIX + room.id, JSON.stringify(room));
+  _rooms = null;
+}
+async function roomDelete(id){
+  await window.storage.delete(ROOM_PREFIX + id);
+  _rooms = null;
+}
+// ---------------------------------------------------------------- insert into the active scene
+function insertRoomIntoScene(room, opts){
+  const s = activeScene();
+  const o = opts || {};
+  if(o.replace){ s.walls = []; s.objects = (s.objects || []).filter(ob=>!(ob.cat === 'prop' && ob._fromRoom)); }
+  const c = toWorld(cv.clientWidth / 2, cv.clientHeight / 2);
+  const cx = Math.round(c.x / 10) * 10, cy = Math.round(c.y / 10) * 10;
+  for(const w of room.walls || []){
+    s.walls.push({id:uid(), x1:w.x1 + cx, y1:w.y1 + cy, x2:w.x2 + cx, y2:w.y2 + cy, locked:false,
+      openings:(w.openings || []).map(op=>({id:uid(), t:op.t, w:op.w, type:op.type || 'door', flip:!!op.flip}))});
+  }
+  const col = (typeof TYPE_COLOR !== 'undefined' && TYPE_COLOR.prop) || PAL.sand;
+  for(const p of room.props || []){
+    if(!p.kind) continue;
+    s.objects.push({id:uid(), cat:'prop', kind:p.kind, x:p.x + cx, y:p.y + cy, rot:p.rot || 0, w:p.w || 40, h:p.h || 40,
+      color:col, label:p.label || '', path:[], _fromRoom:room.id});
+  }
+  sel = null;
+  markDirty();
+  if(typeof zoomFit === 'function') zoomFit();
+  render(); refreshSelBar();
+  toast('"' + room.name + '" placed — ' + (room.walls || []).length + ' walls, ' + (room.props || []).length + ' pieces');
+}
+// ---------------------------------------------------------------- overlay
+async function roomLibraryOverlay(){
+  const el = document.createElement('div');
+  el.className = 'fb-ov';
+  el.innerHTML = '<div class="fb-ov-box" style="width:760px"><div class="fb-ov-title">Room library</div>' +
+    '<div class="fb-ov-sub">Every room you scouted, in one place across productions. Save the room drawn in this scene, or drop a saved one onto the board. Scans from the Floorboard Scout app (LiDAR on Pro devices, AR on the rest) land here too.</div>' +
+    '<div class="fb-row" style="margin-bottom:10px;flex-wrap:wrap"><button class="btn primary" id="rmSave">Save this scene as a room…</button>' +
+    '<input id="rmFilter" class="fb-inp" placeholder="Filter by name or location" style="flex:1;min-width:180px"><span id="rmCount" class="fb-dim" style="flex:none"></span></div>' +
+    '<div id="rmSaveForm" class="fb-row" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="rmName" class="fb-inp" placeholder="Room name (Kitchen, Studio 2…)" style="flex:1;min-width:160px">' +
+    '<input id="rmLoc" class="fb-inp" placeholder="Location (address or place)" style="flex:1;min-width:160px"><button class="btn primary" id="rmSaveGo">Save</button><button class="btn" id="rmSaveNo">Cancel</button></div>' +
+    '<div id="rmGrid" class="rm-grid"><p class="fb-dim">Loading…</p></div>' +
+    '<div class="fb-ov-actions"><span class="fb-dim">Insert puts the room at the middle of your view; furniture comes as props you can move.</span><span style="flex:1"></span><button class="btn" id="rmClose">Close</button></div></div>';
+  document.body.appendChild(el);
+  el.addEventListener('keydown', e=>e.stopPropagation());
+  el.querySelector('#rmClose').addEventListener('click', ()=>el.remove());
+  el.addEventListener('click', e=>{ if(e.target === el) el.remove(); });
+  const s = activeScene();
+  const hasRoom = (s.walls || []).length > 0;
+  const saveBtn = el.querySelector('#rmSave'), form = el.querySelector('#rmSaveForm');
+  saveBtn.disabled = !hasRoom;
+  saveBtn.title = hasRoom ? '' : 'Draw walls in this scene first (Wall / Room tools)';
+  saveBtn.addEventListener('click', ()=>{ form.style.display = 'flex'; el.querySelector('#rmName').value = s.sceneDesc || ''; el.querySelector('#rmName').focus(); });
+  el.querySelector('#rmSaveNo').addEventListener('click', ()=>{ form.style.display = 'none'; });
+  el.querySelector('#rmSaveGo').addEventListener('click', async ()=>{
+    const room = roomFromScene(s, el.querySelector('#rmName').value, el.querySelector('#rmLoc').value);
+    await roomSave(room);
+    form.style.display = 'none';
+    toast('"' + room.name + '" saved to your room library');
+    draw();
+  });
+  const grid = el.querySelector('#rmGrid');
+  let rooms = [];
+  const draw = async ()=>{
+    rooms = await roomsList(true);
+    const q = el.querySelector('#rmFilter').value.trim().toLowerCase();
+    const list = rooms.filter(r=>!q || (r.name + ' ' + r.location).toLowerCase().includes(q));
+    el.querySelector('#rmCount').textContent = list.length + ' room' + (list.length === 1 ? '' : 's');
+    if(!list.length){
+      grid.innerHTML = '<p class="fb-dim" style="grid-column:1/-1;padding:18px 4px">' + (rooms.length ? 'Nothing matches.' :
+        'No rooms yet. Draw a room in a scene and save it here — or scan one with the Scout app once it is out.') + '</p>';
+      return;
+    }
+    grid.innerHTML = list.map(r=>`
+      <div class="rm-card" data-id="${r.id}">
+        <div class="rm-thumb">${r.thumb ? '<img src="' + r.thumb + '" alt="">' : ''}</div>
+        <div class="rm-meta"><b>${esc(r.name || 'Room')}</b><span>${esc(r.location || '')}</span>
+          <small>${r.bbox ? (r.bbox.w / 100).toFixed(1) + ' × ' + (r.bbox.h / 100).toFixed(1) + ' m · ' : ''}${(r.walls || []).length} walls · ${(r.props || []).length} pieces</small>
+          <i class="rm-src rm-${esc(r.source || 'manual')}">${ROOM_SOURCES[r.source] || 'Drawn'}</i></div>
+        <div class="rm-actions"><button class="btn primary" data-act="insert">Insert</button><button class="btn" data-act="rename" title="Rename / relocate">✎</button><button class="btn" data-act="del" title="Delete from the library">×</button></div>
+      </div>`).join('');
+  };
+  el.querySelector('#rmFilter').addEventListener('input', draw);
+  grid.addEventListener('click', async e=>{
+    const btn = e.target.closest('button[data-act]'); if(!btn) return;
+    const card = btn.closest('.rm-card'); const room = rooms.find(r=>r.id === card.dataset.id); if(!room) return;
+    if(btn.dataset.act === 'insert'){
+      let replace = false;
+      if((s.walls || []).length) replace = confirm('This scene already has walls.\n\nOK = replace them with "' + room.name + '"\nCancel = add the room next to them');
+      insertRoomIntoScene(room, {replace});
+      el.remove();
+    } else if(btn.dataset.act === 'rename'){
+      const name = prompt('Room name', room.name || ''); if(name === null) return;
+      const loc = prompt('Location', room.location || ''); if(loc === null) return;
+      room.name = name.trim() || room.name; room.location = loc.trim();
+      await roomSave(room); draw();
+    } else if(btn.dataset.act === 'del'){
+      if(!confirm('Delete "' + room.name + '" from your room library?')) return;
+      await roomDelete(room.id); draw();
+    }
+  });
+  draw();
+}
+(function(){
+  const b = document.getElementById('roomLibBtn');
+  if(b) b.addEventListener('click', ()=>roomLibraryOverlay());
+})();

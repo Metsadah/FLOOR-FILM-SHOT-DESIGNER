@@ -303,6 +303,19 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.80 — room library (step 1 of the scouting / LiDAR plan)
+js/13-rooms.js + ROOMS.md. A room = walls (with door/window/gap openings)
++ furniture props, cm units, normalised to bbox centre (0,0). Stored as
+kv rows 'sd:room:<id>' (JSON string) — per browser locally, per USER in
+the cloud, so the coming Scout app (iPhone: RoomPlan on LiDAR devices,
+ARKit corner-tapping elsewhere) writes the same rows and nothing new is
+needed server-side. Toolbar button #roomLibBtn (Shot designer only) →
+roomLibraryOverlay: save the active scene's room (roomFromScene skips
+cameras/cast/light/infrastructure; roomThumb renders a light-theme plan
+via drawWalls with a swapped ctx), filter, Insert (at view centre, new
+ids, optional replace of existing walls; furniture becomes props tagged
+_fromRoom), rename, delete. Source badges: manual / roomplan / arkit.
+
 ## v0.79 — iPad topbar, Import/Write script, + Media, GIF & video, plan symbols
 iPad feedback: the topbar sat under the iOS status bar and its buttons
 were small. #topbar now pads env(safe-area-inset-top) everywhere (grid

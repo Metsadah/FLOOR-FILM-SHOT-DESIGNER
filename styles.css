@@ -827,3 +827,20 @@ body.touch .logo-mark{ width:30px; height:30px; }
 /* the media layer: animated GIFs / playing videos ride on top of the canvas */
 #mediaLayer{ position:absolute; inset:0; overflow:hidden; pointer-events:none; } /* after #cv in the DOM, before the toolbar & bars */
 #mediaLayer .media-el{ position:absolute; left:0; top:0; transform-origin:center center; object-fit:fill; border-radius:2px; }
+
+/* ---------------- room library ---------------- */
+body.tab-mood #roomLibBtn, body.tab-org #roomLibBtn, body.tab-write #roomLibBtn, body.tab-shots #roomLibBtn{ display:none !important; }
+.rm-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px; max-height:56vh; overflow:auto; padding:2px; }
+.rm-card{ border:1px solid var(--line); border-radius:var(--r-md); background:var(--panel); overflow:hidden; display:flex; flex-direction:column; }
+.rm-thumb{ aspect-ratio:1/1; background:#fff; display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--line); }
+.rm-thumb img{ width:100%; height:100%; object-fit:contain; }
+.rm-meta{ padding:9px 10px 6px; display:flex; flex-direction:column; gap:2px; min-width:0; }
+.rm-meta b{ font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rm-meta span{ font-size:11.5px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:14px; }
+.rm-meta small{ font-size:10.5px; color:var(--ink3); }
+.rm-src{ font-style:normal; font-size:9.5px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; padding:2px 7px; border-radius:var(--r-pill); background:var(--soft); color:var(--ink2); align-self:flex-start; margin-top:4px; }
+.rm-src.rm-roomplan{ background:var(--accent-soft); color:var(--accent); }
+.rm-src.rm-arkit{ background:var(--warn-soft); color:var(--warn); }
+.rm-actions{ display:flex; gap:6px; padding:0 10px 10px; }
+.rm-actions .btn{ padding:5px 10px; font-size:12px; }
+.rm-actions .btn.primary{ flex:1; }
