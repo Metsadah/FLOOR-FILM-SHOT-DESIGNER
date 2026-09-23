@@ -216,31 +216,63 @@ function slCardRows(o){ // computed start times per row
   let t = slMinutes((o.day || {}).call) ?? 480;
   return (o.rows || []).map(r=>{ const dur = slDurMin(r.dur); const row = {r, start:t, dur}; t += dur; return row; }).concat([{wrap:t}]);
 }
-function exportShotListPDF(card){
-  const cards = card ? [card] : slCards();
+// card: one shot-list card, an array of cards (a selection of days) or null for
+// every day on the 3rd floor. Stills (screengrabs, references) get their own
+// column whenever a scheduled row carries one — unless the export preference
+// "Include stills" is off.
+async function exportShotListPDF(card){
+  const all = slCards();
+  const cards = Array.isArray(card) ? card.slice().sort((a, b)=>all.indexOf(a) - all.indexOf(b)) : card ? [card] : all;
+  const one = cards.length === 1 ? cards[0] : null;
   if(!cards.length){ toast('No shot list cards yet — drop a day card on the 3rd floor'); return; }
+  await docLoadStills(cards.flatMap(c=>c.rows || []));
   const doc = new DocPDF({title:'Shot list', landscape:true, margin:36});
   const nShots = cards.reduce((a, c)=>a + (c.rows || []).filter(r=>!r.block).length, 0);
-  doc.head('Shot list' + (card ? ' — ' + ((card.day || {}).name || 'Day') : ''), 'Shooting order' + (cards.length > 1 ? ' · ' + cards.length + ' shoot days' : ''),
-    [['Date', card && card.day && card.day.date ? docDateStr(card.day.date) : todayStr()], ['Shots', String(nShots)]]);
+  const withStills = cards.some(c=>(c.rows || []).some(r=>docRowStills(r).length));
+  const partial = !one && cards.length < all.length;
+  doc.head('Shot list' + (one ? ' — ' + ((one.day || {}).name || 'Day') : ''),
+    'Shooting order' + (cards.length > 1 ? ' · ' + cards.length + (partial ? ' of ' + all.length : '') + ' shoot days' : ''),
+    [['Date', one && one.day && one.day.date ? docDateStr(one.day.date) : todayStr()], ['Shots', String(nShots)]]);
   const cols = [{label:'Start', w:42, bold:true}, {label:'SC', w:30}, {label:'Shot', w:64, bold:true}, {label:'Min', w:30, align:'r'},
-    {label:'Camera · lens · move', flex:2}, {label:'Video', flex:3}, {label:'Audio', flex:2}, {label:'Regie notes', flex:2}];
+    {label:'Camera · lens · move', flex:2}];
+  if(withStills) cols.push({label:'Stills', w:150});
+  cols.push({label:'Video', flex:3}, {label:'Audio', flex:2}, {label:'Regie notes', flex:2});
   for(const c of cards){
     const rows = slCardRows(c), wrap = rows.pop().wrap, d = c.day || {};
     const n = rows.filter(x=>!x.r.block).length;
     doc.section((d.name || 'Day') + (d.date ? ' — ' + docDateStr(d.date) : ''), 'call ' + (d.call || '–') + ' · ' + n + ' shots · wrap ' + slHHMM(wrap));
     const trs = rows.map(({r, start, dur})=>{
+      const pics = withStills ? [{imgs:docRowStills(r), imgH:38}] : []; // 38 pt: two 16:9 stills fit side by side
       if(r.block){
         const lab = (SL_BLOCKS[r.block] || ['Block'])[0] + (r.video ? ' — ' + r.video : '');
-        return [{t:slHHMM(start), bold:true, fill:[0.965, 0.96, 0.95]}, '', '', String(dur), {t:lab, dim:true, bold:true}, '', r.audio || '', r.notes || ''];
+        return [{t:slHHMM(start), bold:true, fill:[0.965, 0.96, 0.95]}, '', '', String(dur), {t:lab, dim:true, bold:true}, ...(withStills ? [''] : []), '', r.audio || '', r.notes || ''];
       }
-      return [slHHMM(start), r.no || '', r.shot || '', String(dur), r.cam || '', r.video || '', r.audio || '', r.notes || ''];
+      return [slHHMM(start), r.no || '', r.shot || '', String(dur), r.cam || '', ...pics, r.video || '', r.audio || '', r.notes || ''];
     });
     if(!trs.length) doc.text('Nothing scheduled on this day yet.', {dim:true});
     else doc.table(cols, trs, {fontSize:8.5});
   }
-  dlBlob(docFileName('shot-list' + (card ? '_' + ((card.day || {}).name || 'day').replace(/\s+/g, '-').toLowerCase() : '')), doc.blob());
-  toast('Shot list PDF exported');
+  const suffix = one ? '_' + ((one.day || {}).name || 'day').replace(/\s+/g, '-').toLowerCase() : partial ? '_' + cards.length + '-days' : '';
+  dlBlob(docFileName('shot-list' + suffix), doc.blob());
+  toast('Shot list PDF exported' + (withStills ? ' with stills' : ''));
+}
+// Word export of one or more day cards: one table per day, stills included
+async function exportShotListDocx(card){
+  const all = slCards();
+  const cards = Array.isArray(card) ? card.slice().sort((a, b)=>all.indexOf(a) - all.indexOf(b)) : card ? [card] : all;
+  if(!cards.length){ toast('No shot list cards yet'); return; }
+  await docLoadStills(cards.flatMap(c=>c.rows || []));
+  const media = [];
+  let body = docxP('Shot list' + (cards.length === 1 ? ' — ' + ((cards[0].day || {}).name || 'Day') : ''), {bold:true, pt:15});
+  for(const c of cards){
+    const d = c.day || {};
+    const rows = slCardRows(c), wrap = rows.pop().wrap;
+    body += docxP((d.name || 'Day') + (d.date ? ' — ' + docDateStr(d.date) : '') + ' · call ' + (d.call || '–') + ' · wrap ' + slHHMM(wrap), {bold:true, pt:11});
+    body += avDocxTable(c, media, rows.map(x=>Object.assign({}, x.r, {time:slHHMM(x.start), dur:String(x.dur)})));
+    body += '<w:p/>';
+  }
+  dlBlob(docFileName('shot-list' + (cards.length === 1 ? '_' + ((cards[0].day || {}).name || 'day').replace(/\s+/g, '-').toLowerCase() : '')).replace(/\.pdf$/i, '') + '.docx', docxBlob(body, media, true));
+  toast('Shot list .docx exported');
 }
 
 // ---------------------------------------------------------------- move a row to another day

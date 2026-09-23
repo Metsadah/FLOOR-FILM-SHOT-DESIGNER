@@ -303,6 +303,23 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.89 — stills in shot-list / AV exports, documents in the Export menu
+Screengrabs were silently dropped from the AV PDF: only data:image/jpeg
+stills were embedded and only when the card's STILLS column was on; the
+shot-list PDF had no still support at all. docJpeg() (10-docs) now turns
+any <img> (PNG screengrab, GIF poster) into JPEG bytes once, cached on the
+element; DocPDF.table cells accept {imgs, imgH} and wrap thumbnails inside
+the column; docLoadStills() pulls stills of cards that were never scrolled
+into view from storage before exporting (6 s cap per still — decode stalls
+in background tabs). docRowStills() honours the new export preference
+exportPrefs.docStills (default on), independent of the on-board column
+toggle. exportShotListPDF takes one card, an array of cards or null;
+exportShotListDocx (new) reuses avDocxTable() split out of exportAvDocx.
+Export button on a board now lists "Documents on this board": the selected
+card(s) first (a multi-selection of day cards exports as one document),
+then the other scripts / AV scripts / day cards, then All shoot days —
+each with PDF and .docx. Production › Documents got .docx for the shot list.
+
 ## v0.88 — landing: two real Zoutwater productions as the example
 landing/seed2.js re-creates the Velderhof TV commercial (living room,
 five chairs, A/B/C on Super 35, HMI as sun) and the fiction short Nudes

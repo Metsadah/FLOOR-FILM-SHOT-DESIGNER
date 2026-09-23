@@ -654,7 +654,7 @@ function refreshSelBar(){
       sbtn('Sync ↻', ()=>slSyncCard(o)).title = 'Refresh camera · lens · move from the Shot designer (cells you retyped stay)';
       if(typeof slRowMoveButtons === 'function'){ vsep(); slRowMoveButtons(o, sbtn); vsep(); }
       sbtn('PDF', ()=>exportShotListPDF(o)).title = 'A4 landscape shot list for this day, in your document style';
-      sbtn('.docx', ()=>exportAvDocx(o)).title = 'Word table of this day';
+      sbtn('.docx', ()=>exportShotListDocx(o)).title = 'Word table of this day, stills included';
       o.cols = o.cols || {no:true, still:false, notes:true};
       const tgl2 = (label, key)=>sbtn((o.cols[key] ? '✓ ' : '') + label, ()=>{ o.cols[key] = !o.cols[key]; markDirty(); render(); refreshSelBar(); });
       tgl2('Stills', 'still');

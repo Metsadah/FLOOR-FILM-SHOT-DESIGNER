@@ -356,6 +356,11 @@
 #exportPop.show{display:block;}
 .topbar-right{position:relative;}
 .xp-title{font-weight:600; font-size:12.5px; margin-bottom:8px; color:var(--ink);}
+.xp-sub{font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink2); margin:10px 0 4px;}
+.xp-docs{display:flex; flex-direction:column; gap:3px; max-height:260px; overflow:auto; margin-bottom:2px;}
+.xp-doc{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--ink);}
+.xp-doc span{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:4px;}
+.xp-doc .btn{padding:2px 8px; font-size:11px;}
 .xp-row{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink); padding:3px 0; cursor:pointer;}
 .xp-btns{display:flex; gap:6px; margin-top:10px;}
 .note-ta.plain{background:rgba(255,255,255,.65); border-style:dashed;}

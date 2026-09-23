@@ -111,20 +111,46 @@ DocPDF.prototype.hline = function(y, color, lw, x0, x1){
   this.c += `${this.rg(color || DOC_LINE)} RG ${(lw || 0.6).toFixed(2)} w ${(x0 ?? this.M).toFixed(2)} ${y.toFixed(2)} m ${(x1 ?? (this.W - this.M)).toFixed(2)} ${y.toFixed(2)} l S\n`;
 };
 DocPDF.prototype.space = function(h){ this.y -= h; };
-// JPEG image (imgCache entry or an <img>) — PNG/other sources are re-encoded on white
-DocPDF.prototype.imageXobj = function(im){
+// any <img> (JPEG, PNG screengrab, GIF poster…) → baseline JPEG bytes for a
+// DCTDecode XObject; PNG/other sources are re-encoded on white. Cached on the
+// element so a still used on several pages/documents is converted once.
+function docJpeg(im){
   if(!im || !im.complete || !im.naturalWidth) return null;
+  if(im._docJpeg) return im._docJpeg;
   let src = im.src;
   if(!src.startsWith('data:image/jpeg')){
     try{
       const cv = document.createElement('canvas');
       cv.width = im.naturalWidth; cv.height = im.naturalHeight;
       const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0);
-      src = cv.toDataURL('image/jpeg', .9);
+      src = cv.toDataURL('image/jpeg', .88);
     }catch(_){ return null; }
   }
+  im._docJpeg = {data:atob(src.split(',')[1]), w:im.naturalWidth, h:im.naturalHeight};
+  return im._docJpeg;
+}
+// load every still id of a set of AV / shot-list rows into imgCache before an
+// export starts (cards that were never scrolled into view have not loaded theirs)
+async function docLoadStills(rows){
+  const ids = new Set();
+  for(const r of (rows || [])){ if(r.imgId) ids.add(r.imgId); (r.imgs || []).forEach(id=>ids.add(id)); }
+  if(typeof loadStill !== 'function') return;
+  // a still that will not decode (background tab, corrupt data) must not hold the export hostage
+  const wait = id=>Promise.race([loadStill(id).catch(()=>null), new Promise(r=>setTimeout(r, 6000))]);
+  await Promise.all([...ids].filter(id=>!imgCache[id]).map(wait));
+}
+// stills a document should show for a row: the export preference decides,
+// not the card's on-board Stills toggle (screengrabs stay in the PDF even
+// when the column is folded away on the board)
+function docRowStills(r){
+  if(project.exportPrefs && project.exportPrefs.docStills === false) return [];
+  return (r.imgs || []).map(id=>imgCache[id]).filter(im=>im && im.complete && im.naturalWidth);
+}
+DocPDF.prototype.imageXobj = function(im){
+  const j = docJpeg(im);
+  if(!j) return null;
   const nm = 'I' + (++this.imgN);
-  this.xobjs[nm] = {data:atob(src.split(',')[1]), w:im.naturalWidth, h:im.naturalHeight};
+  this.xobjs[nm] = j;
   return nm;
 };
 DocPDF.prototype.image = function(im, x, y, w, h){
@@ -235,9 +261,23 @@ DocPDF.prototype.table = function(cols, rows, opt){
       const span = cell.span;
       const w = span ? cw : widths[i];
       cell.lines = cell.box && !cell.t ? [''] : docWrap(cell.t || '', w - PAD * 2, FS, cell.bold || c.bold);
+      // {imgs:[<img>…]} → thumbnails of imgH pt, flowing left to right and wrapping inside the column
+      if(cell.imgs && cell.imgs.length){
+        const IH = cell.imgH || o.imgH || 40, avail = w - PAD * 2;
+        let lx = 0, lines = 1;
+        cell.pics = [];
+        for(const im of cell.imgs){
+          const iw = Math.min(avail, IH * (im.naturalWidth / im.naturalHeight));
+          if(lx && lx + iw > avail){ lx = 0; lines++; }
+          cell.pics.push({im, dx:lx, line:lines - 1, iw});
+          lx += iw + 4;
+        }
+        cell.picH = lines * (IH + 4) - 4; cell.IH = IH;
+        cell.lines = cell.lines.length && cell.lines[0] ? cell.lines : [];
+      }
       return cell;
     });
-    const rh = Math.max(...cells.map(cl=>cl.lines.length)) * LH + PADY * 2;
+    const rh = Math.max(...cells.map(cl=>cl.lines.length * LH + (cl.picH ? cl.picH + (cl.lines.length ? 4 : 0) : 0))) + PADY * 2;
     if(this.y - rh < this.M + 18){ this.newPage(); drawHead(); }
     const fill = cells[0].fill || (o.zebra && rows.indexOf(row) % 2 ? DOC_SOFT : null);
     if(fill) this.rect(this.M, this.y - rh, cw, rh, fill);
@@ -256,6 +296,10 @@ DocPDF.prototype.table = function(cols, rows, opt){
         const al = cl.span ? 'l' : c.align; // a spanning group row always reads from the left
         const ax = al === 'r' ? x + w - PAD : al === 'c' ? x + w / 2 : x + PAD;
         cl.lines.forEach((l, li)=>this.textAt(ax, this.y - PADY - FS + 1 - li * LH, l, FS, bold, color, al));
+        if(cl.pics){
+          const top = this.y - PADY - cl.lines.length * LH - (cl.lines.length ? 4 : 0);
+          for(const p of cl.pics) this.image(p.im, x + PAD + p.dx, top - (p.line + 1) * cl.IH - p.line * 4, p.iw, cl.IH);
+        }
         if(cl.strike && cl.lines[0]){
           const tw = docTW(cl.lines[0], FS, bold), sx = c.align === 'r' ? ax - tw : ax;
           this.hline(this.y - PADY - FS / 2 - 0.5, DOC_INK2, 0.5, sx, sx + tw);

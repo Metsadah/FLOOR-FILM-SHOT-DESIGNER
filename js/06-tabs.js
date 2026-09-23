@@ -298,7 +298,8 @@ function buildDocsSection(lib){
     const cs2 = slCards();
     const n = cs2.reduce((a, c)=>a + (c.rows || []).filter(r=>!r.block).length, 0);
     row('Shot list', cs2.length ? cs2.length + ' day' + (cs2.length === 1 ? '' : 's') + ' · ' + n + ' shots · 3rd floor' : 'No shoot days yet · 3rd floor', [
-      ['PDF', ()=>exportShotListPDF(null), 'Shooting order per day, breaks and moves included'],
+      ['PDF', ()=>exportShotListPDF(null), 'Shooting order per day, breaks, moves and stills included'],
+      ['.docx', ()=>exportShotListDocx(null), 'Word document, one table per day'],
       ['Open', ()=>switchTab('shots'), 'Go to the 3rd floor']
     ]);
   }
@@ -1296,11 +1297,17 @@ function exportScriptDocx(o){
 // filled text column \u2014 custom columns included via avCols
 // the AV exports mirror the BOARD: every visible column (incl. custom ones),
 // in board order, with the stills in their own column
+// the board's columns — plus a STILLS column whenever a row carries a still and
+// the export preference allows it, even if the column is folded away on the board
 function avExportLayout(o){
-  return (o._avCols || avCols(o)).map(([key, label, w])=>({key, label, w}));
+  const want = !(project.exportPrefs && project.exportPrefs.docStills === false) && (o.rows || []).some(r=>(r.imgs || []).length);
+  const src = (o.cols && o.cols.still) === !!want ? o : Object.assign({}, o, {cols:Object.assign({}, o.cols, {still:want}), _avCols:null});
+  return (src._avCols || avCols(src)).map(([key, label, w])=>({key, label, w}));
 }
-function exportAvPDF(o){
+async function exportAvPDF(o){
   // A4 landscape table, exactly the board's columns; stills embedded as JPEGs
+  // (PNG screengrabs are re-encoded, see docJpeg)
+  await docLoadStills(o.rows);
   const name = exportName(o, 'AV script');
   const W = 842, H = 595, M = 36, FS = 8, LH = 10.5, PAD = 5;
   const lay = avExportLayout(o);
@@ -1334,10 +1341,7 @@ function exportAvPDF(o){
       if(col.key === 'still') return null;
       return pdfWrap(r[col.key] || '', Math.max(4, Math.floor((colW[ci] - PAD*2) / (FS * .52))));
     });
-    const stills = (o.cols && o.cols.still)
-      ? (r.imgs || []).map(id=>imgCache[id])
-          .filter(im=>im && im.complete && im.naturalWidth && im.src.startsWith('data:image/jpeg'))
-      : [];
+    const stills = lay.some(col=>col.key === 'still') ? docRowStills(r) : [];
     const IH = 44;
     let rh = Math.max(LH + PAD*2,
       Math.max(...cells.map(l=>l ? l.length : 0)) * LH + PAD*2,
@@ -1352,8 +1356,10 @@ function exportAvPDF(o){
         for(const im of stills){
           const iw = IH * (im.naturalWidth / im.naturalHeight);
           if(ix + iw > x + colW[ci] - PAD) break;
+          const j = docJpeg(im);
+          if(!j) continue;
           const nm = 'I' + (++imgN);
-          xobjs[nm] = {data:atob(im.src.split(',')[1]), w:im.naturalWidth, h:im.naturalHeight};
+          xobjs[nm] = j;
           c += `q ${iw.toFixed(1)} 0 0 ${IH} ${ix.toFixed(1)} ${(y - PAD - IH).toFixed(1)} cm /${nm} Do Q\n`;
           ix += iw + 4;
         }
@@ -1398,27 +1404,32 @@ function exportAvPDF(o){
   for(let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 0xFF;
   dlBlob(name + '.pdf', new Blob([bytes], {type:'application/pdf'}));
 }
-function exportAvDocx(o){
+async function exportAvDocx(o){
+  await docLoadStills(o.rows);
   const name = exportName(o, 'AV script');
+  const media = [];
+  const body = docxP(name, {bold:true, pt:15}) + avDocxTable(o, media);
+  dlBlob(name + '.docx', docxBlob(body, media, true));
+}
+// one Word table in the card's column layout; rows default to the card's own
+function avDocxTable(o, media, rowsIn){
   const lay = avExportLayout(o);
   const total = lay.reduce((a, c)=>a + c.w, 0);
   const gridW = 15400; // landscape A4 minus margins, in twips
   const colTw = lay.map(c=>Math.round(c.w / total * gridW));
-  const media = [];
   const borders = '<w:tblBorders>' +
     ['top','left','bottom','right','insideH','insideV']
       .map(s=>`<w:${s} w:val="single" w:sz="4" w:color="CCCCCC"/>`).join('') + '</w:tblBorders>';
   const tc = (inner, tw)=>`<w:tc><w:tcPr><w:tcW w:w="${tw}" w:type="dxa"/></w:tcPr>` +
     (inner || '<w:p/>') + '</w:tc>';
-  let body = docxP(name, {bold:true, pt:15}) +
-    '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>' + borders + '</w:tblPr>' +
+  let body = '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>' + borders + '</w:tblPr>' +
     '<w:tblGrid>' + colTw.map(w=>`<w:gridCol w:w="${w}"/>`).join('') + '</w:tblGrid>' +
     '<w:tr>' + lay.map((c2, ci)=>tc(docxP(c2.label, {bold:true, pt:9}), colTw[ci])).join('') + '</w:tr>';
-  for(const r of (o.rows || [])){
+  for(const r of (rowsIn || o.rows || [])){
     body += '<w:tr>' + lay.map((col, ci)=>{
       if(col.key === 'still'){
-        const runs = (r.imgs || []).map(id=>imgCache[id])
-          .filter(im=>im && im.src && im.src.startsWith('data:image/'))
+        const runs = docRowStills(r)
+          .filter(im=>im.src && im.src.startsWith('data:image/'))
           .map(im=>{
             const ext = /png/.test(im.src.slice(0, 22)) ? 'png' : 'jpeg';
             media.push({name:'image' + (media.length + 1) + '.' + ext, data:dataUrlBytes(im.src)});
@@ -1427,11 +1438,12 @@ function exportAvDocx(o){
           }).join('');
         return tc(runs, colTw[ci]);
       }
+      if(r.block && col.key === 'cam') return tc(docxP((SL_BLOCKS[r.block] || ['Block'])[0] + (r.video ? ' — ' + r.video : ''), {pt:9, bold:true}), colTw[ci]);
+      if(r.block && col.key === 'video') return tc('', colTw[ci]);
       return tc(docxP(r[col.key] || '', {pt:9}), colTw[ci]);
     }).join('') + '</w:tr>';
   }
-  body += '</w:tbl>';
-  dlBlob(name + '.docx', docxBlob(body, media, true));
+  return body + '</w:tbl>';
 }
 
 // screenplay \u2192 editable AV table: one row per scene (SC number + the scene's

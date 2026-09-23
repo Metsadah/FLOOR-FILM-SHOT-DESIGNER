@@ -729,6 +729,8 @@ function showExportPop(kind){
   mk(`<div class="xp-title">Export ${what}</div>`);
   chk('xpGrid', 'Include grid dots', prefs.grid);
   if(!boardMode) chk('xpStills', 'Include recce & mood images (PDF)', prefs.stills);
+  const docCards = boardMode ? exportDocCards() : [];
+  if(docCards.length) chk('xpDocStills', 'Stills & screengrabs in documents', prefs.docStills !== false);
   mk('<div class="xp-btns" style="flex-direction:column;align-items:stretch;gap:5px"></div>');
   const btns = p.querySelector('.xp-btns');
   const btn = (label, primary, fn) => {
@@ -742,6 +744,8 @@ function showExportPop(kind){
     prefs.grid = p.querySelector('#xpGrid').checked;
     const st = p.querySelector('#xpStills');
     if(st) prefs.stills = st.checked;
+    const ds = p.querySelector('#xpDocStills');
+    if(ds) prefs.docStills = ds.checked;
     markDirty();
   };
   btn('PNG \u2014 whole ' + what, true, ()=>{ readPrefs(); hideExportPop(); doPNGExport(null); });
@@ -752,12 +756,63 @@ function showExportPop(kind){
   });
   if(boardMode){
     btn('PDF \u2014 one-page board', false, ()=>{ readPrefs(); hideExportPop(); exportBoardPDF(); });
+    if(docCards.length){
+      // the documents on this board as proper A4 exports — the selected card
+      // (or every selected day) first, then the others, then "all days"
+      mk('<div class="xp-sub">Documents on this board</div>');
+      const lst = document.createElement('div'); lst.className = 'xp-docs'; p.appendChild(lst);
+      const line = (label, tip, acts)=>{
+        const r = document.createElement('div'); r.className = 'xp-doc';
+        const nm = document.createElement('span'); nm.textContent = label; nm.title = tip || label; r.appendChild(nm);
+        for(const [l, fn] of acts){
+          const b = document.createElement('button'); b.className = 'btn'; b.textContent = l;
+          b.addEventListener('click', ()=>{ readPrefs(); hideExportPop(); fn(); });
+          r.appendChild(b);
+        }
+        lst.appendChild(r);
+      };
+      const selIds = sel ? (sel.type === 'multi' ? sel.ids : sel.type === 'object' ? [sel.id] : []) : [];
+      const picked = docCards.filter(d=>selIds.includes(d.o.id));
+      const rest = docCards.filter(d=>!picked.includes(d));
+      if(picked.length > 1 && picked.every(d=>d.sl))
+        line(picked.length + ' selected days', 'One document with the selected day cards in date order',
+          [['PDF', ()=>exportShotListPDF(picked.map(d=>d.o))], ['.docx', ()=>exportShotListDocx(picked.map(d=>d.o))]]);
+      for(const d of picked.concat(rest).slice(0, 8))
+        line((picked.includes(d) ? '\u25b8 ' : '') + d.title, d.tip,
+          d.sl ? [['PDF', ()=>exportShotListPDF(d.o)], ['.docx', ()=>exportShotListDocx(d.o)]]
+               : d.av ? [['PDF', ()=>exportAvPDF(d.o)], ['.docx', ()=>exportAvDocx(d.o)]]
+               : [['PDF', ()=>exportScriptPDF(d.o)], ['.docx', ()=>exportScriptDocx(d.o)]]);
+      if(docCards.length > 8) mk('<div class="xp-sub" style="margin-top:4px">More under Production \u203a Documents</div>');
+      if(docCards.filter(d=>d.sl).length > 1)
+        line('All shoot days', 'Every day card on this floor, in date order', [['PDF', ()=>exportShotListPDF(null)], ['.docx', ()=>exportShotListDocx(null)]]);
+    }
   } else {
     btn('PDF \u2014 scene pages (plan \u00b7 shots \u00b7 stills)', false, ()=>{ readPrefs(); hideExportPop(); runPDFExport(); });
   }
   p.classList.toggle('show');
 }
 document.getElementById('exportBtn').addEventListener('click', ()=>showExportPop('png'));
+// scripts, AV scripts and shot-list day cards on the active board (sub-boards too)
+function exportDocCards(){
+  const out = [];
+  const scan = objs=>(objs || []).forEach(ob=>{
+    if(ob.cat === 'avscript' && ob.mode === 'shotlist'){
+      const d = ob.day || {}, n = (ob.rows || []).filter(r=>!r.block).length;
+      out.push({o:ob, sl:true, title:(d.name || 'Day') + (d.date ? ' \u00b7 ' + d.date : ''), tip:n + ' shot' + (n === 1 ? '' : 's') + (d.call ? ' \u00b7 call ' + d.call : '')});
+    } else if(ob.cat === 'script' || ob.cat === 'avscript' || ob.kind === 'script' || ob.kind === 'avscript'){
+      const av = ob.cat === 'avscript' || ob.kind === 'avscript';
+      out.push({o:ob, av, title:(ob.label || ob.title || '').trim() || (av ? 'AV script' : 'Script'), tip:av ? (ob.rows || []).length + ' rows' : 'Script'});
+    }
+    if(ob.cat === 'subboard' && ob.board) scan(ob.board.objects);
+  });
+  scan(rootBoard() && rootBoard().objects);
+  if(activeTab === 'shots' && typeof slCards === 'function'){
+    // day order as the floor shows it
+    const order = slCards();
+    out.sort((x, y)=>(x.sl && y.sl) ? order.indexOf(x.o) - order.indexOf(y.o) : 0);
+  }
+  return out;
+}
 
 // ---- PDF shot list ----
 function pdfEsc(s){
