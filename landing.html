@@ -78,6 +78,12 @@
   .stage{position:relative} .stage-imgs{position:relative;aspect-ratio:3/2;background:#fff}
   .stage-imgs img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .45s ease;background:#fff}
   .stage-imgs img.on{opacity:1}
+  .stage-imgs canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .45s ease;background:#fff}
+  .stage-imgs canvas.on{opacity:1}
+  .howto-open{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 14px;border:1px dashed var(--line);border-radius:var(--r-md);font-size:13px;color:var(--ink2)}
+  .howto-open a{color:var(--accent);font-weight:700;text-decoration:none;white-space:nowrap}
+  .ex-open{display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:9px 14px;border-radius:var(--r-pill);background:var(--accent);color:#fff;font-weight:700;font-size:13px;text-decoration:none}
+  .ex-open:hover{filter:brightness(1.06)} .ex-open small{font-weight:500;opacity:.85}
   .stage-bar{height:3px;background:var(--soft)} .stage-bar i{display:block;height:100%;width:0;background:var(--accent)}
   @keyframes stagebar{from{width:0}to{width:100%}}
   .stepsl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
@@ -238,11 +244,8 @@
       <div class="stage frame">
         <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name" id="stageName">Scene 1 · Atelier — walls</span></div>
         <div class="stage-imgs">
-          <img src="landing/img/step1.png" alt="Four walls of a room" class="on" data-step="0">
-          <img src="landing/img/step2.png" alt="The room with doors and windows" data-step="1">
-          <img src="landing/img/step3.png" alt="The room with a table, chairs, cabinet and plant" data-step="2">
-          <img src="landing/img/step4.png" alt="The room with cameras, cast, lights and the sun" data-step="3">
-          <img src="landing/img/room-thumb.jpg" alt="A scanned room in the room library" data-step="4">
+          <canvas id="howtoCv" class="on" aria-label="An L-shaped living room being drawn, dressed, cast and shot, step by step"></canvas>
+          <img src="landing/img/room-thumb.jpg" alt="A scanned room in the room library" data-step="5">
         </div>
         <div class="stage-bar"><i></i></div>
       </div>
@@ -250,12 +253,17 @@
         <li class="on" data-step="0"><b><i>1</i>Draw the room</b><p>Drag a rectangle for four walls at once, or wall by wall. Snaps to 90° and to wall ends; the middle handle bows a wall into a curve.</p></li>
         <li data-step="1"><b><i>2</i>Doors and windows</b><p>Tap a wall to place a door, a window or an opening, then slide it along. Select it for width and the door swing.</p></li>
         <li data-step="2"><b><i>3</i>Dress the set</b><p>Tables, sofas, kitchens, beds, cars, trees — from the library, all at their real size. Or trace a satellite capture as an underlay.</p></li>
-        <li data-step="3"><b><i>4</i>Cast, cameras, light</b><p>Cameras with lens, sensor and field of view, cast with names, LED, Fresnel, HMI and bounce with their throw — and the sun for the time of day.</p></li>
-        <li data-step="4" class="scan"><b><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg></i>Or skip the drawing: scan it</b><p><b>Floor Scanner</b> on your iPhone walks the room with LiDAR or measures it with the camera — walls, doors, windows and furniture land in your room library, ready to insert in any scene. <a href="#scanner">About Floor Scanner →</a></p></li>
+        <li data-step="3"><b><i>4</i>Cast, cameras, lens, light</b><p>Cast with names, cameras with sensor and lens — pick 24, 35 or 50 mm and the field of view follows — a dolly on its track, LED, HMI and bounce, and the sun for the time of day.</p></li>
+        <li data-step="4"><b><i>5</i>Play the blocking</b><p>Give an actor a path and a camera a move: the dolly rides its track while Anna crosses the room. What you see here is the plan as it plays — shot list and call sheet follow from it.</p></li>
+        <li data-step="5" class="scan"><b><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg></i>Or skip the drawing: scan it</b><p><b>Floor Scanner</b> on your iPhone walks the room with LiDAR or measures it with the camera — walls, doors, windows and furniture land in your room library, ready to insert in any scene. <a href="#scanner">About Floor Scanner →</a></p></li>
       </ol>
     </div>
+    <div class="howto-open">This room is a real production. <a href="index.html?example=atelier">Open “Atelier” in Floorboard →</a><span>Move the sofa, change the lens, redraw the dolly move — it is yours.</span></div>
+    <script src="js/15-atelier.js"></script>
+    <script src="landing/howto.js"></script>
     <script>
     (function(){
+      return; // the static slideshow is replaced by landing/howto.js (kept for reference)
       const box = document.getElementById('howto'); if(!box) return;
       const imgs = [...box.querySelectorAll('.stage-imgs img')], items = [...box.querySelectorAll('.stepsl li')], nameEl = document.getElementById('stageName'), bar = box.querySelector('.stage-bar i');
       const names = ['Scene 1 · Atelier — walls', 'Scene 1 · Atelier — doors & windows', 'Scene 1 · Atelier — set dressing', 'Scene 1 · Atelier — cast, cameras, light', 'Room library — scanned with Floor Scanner'];
@@ -370,6 +378,7 @@
         <h3>Velderhof — TV commercial 2024</h3>
         <p>A 65th birthday, a gift that is not quite her taste, and five armchairs with red bows: at Velderhof you try up to five chairs at home. One living room, three cameras, a lot of confetti.</p>
         <p class="ex-credits">Producer Jan-Peter Boer · Director Kees-Jan Mulder · Cinematography &amp; edit Gerbert Floor · Lead Willeke Alberti · Script Wicher Schuurman · Art direction Floortje Mols · <a href="https://www.zoutwater.com/work/velderhof-tv-commercial-2024-r47ne" rel="noopener">Watch it →</a></p>
+        <a class="ex-open" href="index.html?example=velderhof">Open this production in Floorboard <small>· yours to edit</small></a>
       </div>
       <div class="ex-grid">
         <a class="g" href="landing/img/velderhof-plan.jpg" target="_blank" rel="noopener"><img src="landing/img/velderhof-plan.jpg" alt="Floor plan of the living room: five chairs, cast, three cameras, HMI through the window"><div><b>Shot designer</b><span>Living room, five chairs, cast, A / B / C cameras on Super 35, HMI as sun</span></div></a>
@@ -385,6 +394,7 @@
         <h3>Nudes — Dan moet je wat voor me doen</h3>
         <p>Nude photographs of pupils have been shared at a secondary school. In face-to-face conversations the teachers try to find out what happened, and whether anyone was made to. Classrooms, a small room with one table, long lenses.</p>
         <p class="ex-credits">Directors &amp; writers Kees-Jan Mulder, Gerbert Floor, Robert Pruis · Producer Robert Pruis · Cinematography Gerbert Floor · Selected for Cinekid, Shortcutz Amsterdam, Student World Impact Festival · <a href="https://www.zoutwater.com/fiction-documentary/nudes-dan-moet-je-wat-voor-me-doen-4ba9n" rel="noopener">About the film →</a></p>
+        <a class="ex-open" href="index.html?example=nudes">Open this production in Floorboard <small>· yours to edit</small></a>
       </div>
       <div class="ex-grid">
         <a class="g" href="landing/img/nudes-plan.png" target="_blank" rel="noopener"><img src="landing/img/nudes-plan.png" alt="Floor plan of the teachers' room: one table, two chairs, three cameras"><div><b>Shot designer</b><span>The conversation: two over-shoulders and a two-shot</span></div></a>
@@ -393,7 +403,7 @@
         <a class="g" href="landing/img/nudes-script.png" target="_blank" rel="noopener"><img src="landing/img/nudes-script.png" alt="Script breakdown card" style="object-position:left center"><div><b>Script</b><span>The breakdown that became the scenes on the left</span></div></a>
       </div>
     </div>
-    <p class="fb-dim" style="font-size:13px;color:var(--ink2);margin-top:14px">Plans and boards are reconstructions made in Floorboard for this page; stills © Zoutwater. Want to poke around a finished production yourself? Open the app and choose <i>Open example</i> under + New production.</p>
+    <p class="fb-dim" style="font-size:13px;color:var(--ink2);margin-top:14px">Plans and boards are reconstructions made in Floorboard for this page; stills © Zoutwater. Every example opens as a production of your own: the plans, boards, stills and shot lists are all there to change. Signed out? You sign in first, then it builds.</p>
   </div>
 </section>
 

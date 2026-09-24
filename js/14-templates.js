@@ -1,8 +1,9 @@
 // Floorboard — 14-templates.js · new productions: templates and the example
 // A template lays the tools out per floor for a kind of job (commercial,
 // brand film, documentary, fiction, music video, socials) — empty, ready to
-// fill in. The example is a finished tiny production (a 15-second commercial,
-// five shots, three locations) so a new user sees how the floors connect.
+// fill in. The examples are finished productions — a fictional 15-second
+// commercial, two real Zoutwater productions and the landing page's room —
+// so a new user sees how the floors connect and has something to change.
 'use strict';
 
 // ---------------------------------------------------------------- helpers (object shapes as the app makes them)
@@ -208,6 +209,230 @@ async function buildExampleProject(){
   return p;
 }
 
+// ---------------------------------------------------------------- more examples
+// stills for the real productions come from the landing page's own images;
+// offline (or on a self-host without landing/img) the boards simply have no stills
+async function tplStill(file){
+  try{
+    const r = await fetch('landing/img/' + file);
+    if(!r.ok) return null;
+    const bl = await r.blob();
+    return await storeImageFile(new File([bl], file, {type:bl.type || 'image/jpeg'}));
+  }catch(_){ return null; }
+}
+function tplImg(id, x, y, w, caption){
+  const im = imgCache[id];
+  const ar = im && im.naturalWidth ? im.naturalHeight / im.naturalWidth : .5625;
+  return {id:uid(), cat:'image', kind:'image', imgId:id, x, y, rot:0, w, h:w * ar, color:'#5B6472', label:'', caption:caption || '', path:[]};
+}
+function tplCamText(cam){ return [CAMS[cam.kind].name, cam.framing, cam.lens ? cam.lens + 'mm' : '', cam.support].filter(Boolean).join(' · '); }
+function tplSlRow(s, cam, sh, dur, video, audio, notes){
+  return {id:uid(), key:s.id + '|' + cam.id, no:String(s.scene), shot:sh, dur:String(dur), cam:tplCamText(cam), camAuto:tplCamText(cam), video:video || '', audio:audio || '', notes:notes || '', imgs:[]};
+}
+function tplSlBlock(kind, what, dur){
+  return {id:uid(), block:kind, no:'', shot:'', dur:String(dur), cam:'', video:what, audio:'', notes:'', imgs:[], label:(SL_BLOCKS[kind] || ['Block'])[0]};
+}
+function tplDayCard(name, date, call, rows, y){
+  return {id:uid(), cat:'avscript', kind:'avscript', mode:'shotlist', x:0, y:y || 0, rot:0, w:900, h:150, color:PAL.coral, cols:{no:true, still:false, notes:true}, rows, day:{name, date:date || '', call:call || '08:00'}};
+}
+const tplCams = s=>s.objects.filter(o=>o.cat === 'camera');
+
+// Velderhof — TV commercial 2024 (Zoutwater). A 65th birthday; five armchairs
+// with red bows. Credits as on zoutwater.com.
+async function buildVelderhofProject(){
+  const p = tplBlank('Velderhof — TV commercial 2024');
+  const {wall:W, prop:P, actor:A, cam:C} = TPL;
+  p.production.company = 'Zoutwater Films';
+  p.production.locations = [{id:uid(), name:'Living room — birthday house', street:'', town:'', notes:'Garden window on the north side: HMI outside as afternoon sun. Confetti reset between takes.', contact:'', phone:''}];
+  const v1 = TPL.scene(1, '1', 'INT. LIVING ROOM — BIRTHDAY PARTY', 'Living room', 240);
+  v1.script = 'A 65th birthday. Bunting, confetti, cake. Five armchairs with red bows stand in the room — Willeke hands over a gift, but it is not her friend’s taste. At Velderhof that does not matter: you can try up to five chairs at home.';
+  v1.walls = [W(0,0,700,0,[{t:.5,w:220,type:'window'}]), W(700,0,700,480,[{t:.25,w:90,type:'door',flip:true}]), W(700,480,0,480), W(0,480,0,0,[{t:.6,w:120,type:'window'}])];
+  v1.shots = [{id:'va',name:'A'},{id:'vb',name:'B'},{id:'vc',name:'C'}];
+  v1.objects = [
+    P('rug',350,260,0), P('armchair',250,170,0.35,'Chair 1 · bow'), P('relaxchair',380,150,-0.2,'Chair 2 · bow'), P('armchair',510,200,-0.6,'Chair 3'), P('armchair',180,330,0.9,'Chair 4'), P('relaxchair',560,330,-1.2,'Chair 5'),
+    P('smalltable',360,290,0,'Cake · bubbles'), P('plant',40,40,0), P('cabinet',640,440,0),
+    A('actor',330,380,-1.2,'Willeke'), A('actor_ant',300,230,0.8,'Birthday girl'), A('actor_extra',120,120,1.0,'Guest'), A('actor_extra',600,90,2.4,'Guest'), A('actor_extra',460,420,-1.9,'Guest'), A('actor_extra',80,420,-0.4,'Guest'),
+    C('cam_std',360,465,-1.57,{lens:24,fov:74,framing:'Wide',support:'Tripod',shotId:'va',sensor:'s35'}),
+    C('cam_gimbal',120,250,0.1,{lens:35,fov:54,framing:'Medium',support:'Gimbal',shotId:'vb',sensor:'s35',path:[{x:180,y:250,rot:0.05},{x:260,y:320,rot:-0.4}]}),
+    C('cam_std',620,220,2.6,{lens:85,fov:24,framing:'Close-up',support:'Tripod',shotId:'vc',sensor:'s35'}),
+    P('hmi',350,-60,1.57,'HMI through the window'), P('ledpanel',60,440,-0.8), P('bounce',650,60,0), P('cstand',560,460,-2.4),
+  ];
+  v1.sun = {on:true, x:350, y:-160, hour:14};
+  p.scenes = [v1]; p.activeSceneId = v1.id;
+  // mood — the real stills
+  const ids = []; for(let i = 1; i <= 6; i++) ids.push(await tplStill('velderhof-' + i + '.jpg'));
+  const vm = TPL.board('Mood & inspiration');
+  vm.objects.push(TPL.text(-320,-330,'VELDERHOF — “Bij Velderhof geeft dat helemaal niet”',26,true));
+  const vcap = ['Party, bunting, warm practicals','Cake, bubbles, hero props','Five chairs with bows','The reveal','Gift moment','Pack shot'];
+  ids.forEach((id, i)=>{ if(id) vm.objects.push(tplImg(id, -330 + (i % 3) * 340, -150 + Math.floor(i / 3) * 230, 320, vcap[i])); else vm.objects.push(TPL.note(-330 + (i % 3) * 340, -150 + Math.floor(i / 3) * 230, vcap[i], PAL.sand, 320, 180)); });
+  vm.objects.push(TPL.note(760,-160,'Warm, cheerful, late-afternoon sun through the garden window. Confetti on every take — reset budget!',PAL.sand,230,130));
+  vm.objects.push(TPL.colcard(760,20,'Look','Practicals on, HMI outside as sun, soft key from the room. Super 35, 24 / 35 / 85.', '#3E9B6E'));
+  p.moodboard = vm;
+  // script
+  const sb = TPL.board('Script & storyboard');
+  sb.objects.push(TPL.av(0,0,'Velderhof — 30" TV', [
+    {no:'1',video:'Party in full swing. Hands over eyes — a surprise.',audio:'Laughter, party ambience.',dur:'4',notes:'A wide, then B in the crowd'},
+    {no:'1',video:'Willeke hands over the gift. The friend unwraps: a chair. Polite smile.',audio:'“Ohh… wat leuk.”',dur:'6',notes:'C 85 mm on the face'},
+    {no:'1',video:'Reveal: five armchairs with red bows fill the room.',audio:'Music lifts.',dur:'6',notes:'B gimbal move around the chairs'},
+    {no:'1',video:'She tries them, one after another. Everyone cheers.',audio:'VO: “Bij Velderhof geeft dat helemaal niet…”',dur:'8',notes:'Confetti reset between takes'},
+    {no:'1',video:'Pack shot: Velderhof · 1 2 3 zitten.',audio:'VO: “…de perfecte stoel zit er altijd tussen.”',dur:'6',notes:'Locked off'}], true));
+  p.scriptboard = sb;
+  // shot list
+  const cams = tplCams(v1);
+  const rows = [tplSlRow(v1, cams[0], 'A', 40, 'Party wide, hands over eyes', 'Party ambience', 'Bunting + confetti dressed by 07:00'),
+    tplSlBlock('setup', 'Confetti + bows reset', 20),
+    tplSlRow(v1, cams[1], 'B', 60, 'Gimbal move around the five chairs', 'Music', 'Two passes, chairs 1–5'),
+    tplSlBlock('break', 'Lunch', 45),
+    tplSlRow(v1, cams[2], 'C', 45, 'Faces: the gift, the polite smile', '“Ohh… wat leuk.”', '85 mm, eyeline just off lens')];
+  const sl = TPL.board('Shot list'); sl.objects.push(tplDayCard('Shoot day', '2024-02-12', '07:30', rows)); p.shotboard = sl;
+  // production
+  tplProdBoard(p, {cast:true, client:true});
+  const dh = p.prodboard.objects.find(o=>o.cat === 'dayheader'); dh.call = '07:30'; dh.shootCall = '08:30'; dh.wrap = '18:00'; dh.locIds = [p.production.locations[0].id];
+  p.prodboard.objects.find(o=>o.cat === 'fieldcard').locId = p.production.locations[0].id;
+  p.production.people = TPL.people([
+    ['crew','Producer','Jan-Peter Boer','07:00','',''],['crew','Director','Kees-Jan Mulder','07:30','',''],['crew','Cinematography & edit','Gerbert Floor','07:00','',''],['crew','Script','Wicher Schuurman','','',''],['crew','Art direction','Floortje Mols','06:30','',''],
+    ['cast','Willeke','Willeke Alberti','09:00','',''],['client','Velderhof','','10:00','','']]);
+  tplBudget(p);
+  return p;
+}
+
+// Nudes — Dan moet je wat voor me doen (fiction short, Zoutwater)
+async function buildNudesProject(){
+  const p = tplBlank('Nudes — Dan moet je wat voor me doen');
+  const {wall:W, prop:P, actor:A, cam:C} = TPL;
+  p.production.company = 'Zoutwater Films';
+  p.production.locations = [{id:uid(), name:'Secondary school', street:'', town:'', notes:'Classroom with bookcases and big windows; teachers’ room across the corridor. Shoot on a study day — no pupils in the building.', contact:'', phone:''}];
+  const n1 = TPL.scene(1, '1', 'INT. CLASSROOM — DAY', 'Classroom', 180);
+  n1.script = 'Bookcases along the wall, big windows. A class works in silence; phones under the tables. One girl looks up.';
+  n1.walls = [W(0,0,800,0,[{t:.3,w:220,type:'window'},{t:.72,w:220,type:'window'}]), W(800,0,800,560,[{t:.85,w:90,type:'door'}]), W(800,560,0,560), W(0,560,0,0)];
+  n1.shots = [{id:'n1a',name:'1A'},{id:'n1b',name:'1B'}];
+  n1.objects = [P('bookcase',20,280,1.57), P('bookcase',20,120,1.57)];
+  for(let r = 0; r < 2; r++) for(let cc = 0; cc < 4; cc++){ n1.objects.push(P('desk',200 + cc*140, 180 + r*150, 0)); n1.objects.push(P('chair',200 + cc*140, 240 + r*150, Math.PI)); }
+  n1.objects.push(P('desk',680,480,0,'Teacher'), P('chair',680,430,0));
+  n1.objects.push(A('actor',340,240,Math.PI,'Fleur'), A('actor_ant',480,390,Math.PI,'Lisa'), A('actor_extra',200,240,Math.PI), A('actor_extra',620,240,Math.PI), A('actor_extra',200,390,Math.PI), A('actor_extra',620,390,Math.PI), A('actor',700,470,0,'Teacher'));
+  n1.objects.push(C('cam_std',120,520,-0.9,{lens:32,fov:57,framing:'Wide',support:'Tripod',shotId:'n1a',sensor:'s35'}), C('cam_std',560,520,-1.9,{lens:85,fov:24,framing:'Close-up',support:'Tripod',shotId:'n1b',sensor:'s35'}));
+  n1.objects.push(P('negfill',780,300,0), P('bounce',60,480,0));
+  n1.sun = {on:true, x:400, y:-140, hour:10};
+  const n2 = TPL.scene(2, '2', 'INT. TEACHERS’ ROOM — DAY', 'Teachers’ room', 240);
+  n2.script = 'A small room, one table, two chairs. The teacher and a pupil, face to face. Nobody raises their voice.';
+  n2.walls = [W(0,0,450,0,[{t:.5,w:160,type:'window'}]), W(450,0,450,380), W(450,380,0,380,[{t:.3,w:90,type:'door'}]), W(0,380,0,0)];
+  n2.shots = [{id:'n2a',name:'2A'},{id:'n2b',name:'2B'},{id:'n2c',name:'2C'}];
+  n2.objects = [P('table',225,190,0), P('chair',225,120,0), P('chair',225,260,Math.PI), P('cabinet',40,340,0), P('plant',420,40,0),
+    A('actor',225,110,0,'Teacher'), A('actor_ant',225,270,Math.PI,'Pupil'),
+    C('cam_std',80,60,0.9,{lens:50,fov:40,framing:'Over-shoulder',support:'Tripod',shotId:'n2a',sensor:'s35'}),
+    C('cam_std',390,330,-2.3,{lens:50,fov:40,framing:'Over-shoulder',support:'Tripod',shotId:'n2b',sensor:'s35'}),
+    C('cam_std',420,190,Math.PI,{lens:24,fov:74,framing:'Two-shot',support:'Tripod',shotId:'n2c',sensor:'s35'}),
+    P('ledpanel',40,40,0.8), P('bounce',430,300,0), P('negfill',20,190,1.57)];
+  n2.sun = {on:true, x:225, y:-120, hour:11};
+  p.scenes = [n1, n2]; p.activeSceneId = n2.id;
+  const ids = []; for(let i = 1; i <= 6; i++) ids.push(await tplStill('nudes-' + i + '.jpg'));
+  const nm = TPL.board('Mood & inspiration');
+  nm.objects.push(TPL.text(-320,-330,'NUDES — Dan moet je wat voor me doen',26,true));
+  const ncap = ['Phones, chats, 00:34','Classroom, window light','Face to face','Waiting outside','Corridor','Close, quiet'];
+  ids.forEach((id, i)=>{ if(id) nm.objects.push(tplImg(id, -330 + (i % 3) * 340, -150 + Math.floor(i / 3) * 230, 320, ncap[i])); else nm.objects.push(TPL.note(-330 + (i % 3) * 340, -150 + Math.floor(i / 3) * 230, ncap[i], PAL.sky, 320, 180)); });
+  nm.objects.push(TPL.note(760,-160,'Daylight only where we can. Long lenses, shallow, faces. No music in the conversations.',PAL.sky,230,130));
+  nm.objects.push(TPL.colcard(760,20,'Do / don’t','Do: stay with the listener.\nDon’t: cut on every line.', PAL.coral));
+  p.moodboard = nm;
+  const sb = TPL.board('Script & storyboard');
+  sb.objects.push({id:uid(),cat:'script',kind:'script',x:-300,y:0,rot:0,w:520,h:480,title:'Nudes — breakdown',text:'INT. CLASSROOM — DAY\n\nA class works in silence. Phones under the tables. Fleur looks up from her book.\n\nINT. TEACHERS’ ROOM — DAY\n\nOne table, two chairs. The teacher and Lisa, face to face. Long pauses.\n\nINT. CORRIDOR — DAY\n\nPupils wait on the bench outside. Nobody talks.\n\nINT. TEACHERS’ ROOM — LATER\n\nThe second conversation. What happened, and whether anyone was made to.',mode:'film',label:'',path:[]});
+  sb.objects.push(TPL.note(320,-200,'Selected for Cinekid, Shortcutz Amsterdam and Student World Impact Festival.',PAL.sand,230,110));
+  p.scriptboard = sb;
+  const c1 = tplCams(n1), c2 = tplCams(n2);
+  const sl = TPL.board('Shot list');
+  sl.objects.push(tplDayCard('Day 1 — classroom', '', '08:00', [
+    tplSlRow(n1, c1[0], '1A', 60, 'The class in silence, phones under the tables', 'Room tone, pens', 'Window light only — shoot before noon'),
+    tplSlRow(n1, c1[1], '1B', 45, 'Fleur looks up', 'Silence', '85 mm, hold on her'),
+    tplSlBlock('move', 'Across the corridor to the teachers’ room', 20)]));
+  sl.objects.push(tplDayCard('Day 2 — teachers’ room', '', '08:00', [
+    tplSlBlock('setup', 'Two-shot and both over-shoulders, one light setup', 40),
+    tplSlRow(n2, c2[2], '2C', 30, 'Two-shot, the whole conversation', 'Dialogue', 'Full takes, no cuts'),
+    tplSlRow(n2, c2[0], '2A', 60, 'Over the teacher onto Lisa', 'Dialogue', 'Stay with the listener'),
+    tplSlRow(n2, c2[1], '2B', 60, 'Over Lisa onto the teacher', 'Dialogue', '')], 420));
+  p.shotboard = sl;
+  tplProdBoard(p, {cast:true, client:false});
+  const dh = p.prodboard.objects.find(o=>o.cat === 'dayheader'); dh.call = '08:00'; dh.shootCall = '09:00'; dh.wrap = '18:00'; dh.locIds = [p.production.locations[0].id];
+  p.prodboard.objects.find(o=>o.cat === 'fieldcard').locId = p.production.locations[0].id;
+  p.production.people = TPL.people([
+    ['crew','Director & writer','Kees-Jan Mulder','08:00','',''],['crew','Director & writer','Gerbert Floor','08:00','',''],['crew','Director, writer & producer','Robert Pruis','07:30','',''],['crew','Cinematography','Gerbert Floor','07:30','',''],
+    ['cast','Fleur','','09:00','',''],['cast','Lisa','','09:00','',''],['cast','Teacher','','09:00','','']]);
+  tplBudget(p);
+  return p;
+}
+
+// Atelier — the room the landing page animates (js/15-atelier.js)
+async function buildAtelierProject(){
+  const D = window.ATELIER;
+  const p = tplBlank('Atelier — floor plan in a minute');
+  const {wall:W, prop:P, actor:A, cam:C} = TPL;
+  const s = TPL.scene(1, '1', 'INT. ATELIER — DAY', D.name, 90);
+  s.script = D.script;
+  s.walls = D.walls.map(w=>W(w[0], w[1], w[2], w[3], w[4]));
+  s.shots = D.cams.map(cm=>({id:'at' + cm.shot.toLowerCase(), name:cm.shot}));
+  s.objects = [];
+  for(const pr of D.props.concat(D.lights)){
+    const o = P(PROPS[pr.kind] ? pr.kind : 'crate', pr.x, pr.y, pr.rot || 0, pr.label);
+    if(pr.w) o.w = pr.w; if(pr.h) o.h = pr.h;
+    s.objects.push(o);
+  }
+  if(D.track){
+    const pts = D.track.pts.map(q=>({x:q.x, y:q.y}));
+    s.objects.push({id:uid(), cat:'prop', kind:'track', x:(pts[0].x + pts[pts.length - 1].x) / 2, y:(pts[0].y + pts[pts.length - 1].y) / 2, rot:0, w:30, h:30, color:'#5B6472', label:'', path:[], pts});
+  }
+  for(const a of D.actors){
+    const o = A(ACTORS[a.kind] ? a.kind : 'actor', a.x, a.y, a.rot || 0, a.label);
+    o.path = (a.path || []).map(q=>({x:q.x, y:q.y}));
+    s.objects.push(o);
+  }
+  for(const cm of D.cams)
+    s.objects.push(C(CAMS[cm.kind] ? cm.kind : 'cam_std', cm.x, cm.y, cm.rot, {lens:cm.lens, fov:cm.fov, framing:cm.framing, support:cm.support, sensor:'s35', shotId:'at' + cm.shot.toLowerCase(), path:(cm.path || []).map(q=>({x:q.x, y:q.y, rot:q.rot}))}));
+  s.sun = Object.assign({}, D.sun);
+  p.scenes = [s]; p.activeSceneId = s.id;
+  const sb = TPL.board('Script & storyboard');
+  sb.objects.push(TPL.av(0,0,'Atelier — the scene', [
+    {no:'1',video:'Anna comes in from the hall, crosses the room.',audio:'Door. Footsteps on wood.',dur:'6',notes:'B follows her on the dolly'},
+    {no:'1',video:'She joins Bram on the sofa.',audio:'“Zo. Daar ben ik.”',dur:'4',notes:'A wide, 35 mm'}], true));
+  sb.objects.push(TPL.note(600,-160,'This is the room from the landing page (“A floor plan in a minute”). Change the walls, the furniture or the dolly move on the 2nd floor — it is yours.',PAL.lilac,240,130));
+  p.scriptboard = sb;
+  tplMood(p, 'Atelier — a floor plan in a minute', [['Walls, doors and windows to scale', PAL.sky],['Set dressing with real sizes', PAL.sand],['Cast, cameras, lens, light — then the blocking', PAL.teal]]);
+  const cams = tplCams(s);
+  const sl = TPL.board('Shot list');
+  sl.objects.push(tplDayCard('Shoot day', '', '08:00', [tplSlRow(s, cams[1], 'B', 60, 'Dolly follows Anna across the room', 'Door, footsteps', 'Two rehearsals for the pull'), tplSlRow(s, cams[0], 'A', 30, 'Wide: she joins Bram on the sofa', 'Dialogue', '')]));
+  p.shotboard = sl;
+  tplProdBoard(p, {cast:true, client:false});
+  return p;
+}
+
+const EXAMPLES = [
+  {key:'haver', name:'Haver — 15" commercial', kind:'Commercial · fictional brand', blurb:'Five shots in a bedroom, a kitchen and the street, one shoot day. AV script, shot list, prop list, call sheet and budget filled in.', build:buildExampleProject},
+  {key:'velderhof', name:'Velderhof — TV commercial 2024', kind:'Commercial · real production by Zoutwater', blurb:'A 65th birthday and five armchairs with red bows. Living room on Super 35 with a gimbal move; the finished spot’s stills on the mood board.', build:buildVelderhofProject},
+  {key:'nudes', name:'Nudes — Dan moet je wat voor me doen', kind:'Fiction short · real production by Zoutwater', blurb:'A classroom and a teachers’ room: two over-shoulders and a two-shot on 50 mm, two shoot days, breakdown and the real stills.', build:buildNudesProject},
+  {key:'atelier', name:'Atelier — floor plan in a minute', kind:'The room from the landing page', blurb:'L-shaped living room with a kitchen nook, corner sofa, a tripod wide and a dolly shot that follows Anna across. Edit it here.', build:buildAtelierProject},
+];
+async function openExample(ex, btn){
+  if(btn) btn.textContent = 'Opening…';
+  try{
+    const p = await ex.build();
+    await createProductionFromData(p, p.shootName);
+  }catch(e){
+    console.error(e); toast('Could not build the example — ' + (e && e.message || e));
+    if(btn) btn.textContent = 'Open';
+  }
+}
+// landing.html links straight to an example: index.html?example=velderhof
+function openExampleFromURL(){
+  const q = new URLSearchParams(location.search);
+  const ex = EXAMPLES.find(e=>e.key === q.get('example'));
+  if(!ex) return;
+  q.delete('example');
+  history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
+  if(window.FLOOR_BILLING && typeof FLOOR_BILLING.canCreate === 'function' && !FLOOR_BILLING.canCreate()){
+    if(typeof FLOOR_BILLING.gate === 'function') FLOOR_BILLING.gate();
+    return;
+  }
+  toast('Building “' + ex.name + '”…');
+  openExample(ex, null);
+}
+
 // ---------------------------------------------------------------- create & open
 async function createProductionFromData(data, indexName){
   await flushSave();
@@ -229,7 +454,9 @@ function newProductionOverlay(){
       '<button class="tpl on" data-key="blank"><b>Blank</b><span>One empty scene, nothing else. The way it always was.</span></button>' +
       TEMPLATES.map(t=>'<button class="tpl" data-key="' + t.key + '"><b>' + esc(t.name) + '</b><span>' + esc(t.blurb) + '</span></button>').join('') +
     '</div>' +
-    '<div class="tpl-example"><div><b>Or open the example first</b><span>“Haver — 15" commercial”: five shots in a bedroom, a kitchen and the street, one shoot day, with AV script, shot list, prop list, call sheet and budget filled in. Poke around, then start your own.</span></div><button class="btn" id="npExample">Open example</button></div>' +
+    '<div class="tpl-examples"><div class="tpl-exhead"><b>Or open an example first</b><span>Finished productions to poke around in — every one of them becomes yours to change.</span></div>' +
+      EXAMPLES.map(e=>'<div class="tpl-ex"><div><b>' + esc(e.name) + '</b><i>' + esc(e.kind) + '</i><span>' + esc(e.blurb) + '</span></div><button class="btn" data-ex="' + e.key + '">Open</button></div>').join('') +
+    '</div>' +
     '<div class="fb-ov-actions"><button class="btn" id="npNo">Cancel</button><span style="flex:1"></span><button class="btn primary" id="npGo">Create production</button></div></div>';
   document.body.appendChild(el);
   el.addEventListener('keydown', e=>e.stopPropagation());
@@ -246,9 +473,5 @@ function newProductionOverlay(){
     el.querySelector('#npGo').textContent = 'Creating…';
     await createProductionFromData(p, name || (t ? t.name : 'Untitled production'));
   });
-  el.querySelector('#npExample').addEventListener('click', async ()=>{
-    el.querySelector('#npExample').textContent = 'Opening…';
-    const p = await buildExampleProject();
-    await createProductionFromData(p, p.shootName);
-  });
+  el.querySelectorAll('[data-ex]').forEach(b=>b.addEventListener('click', ()=>openExample(EXAMPLES.find(e=>e.key === b.dataset.ex), b)));
 }

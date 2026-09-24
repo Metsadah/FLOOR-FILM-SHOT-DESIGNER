@@ -1174,6 +1174,7 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
   // first sign-in on this account? offer the (optional) profile once
   if(window.FLOOR_ACCOUNT) window.FLOOR_ACCOUNT.maybeProfilePrompt().catch(()=>{});
   document.getElementById('loading').remove();
+  if(typeof openExampleFromURL === 'function') setTimeout(openExampleFromURL, 400);
   initInfoForm();
   buildShotList();
   buildLibrary();

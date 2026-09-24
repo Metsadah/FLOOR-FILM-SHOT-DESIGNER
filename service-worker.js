@@ -5,7 +5,7 @@
 // offline fallback. Icons/manifest are cache-first. Project data lives in
 // IndexedDB / Supabase and is never touched here.
 
-const CACHE = 'floor-shell-v88';
+const CACHE = 'floor-shell-v89';
 const SHELL = [
   './',
   './index.html',
@@ -28,6 +28,7 @@ const SHELL = [
   './js/12-media.js',
   './js/13-rooms.js',
   './js/14-templates.js',
+  './js/15-atelier.js',
   './js/vendor/supabase.js',
   './manifest.json',
   './icons/icon-192.png',

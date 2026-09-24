@@ -303,6 +303,28 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.90 — examples you can edit · animated "floor plan in a minute"
+js/15-atelier.js holds ONE room (walls, openings, furniture with sizes,
+actors with a path, two cameras of which one on a dolly track, lights, sun)
+that two things share: landing/howto.js draws it step by step on a canvas
+(walls being drawn with a cursor, doors swinging in, furniture popping in,
+cast + camera A with a lens picker 24→50→35 and the FOV following on S35,
+the dolly track + camera B, then the blocking loop: dolly rides, Anna
+walks her path) and buildAtelierProject() (14-templates) turns it into a
+real scene. The step images step1..4.png are no longer used. Door swing in
+the landing follows the app: leaf to the right of the wall direction, flip
+mirrors. FOVs in the data are Super 35 (35 mm = 39°, 50 mm = 28°).
+EXAMPLES (14-templates): Haver, Velderhof, Nudes (ported from
+landing/seed2.js — stills fetched from landing/img and stored with
+storeImageFile; without them the mood board gets notes instead), Atelier.
+New-production overlay lists them; index.html?example=<key> builds one
+right after boot (openExampleFromURL; adapter lets ?example= through to
+sign-in like ?start=; guests hit the plan gate). Landing links each example
+("Open this production in Floorboard"). SUPPORTS gained Dolly, Gimbal,
+Steadicam, Jib, Crane. Landing renders of the real productions stay static
+images — re-export from the app (Export → PNG) after editing if they should
+change.
+
 ## v0.89 — stills in shot-list / AV exports, documents in the Export menu
 Screengrabs were silently dropped from the AV PDF: only data:image/jpeg
 stills were embedded and only when the card's STILLS column was on; the

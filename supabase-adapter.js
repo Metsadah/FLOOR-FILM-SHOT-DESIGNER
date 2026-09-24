@@ -268,7 +268,7 @@
     // logged-out visitors land on the landing page (share/invite links and the
     // landing page's own "Open the app" — ?start=1 — go straight to sign-in)
     const q = new URLSearchParams(location.search);
-    if(!q.has('view') && !q.has('join') && !q.has('start') && !q.has('type')){
+    if(!q.has('view') && !q.has('join') && !q.has('start') && !q.has('type') && !q.has('example')){
       location.replace('landing.html');
       return new Promise(()=>{}); // the page is leaving — never resolve
     }

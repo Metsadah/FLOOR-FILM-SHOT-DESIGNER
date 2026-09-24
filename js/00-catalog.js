@@ -50,7 +50,7 @@ const WALL_COLOR = '#3B3A36';
 // lens presets (full-frame horizontal FOV)
 const LENSES = [10,16,20,24,28,35,50,85,100,135];
 const FRAMINGS = ['','Extreme wide','Wide','Full shot','Medium','Medium close-up','Close-up','Extreme close-up','Insert','Top shot','Over-shoulder','POV','Two-shot'];
-const SUPPORTS = ['','Tripod','Handheld','Shoulder rig','Slider','Car mount'];
+const SUPPORTS = ['','Tripod','Handheld','Shoulder rig','Slider','Dolly','Gimbal','Steadicam','Jib','Crane','Car mount'];
 function shortUrl(u){
   if(!u) return '';
   let s = u.replace(/^https?:\/\//i,'').replace(/^www\./i,'');
