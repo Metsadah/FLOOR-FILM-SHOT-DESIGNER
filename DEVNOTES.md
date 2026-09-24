@@ -303,6 +303,12 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.93 — examples one click away
+Production switcher got "Open an example production…" under + New
+production: opens the new-production overlay scrolled to the examples
+(Haver, Velderhof, Nudes, Atelier). They were only reachable through the
+template picker and got missed.
+
 ## v0.92 — invites v2: the "revoked" bug, email + read-only invites, floors per invite
 Bug: since v0.87 redeem_production_invite() required plan_live(owner). With
 config.billing.provider = '' nobody has a subscriptions row (start_trial

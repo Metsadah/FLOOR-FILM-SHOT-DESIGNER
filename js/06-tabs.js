@@ -2108,6 +2108,22 @@ async function openProjectPop(){
     newProductionOverlay(); // name + template (or the example production) — 14-templates.js
   });
   pop.appendChild(nw);
+  if(typeof EXAMPLES !== 'undefined'){
+    // the finished productions (Velderhof, Nudes, Haver, Atelier) — one click away, not buried in the template picker
+    const ex = document.createElement('button');
+    ex.className = 'btn';
+    ex.style.cssText = 'width:100%;margin-top:6px;';
+    ex.textContent = 'Open an example production…';
+    ex.title = EXAMPLES.map(e=>e.name).join(' · ') + ' — each opens as a production of your own, to change as you like';
+    ex.addEventListener('click', ()=>{
+      if(window.FLOOR_BILLING && window.FLOOR_BILLING.enabled && !window.FLOOR_BILLING.canCreate()){ window.FLOOR_BILLING.gate('productions'); return; }
+      pop.classList.remove('show');
+      newProductionOverlay();
+      const box = document.querySelector('.fb-ov .tpl-examples');
+      if(box){ box.scrollIntoView({block:'start'}); box.style.borderColor = 'var(--accent)'; }
+    });
+    pop.appendChild(ex);
+  }
   if(idx.length > 1){
     const del = document.createElement('button');
     del.className = 'btn';
