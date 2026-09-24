@@ -1156,6 +1156,8 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
   else if(typeof claimEmailInvites === 'function') await claimEmailInvites();
   await loadProject();
   if(typeof applyReadOnlyRole === 'function') applyReadOnlyRole();
+  // the app opens on the ground floor: mood first, plans later
+  if(typeof switchTab === 'function' && typeof floorAllowed === 'function' && floorAllowed('mood')) switchTab('mood');
   if(typeof sharedPresenceGuard === 'function') sharedPresenceGuard();
   if(typeof initPresence === 'function') initPresence(); // green "who's online" chip
   if(!window.FLOOR_SB){
@@ -1186,6 +1188,7 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
   syncSunBtn();
   setTool('select');
   resize();
+  if(typeof maybeStartTour === 'function') maybeStartTour(); // first load on this device: the one-minute tour
   await ensureShotImages(activeShot(), false);
   zoomFit();
   updateZoomPct();

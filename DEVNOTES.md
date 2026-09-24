@@ -303,6 +303,16 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.94 — opens on Mood · guided tour
+Boot ends with switchTab('mood') (when that floor is open to the member):
+the app starts on the ground floor instead of the shot designer.
+js/16-tour.js: eight coach marks (floors, Mood, Script, library, plan,
+3rd–5th floors, production switcher, share) — a ring lights the control
+(box-shadow cut-out), a card explains, Next/Back/Skip, arrow keys, Esc.
+Steps switch floors as needed. Starts once per device 1.4 s after the first
+load (localStorage floorTourDone), never for ?join=, view-only or read-only;
+"▶ Take the tour" in the help panel restarts it.
+
 ## v0.93 — examples one click away
 Production switcher got "Open an example production…" under + New
 production: opens the new-production overlay scrolled to the examples
