@@ -303,6 +303,28 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.92 — invites v2: the "revoked" bug, email + read-only invites, floors per invite
+Bug: since v0.87 redeem_production_invite() required plan_live(owner). With
+config.billing.provider = '' nobody has a subscriptions row (start_trial
+only runs when billing is on), so EVERY co-edit link failed server-side
+with "The owner of this production has no active plan right now" — and
+redeemJoinCode() swallowed it into "invalid or revoked". Postgres logs
+showed five such failures for the Leger des Heils production. Fix (SQL,
+setup/invites-v2.sql, also schema.sql §7): the plan check only applies
+when the owner HAS a subscriptions row; the app now shows the database's
+own message. Invites gained name + email + role (editor | viewer);
+claim_email_invites() joins a signed-in user to every invite addressed to
+their email (05-app calls it at boot when there is no ?join=). Read-only:
+is_production_editor() splits production_docs into member read / editor
+write, the members-update policy is owner-only (a member could change
+their own role/floors before), the app puts body.read-only on, no-ops
+markDirty and skips cloud writes for a viewer. Share popover rebuilt:
+"People on this production" with a role select + floor chips per member,
+an invite form (name, email, co-edit/read-only, six floor ticks, crew/all
+presets, Create link / Create + email via mailto) and open invites with
+Copy / Mail / revoke. Without invites v2 in the database the form falls
+back to a plain link invite and says so.
+
 ## v0.91 — Atelier: dolly along the windows, Kino fill, sun through the windows
 The dolly track moved from the middle of the room to the window side (y 45):
 camera B now follows Anna from 3–4.5 m and pans with her instead of driving

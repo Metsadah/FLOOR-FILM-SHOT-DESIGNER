@@ -116,57 +116,60 @@ async function buildSharePop(){
   }
   await buildCoEditorSection(pop);
 }
+const ROLE_LABEL = {owner:'owner', editor:'co-edit', viewer:'read-only'};
+function floorsLabel(f){ return Array.isArray(f) ? (f.length ? f.map(k=>(FLOOR_NAMES.find(x=>x[0] === k) || [k, k])[1]).join(' ') : 'no floors') : 'all floors'; }
+function inviteUrl(code){ return location.origin + location.pathname + '?join=' + code; }
+function inviteMailto(i){
+  const url = inviteUrl(i.code), prod = (project && project.shootName) || 'a production';
+  const who = i.name ? 'Hi ' + i.name + ',' : 'Hi,';
+  const body = who + '\n\nI have invited you to "' + prod + '" in Floorboard' + (i.role === 'viewer' ? ' (read-only)' : ' as co-editor') + '.\n\nOpen this link and sign in' + (i.email ? ' with ' + i.email : '') + ':\n' + url + '\n\n' + (i.email ? 'If you already have a Floorboard account with that address, just sign in — the production is waiting for you.\n\n' : '') + 'Floorboard runs in the browser, on iPad too. No install.\n';
+  return 'mailto:' + encodeURIComponent(i.email || '') + '?subject=' + encodeURIComponent('Invitation: ' + prod + ' on Floorboard') + '&body=' + encodeURIComponent(body);
+}
 async function buildCoEditorSection(pop){
   const sb = shareClient();
-  pop.insertAdjacentHTML('beforeend', '<div class="xp-title" style="margin-top:12px">Co-editors</div>');
+  pop.insertAdjacentHTML('beforeend', '<div class="xp-title" style="margin-top:12px">People on this production</div>');
   const isShared = window.FLOOR_SHARED && FLOOR_SHARED.has(currentProjectId);
-  const inv = document.createElement('button');
-  inv.className = 'btn';
-  inv.style.cssText = 'width:100%;';
-  inv.textContent = isShared ? '+ Invite (all floors)' : 'Enable co-editing + invite…';
-  inv.addEventListener('click', ()=>createEditorInvite(null));
-  pop.appendChild(inv);
-  if(isShared){
-    const invC = document.createElement('button');
-    invC.className = 'btn';
-    invC.style.cssText = 'width:100%;margin-top:6px;';
-    invC.textContent = '+ Invite crew (no Budget, no Production)';
-    invC.title = 'A link for crew who should see the mood, script, plans and shot list — not the money or the call-sheet floor';
-    invC.addEventListener('click', ()=>createEditorInvite(['mood','write','design','shots']));
-    pop.appendChild(invC);
-  }
-  if(window.FLOOR_BILLING && window.FLOOR_BILLING.enabled && isShared){
-    const seats = document.createElement('div');
-    seats.style.cssText = 'font-size:10.5px;color:var(--ink2);margin-top:6px;';
-    window.FLOOR_BILLING.collaborators().then(n=>{ seats.textContent = n + ' of ' + window.FLOOR_BILLING.seats + ' collaborator seats in use — collaborators work for free, they just cannot start productions of their own.'; });
-    pop.appendChild(seats);
-  }
   const note = document.createElement('div');
-  note.style.cssText = 'font-size:10px;color:var(--ink2);margin-top:6px;line-height:1.5;';
-  note.textContent = isShared
-    ? 'Everyone below edits the same production. No live co-editing yet — if two people work at once, the last save wins.'
-    : 'Moves this production to the shared cloud space, then hands you an invite link. Invitees sign in with their email and edit the same production.';
-  pop.appendChild(note);
-  if(!isShared) return;
+  note.style.cssText = 'font-size:10px;color:var(--ink2);margin-top:2px;line-height:1.5;';
+  if(!isShared){
+    note.textContent = 'Co-editing moves this production to the shared cloud space. Then you invite people by name and email, as co-editor or read-only, per floor.';
+    pop.appendChild(note);
+    const en = document.createElement('button');
+    en.className = 'btn primary'; en.style.cssText = 'width:100%;margin-top:8px;';
+    en.textContent = 'Enable co-editing…';
+    en.addEventListener('click', async ()=>{ if(await convertToShared()) buildSharePop(); });
+    pop.appendChild(en);
+    return;
+  }
   const me = FLOOR_USER.id;
   const amOwner = FLOOR_SHARED.get(currentProjectId).role === 'owner';
   const {data: mem} = await sb.from('production_members').select('*')
     .eq('production_id', currentProjectId).order('added_at');
+  const allF = FLOOR_NAMES;
   for(const m of (mem || [])){
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 2px;font-size:11.5px;';
-    row.innerHTML = '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
-      esc(m.email || m.user_id) + (m.user_id === me ? ' (you)' : '') + '</span>' +
-      '<span style="color:var(--ink2)">' + esc(m.role) + '</span>';
+    row.className = 'sh-row';
+    const nm = document.createElement('span'); nm.className = 'sh-name';
+    nm.textContent = (m.email || m.user_id) + (m.user_id === me ? ' (you)' : '');
+    row.appendChild(nm);
     if(amOwner && m.user_id !== me){
+      // role: co-edit or read-only
+      const rs = document.createElement('select'); rs.className = 'sh-sel';
+      rs.innerHTML = '<option value="editor">co-edit</option><option value="viewer">read-only</option>';
+      rs.value = m.role === 'viewer' ? 'viewer' : 'editor';
+      rs.addEventListener('pointerdown', e=>e.stopPropagation());
+      rs.addEventListener('change', async ()=>{
+        const {error} = await sb.from('production_members').update({role:rs.value}).eq('production_id', currentProjectId).eq('user_id', m.user_id);
+        if(error){ toast('Could not change the role: ' + error.message); return; }
+        toast((m.email || 'Member') + ' is now ' + ROLE_LABEL[rs.value] + (rs.value === 'viewer' ? ' — they see it after their next reload' : ''));
+      });
+      row.appendChild(rs);
       // which floors this member may open — click a chip to toggle; all on = no restriction
-      const chips = document.createElement('span');
-      chips.style.cssText = 'display:inline-flex;gap:3px;';
-      const allF = FLOOR_NAMES;
+      const chips = document.createElement('span'); chips.className = 'sh-chips';
       let cur = Array.isArray(m.floors) ? m.floors.slice() : allF.map(f=>f[0]);
       for(const [key, short, title] of allF){
-        const c = document.createElement('button');
-        const paint = ()=>{ const on = cur.includes(key); c.style.cssText = 'font:700 9px -apple-system,Segoe UI,sans-serif;letter-spacing:.3px;padding:2px 5px;border-radius:999px;cursor:pointer;border:1px solid ' + (on ? 'var(--accent)' : 'var(--line)') + ';background:' + (on ? 'var(--accent-soft)' : 'var(--panel)') + ';color:' + (on ? 'var(--accent)' : 'var(--ink3)') + ';'; c.title = title + (on ? ' — allowed (click to hide)' : ' — hidden (click to allow)'); };
+        const c = document.createElement('button'); c.className = 'sh-chip';
+        const paint = ()=>{ const on = cur.includes(key); c.classList.toggle('on', on); c.title = title + (on ? ' — allowed (click to hide)' : ' — hidden (click to allow)'); };
         c.textContent = short; paint();
         c.addEventListener('click', async ()=>{
           cur = cur.includes(key) ? cur.filter(k=>k !== key) : cur.concat(key);
@@ -179,42 +182,74 @@ async function buildCoEditorSection(pop){
       }
       row.appendChild(chips);
       const rm = document.createElement('button');
-      rm.className = 'btn'; rm.textContent = '×'; rm.title = 'Remove this co-editor';
+      rm.className = 'btn sh-x'; rm.textContent = '×'; rm.title = 'Remove from this production';
       rm.addEventListener('click', async ()=>{
-        await sb.from('production_members').delete()
-          .eq('production_id', currentProjectId).eq('user_id', m.user_id);
-        toast('Co-editor removed');
-        buildSharePop();
+        await sb.from('production_members').delete().eq('production_id', currentProjectId).eq('user_id', m.user_id);
+        toast('Removed'); buildSharePop();
       });
       row.appendChild(rm);
+    } else {
+      const rl = document.createElement('span'); rl.className = 'sh-role'; rl.textContent = ROLE_LABEL[m.role] || m.role; row.appendChild(rl);
     }
     pop.appendChild(row);
   }
-  if(amOwner){
-    const {data: invites} = await sb.from('production_invites').select('*')
-      .eq('production_id', currentProjectId).order('created_at');
-    for(const i of (invites || [])){
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 2px;font-size:11px;color:var(--ink2);';
-      row.innerHTML = '<span style="flex:1">invite · ' + esc(i.code.slice(0,6)) + '… (' + esc(i.role) + (Array.isArray(i.floors) ? ' · ' + i.floors.map(f=>(FLOOR_NAMES.find(x=>x[0] === f) || [f, f])[1]).join(' ') : ' · all floors') + ')</span>';
-      const cp = document.createElement('button');
-      cp.className = 'btn'; cp.textContent = 'Copy';
-      cp.addEventListener('click', async ()=>{
-        const url = location.origin + location.pathname + '?join=' + i.code;
-        try{ await navigator.clipboard.writeText(url); toast('Invite link copied'); }
-        catch(_){ prompt('Invite link:', url); }
-      });
-      const rm = document.createElement('button');
-      rm.className = 'btn'; rm.textContent = '×'; rm.title = 'Revoke this invite';
-      rm.addEventListener('click', async ()=>{
-        await sb.from('production_invites').delete().eq('code', i.code);
-        toast('Invite revoked');
-        buildSharePop();
-      });
-      row.appendChild(cp); row.appendChild(rm);
+  if(!amOwner){
+    note.textContent = 'Only the owner invites people and sets who sees which floor.';
+    pop.appendChild(note); return;
+  }
+  // ---- invite form
+  const f = document.createElement('div'); f.className = 'sh-form';
+  f.innerHTML = '<div class="sh-sub">Invite someone</div>' +
+    '<div class="sh-grid"><input id="shName" class="fb-inp" placeholder="Name"><input id="shEmail" class="fb-inp" type="email" placeholder="Email (optional)"></div>' +
+    '<div class="sh-line"><label><input type="radio" name="shRole" value="editor" checked> Co-edit</label><label><input type="radio" name="shRole" value="viewer"> Read-only</label></div>' +
+    '<div class="sh-line sh-floors">' + allF.map(([k, short, title])=>'<label title="' + esc(title) + '"><input type="checkbox" data-floor="' + k + '" checked> ' + short + '</label>').join('') +
+      '<button class="sh-preset" data-preset="crew" title="Mood, script, plans and shot list — not the money or the call-sheet floor">crew</button><button class="sh-preset" data-preset="all">all</button></div>' +
+    '<div class="sh-line" style="gap:6px"><button class="btn primary" id="shMake" style="flex:1">Create invite link</button><button class="btn" id="shMail" title="Create the invite and open it in your mail app">Create + email…</button></div>' +
+    '<div class="sh-hint">With an email address the person is added automatically the moment they sign in with it — the link is a shortcut. Read-only people can look, browse and export, never change anything.</div>';
+  pop.appendChild(f);
+  f.addEventListener('pointerdown', e=>e.stopPropagation());
+  f.addEventListener('keydown', e=>e.stopPropagation());
+  f.querySelectorAll('.sh-preset').forEach(b=>b.addEventListener('click', ()=>{
+    const crew = b.dataset.preset === 'crew';
+    f.querySelectorAll('[data-floor]').forEach(cb=>{ cb.checked = crew ? ['mood','write','design','shots'].includes(cb.dataset.floor) : true; });
+  }));
+  const make = async (mail)=>{
+    const name = f.querySelector('#shName').value.trim(), email = f.querySelector('#shEmail').value.trim().toLowerCase();
+    const role = f.querySelector('input[name=shRole]:checked').value;
+    const floors = [...f.querySelectorAll('[data-floor]')].filter(cb=>cb.checked).map(cb=>cb.dataset.floor);
+    if(!floors.length){ toast('Tick at least one floor'); return; }
+    if(mail && !email){ toast('Fill in an email address to send it by mail'); return; }
+    const inv = await createEditorInvite(floors.length >= allF.length ? null : floors, {name, email, role, quiet:mail});
+    if(inv && mail) location.href = inviteMailto(inv);
+  };
+  f.querySelector('#shMake').addEventListener('click', ()=>make(false));
+  f.querySelector('#shMail').addEventListener('click', ()=>make(true));
+  if(window.FLOOR_BILLING && window.FLOOR_BILLING.enabled){
+    const seats = document.createElement('div'); seats.className = 'sh-hint';
+    window.FLOOR_BILLING.collaborators().then(n=>{ seats.textContent = n + ' of ' + window.FLOOR_BILLING.seats + ' collaborator seats in use — collaborators work for free, they just cannot start productions of their own.'; });
+    pop.appendChild(seats);
+  }
+  // ---- open invites
+  const {data: invites} = await sb.from('production_invites').select('*').eq('production_id', currentProjectId).order('created_at');
+  if(invites && invites.length){
+    pop.insertAdjacentHTML('beforeend', '<div class="sh-sub" style="margin-top:10px">Open invites</div>');
+    for(const i of invites){
+      const row = document.createElement('div'); row.className = 'sh-row';
+      const who = i.name || i.email ? esc([i.name, i.email].filter(Boolean).join(' · ')) : 'link · ' + esc(i.code.slice(0, 6)) + '…';
+      row.innerHTML = '<span class="sh-name">' + who + '</span><span class="sh-role">' + esc(ROLE_LABEL[i.role] || i.role) + ' · ' + esc(floorsLabel(i.floors)) + '</span>';
+      const cp = document.createElement('button'); cp.className = 'btn'; cp.textContent = 'Copy'; cp.title = 'Copy the invite link';
+      cp.addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(inviteUrl(i.code)); toast('Invite link copied'); }catch(_){ prompt('Invite link:', inviteUrl(i.code)); } });
+      const ml = document.createElement('button'); ml.className = 'btn'; ml.textContent = 'Mail'; ml.title = 'Open the invitation in your mail app';
+      ml.addEventListener('click', ()=>{ location.href = inviteMailto(i); });
+      const rm = document.createElement('button'); rm.className = 'btn sh-x'; rm.textContent = '×'; rm.title = 'Revoke this invite (people who already joined stay)';
+      rm.addEventListener('click', async ()=>{ await sb.from('production_invites').delete().eq('code', i.code); toast('Invite revoked'); buildSharePop(); });
+      row.appendChild(cp); row.appendChild(ml); row.appendChild(rm);
       pop.appendChild(row);
     }
   }
+  const tip = document.createElement('div'); tip.className = 'sh-hint';
+  tip.textContent = 'To try an invite yourself, open the link in a private window and sign in with another email address — you are the owner in this one.';
+  pop.appendChild(tip);
 }
 (function wireShareBtn(){
   const b = document.getElementById('shareBtn');
@@ -287,6 +322,7 @@ function wrapStorageForShared(){
     },
     async set(k, v){
       const pid = sharedPid(k);
+      if(pid && window.FLOOR_SHARED.get(pid) && FLOOR_SHARED.get(pid).role === 'viewer') return {key:k, value:v}; // read-only member
       if(pid){
         // freshness check: refuse to silently clobber a co-editor's newer save
         if(/^sd:project:/.test(k) && window.FLOOR_STAMPS[k]){
@@ -465,19 +501,32 @@ async function convertToShared(){
 }
 // the six floors, as the access chips and invite labels name them
 const FLOOR_NAMES = [['mood','MOOD','Ground · Mood'],['write','SCRIPT','1st · Script'],['design','SHOTS','2nd · Shot designer'],['shots','LIST','3rd · Shot list'],['budget','BUDGET','4th · Budget'],['org','PROD','5th · Production']];
-async function createEditorInvite(floors){
+// opts: {name, email, role:'editor'|'viewer', quiet} — returns the invite row (or null)
+async function createEditorInvite(floors, opts){
+  const o = opts || {};
   const sb = shareClient();
   if(!window.FLOOR_SHARED || !FLOOR_SHARED.has(currentProjectId)){
-    if(!(await convertToShared())) return;
+    if(!(await convertToShared())) return null;
   }
   const code = shareToken();
-  const {error} = await sb.from('production_invites')
-    .insert({code, production_id:currentProjectId, role:'editor', floors:Array.isArray(floors) ? floors : null});
-  if(error){ toast('Could not create the invite: ' + error.message); return; }
-  const url = location.origin + location.pathname + '?join=' + code;
-  try{ await navigator.clipboard.writeText(url); toast('Invite link copied — valid until you revoke it'); }
-  catch(_){ prompt('Invite link (copy it):', url); }
+  const row = {code, production_id:currentProjectId, role:o.role === 'viewer' ? 'viewer' : 'editor', floors:Array.isArray(floors) ? floors : null};
+  if(o.name) row.name = o.name;
+  if(o.email) row.email = o.email;
+  let {error} = await sb.from('production_invites').insert(row);
+  if(error && /column|schema cache/i.test(error.message || '')){
+    // database without invites v2 (setup/invites-v2.sql not run yet): plain link invite
+    delete row.name; delete row.email; if(row.role === 'viewer') row.role = 'editor';
+    ({error} = await sb.from('production_invites').insert(row));
+    if(!error) toast('Your database predates invites v2 — run setup/invites-v2.sql for email and read-only invites');
+  }
+  if(error){ toast('Could not create the invite: ' + error.message); return null; }
+  const url = inviteUrl(code);
+  if(!o.quiet){
+    try{ await navigator.clipboard.writeText(url); toast('Invite link copied' + (o.email ? ' — ' + o.email + ' is also added automatically at sign-in' : ' — valid until you revoke it')); }
+    catch(_){ prompt('Invite link (copy it):', url); }
+  }
   buildSharePop();
+  return row;
 }
 async function redeemJoinCode(code){
   const sb = shareClient();
@@ -487,19 +536,49 @@ async function redeemJoinCode(code){
     if(error) throw error;
     const row = data && data[0];
     if(!row) throw new Error('empty');
-    window.FLOOR_SHARED.set(row.production_id, {role:'editor', floors:row.floors || null, name:row.name});
-    const idx = (await loadProjectIndex()) || [];
-    if(!idx.find(p=>p.id === row.production_id))
-      idx.push({id:row.production_id, name:row.name || 'Shared production', updated:Date.now(), shared:true});
-    await saveProjectIndex(idx);
-    await window.storage.set('sd:current', row.production_id);
+    await noteJoined(row, true);
     history.replaceState(null, '', location.pathname);
-    toast('Joined "' + (row.name || 'shared production') + '" as co-editor');
+    toast('Joined "' + (row.name || 'shared production') + '" ' + (row.role === 'viewer' ? 'read-only' : 'as co-editor'));
   }catch(e){
     console.error('invite redeem failed', e);
-    toast('That invite link is invalid or was revoked');
+    // the database says why (no such invite, owner without plan, seats used up) — show that, not a guess
+    const msg = (e && (e.message || e.error_description)) || '';
+    toast(msg && !/empty|JSON|fetch/i.test(msg) ? 'Could not join: ' + msg : 'That invite link is invalid or was revoked');
     history.replaceState(null, '', location.pathname);
   }
+}
+// a redeemed invite (link or email) → membership map + production index
+async function noteJoined(row, makeCurrent){
+  window.FLOOR_SHARED.set(row.production_id, {role:row.role || 'editor', floors:row.floors || null, name:row.name});
+  const idx = (await loadProjectIndex()) || [];
+  if(!idx.find(p=>p.id === row.production_id))
+    idx.push({id:row.production_id, name:row.name || 'Shared production', updated:Date.now(), shared:true});
+  await saveProjectIndex(idx);
+  if(makeCurrent) await window.storage.set('sd:current', row.production_id);
+}
+// invites addressed to my email address join me at sign-in — no link needed
+async function claimEmailInvites(){
+  const sb = shareClient();
+  if(!sb || !window.FLOOR_USER || !window.FLOOR_SHARED) return;
+  try{
+    const {data, error} = await sb.rpc('claim_email_invites');
+    if(error || !data || !data.length) return;
+    let first = true;
+    for(const row of data){ const fresh = !FLOOR_SHARED.has(row.production_id); await noteJoined(row, first && fresh); if(fresh) first = false; }
+    const names = data.map(r=>'"' + (r.name || 'shared production') + '"');
+    toast('You were invited to ' + names.join(', ') + ' — it is in your production list');
+  }catch(_){ /* older database without the RPC */ }
+}
+// a read-only member: look, browse, export — never save. The database refuses
+// writes anyway (RLS); this keeps the UI honest about it.
+function applyReadOnlyRole(){
+  const me = window.FLOOR_SHARED && FLOOR_SHARED.get(currentProjectId);
+  if(!me || me.role !== 'viewer') return;
+  window.FLOOR_READONLY = true;
+  document.body.classList.add('read-only');
+  window.markDirty = function(){};
+  const st = document.getElementById('saveState'); if(st){ st.textContent = 'Read-only'; st.title = 'You were invited read-only: changes you make here are not saved'; }
+  toast('Read-only: you can look around and export, changes are not saved');
 }
 // async editing guard: no live co-editing — warn, then last save wins
 async function sharedPresenceGuard(){

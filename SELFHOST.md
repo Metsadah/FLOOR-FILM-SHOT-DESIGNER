@@ -102,6 +102,12 @@ each statement is written so running it twice is harmless.
 
 ## 4 · People and access
 
+**Inviting.** Share → *People on this production*: name, email, co-edit or
+read-only, and a tick per floor. With an email the person is joined the
+moment they sign in with that address; the link is a shortcut. Read-only
+people browse and export, the database refuses their writes. Requires
+`setup/invites-v2.sql` (included in `schema.sql` §7 for fresh installs).
+
 - **One account per person.** Everyone signs in with their own e-mail;
   productions belong to the account that created them.
 - **Co-editing.** The owner enables it per production (Share → Co-editors)

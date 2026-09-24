@@ -141,6 +141,18 @@ app polls its own row for ~3 min after checkout ──────────�
 
 ---
 
+## Invites v2 (v0.92): email, read-only, and the "no active plan" trap
+
+Run `setup/invites-v2.sql` once. Before it, `redeem_production_invite()`
+demanded a live plan for the production owner — and with billing switched
+off (`config.billing.provider = ''`) nobody has a subscriptions row, so
+every co-edit link failed with "The owner of this production has no active
+plan right now" (shown as "invalid or revoked" in the app). The plan check
+now only applies when the owner HAS a subscriptions row, i.e. when billing
+is on and `start_trial` ran at their first sign-in. Invites carry a name,
+an email (auto-join at sign-in via `claim_email_invites()`) and a role:
+`editor` (co-edit) or `viewer` (read-only, RLS refuses their writes).
+
 ## Plans v2 (v0.87): trial · codes · collaborator seats
 
 How the hosted plan now works — all enforced in the database functions, the

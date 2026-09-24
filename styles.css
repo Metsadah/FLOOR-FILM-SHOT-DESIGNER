@@ -522,10 +522,30 @@ body.tab-org #sunBtn, body.tab-org #playBtn{ display:none !important; }
 #sharePop{
   position:fixed; top:64px; right:130px; z-index:120; display:none;
   background:var(--panel); border:1px solid var(--line); border-radius:var(--r-sm);
-  box-shadow:0 16px 50px rgba(40,38,32,.18); padding:14px; width:330px;
+  box-shadow:0 16px 50px rgba(40,38,32,.18); padding:14px; width:390px;
   max-height:70vh; overflow:auto;
 }
 #sharePop.show{ display:block; }
+.sh-row{ display:flex; align-items:center; flex-wrap:wrap; gap:5px; padding:4px 2px; font-size:11.5px; }
+.sh-name{ flex:1 1 150px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sh-role{ color:var(--ink2); font-size:10.5px; white-space:nowrap; }
+.sh-sel{ font-size:10.5px; padding:1px 3px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); }
+.sh-chips{ display:inline-flex; gap:2px; }
+.sh-chip{ font:700 8.5px -apple-system,Segoe UI,sans-serif; letter-spacing:.3px; padding:2px 4px; border-radius:999px; cursor:pointer; border:1px solid var(--line); background:var(--panel); color:var(--ink3); }
+.sh-chip.on{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+.sh-x{ padding:1px 6px; }
+.sh-form{ margin-top:10px; padding:10px; border:1px dashed var(--border2); border-radius:var(--r-sm); display:flex; flex-direction:column; gap:7px; }
+.sh-sub{ font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink2); }
+.sh-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; } .sh-grid .fb-inp{ margin:0; font-size:12px; padding:6px 8px; }
+.sh-line{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:11.5px; } .sh-line label{ display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
+.sh-floors{ gap:6px; } .sh-floors label{ font:700 9.5px -apple-system,Segoe UI,sans-serif; letter-spacing:.3px; color:var(--ink2); }
+.sh-preset{ margin-left:auto; font-size:10px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--accent); cursor:pointer; }
+.sh-hint{ font-size:10px; color:var(--ink2); line-height:1.5; margin-top:4px; }
+/* read-only member: browse, zoom, export — no drawing tools, no library, no bin */
+body.read-only #toolbar, body.read-only #sidebar, body.read-only #libToggle, body.read-only #trashCan,
+body.read-only #undoBtn, body.read-only #redoBtn, body.read-only #selBar, body.read-only #shareBtn, body.read-only #mediaBtn,
+body.read-only .scriptbtn, body.read-only #roomLibBtn{ display:none !important; }
+body.read-only #saveState{ color:var(--accent); font-weight:700; }
 #viewerBar{
   position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:110;
   display:flex; align-items:center; gap:12px; padding:8px 14px;

@@ -1153,7 +1153,9 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
   await initSharedProductions();
   const joinCode = new URLSearchParams(location.search).get('join');
   if(joinCode) await redeemJoinCode(joinCode);
+  else if(typeof claimEmailInvites === 'function') await claimEmailInvites();
   await loadProject();
+  if(typeof applyReadOnlyRole === 'function') applyReadOnlyRole();
   if(typeof sharedPresenceGuard === 'function') sharedPresenceGuard();
   if(typeof initPresence === 'function') initPresence(); // green "who's online" chip
   if(!window.FLOOR_SB){
