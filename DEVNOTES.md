@@ -303,6 +303,15 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.91 — Atelier: dolly along the windows, Kino fill, sun through the windows
+The dolly track moved from the middle of the room to the window side (y 45):
+camera B now follows Anna from 3–4.5 m and pans with her instead of driving
+into her. LED key → Kino Flo fill by the sofa, a second bounce in the nook,
+HMI outside window 1 on the sun line. The landing draws the sun with a
+direction (sunDir: sun → room centre) and a soft shaft through every window
+that faces it (sunShafts), like the app's light cones; the dining set moved
+down 35 cm to clear the track.
+
 ## v0.90 — examples you can edit · animated "floor plan in a minute"
 js/15-atelier.js holds ONE room (walls, openings, furniture with sizes,
 actors with a path, two cameras of which one on a dolly track, lights, sun)

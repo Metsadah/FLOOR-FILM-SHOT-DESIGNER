@@ -121,6 +121,9 @@
       for(let i = 0; i < 5; i++){ const a = i / 5 * 6.283; ctx.beginPath(); ctx.arc(Math.cos(a) * w * .22, Math.sin(a) * w * .22, w * .17, 0, 7); ctx.fill(); }
     } else if(p.kind === 'floorlamp'){
       ctx.fillStyle = '#FBEBC3'; ctx.strokeStyle = SAND; ctx.beginPath(); ctx.arc(0, 0, w / 2, 0, 7); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, 4, 0, 7); ctx.fillStyle = SAND; ctx.fill();
+    } else if(p.kind === 'kino'){
+      rrect(-w / 2, -h / 2, w, h, 5, fill, edge, lw);
+      ctx.strokeStyle = SAND; ctx.lineWidth = 2 / sc; ctx.beginPath(); for(let i = -1; i <= 1; i++){ ctx.moveTo(-w / 2 + 8, i * 9); ctx.lineTo(w / 2 - 8, i * 9); } ctx.stroke();
     } else if(p.kind === 'hmi'){
       ctx.fillStyle = '#FBEBC3'; ctx.strokeStyle = SAND; ctx.beginPath(); ctx.arc(0, 0, w / 2, 0, 7); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(w * .1, -w * .3); ctx.lineTo(w * .7, -w * .8); ctx.moveTo(w * .1, w * .3); ctx.lineTo(w * .7, w * .8); ctx.moveTo(w * .3, 0); ctx.lineTo(w * .9, 0); ctx.stroke();
@@ -133,7 +136,7 @@
       rrect(-w / 2, -h / 2, w, h, Math.min(8, w / 6), fill, edge, lw);
     }
     ctx.restore();
-    if(p.label && S > .5) label(p.x, p.y + p.h / 2 + 14, p.label, INK2, 10.5);
+    if(p.label && (S > .5 || isLight)) label(p.x, p.y + Math.max(p.w, p.h) / 2 + 12, p.label, isLight ? '#9A6B12' : INK2, 10.5);
   }
   function drawTrack(k){
     if(!D.track || k <= 0) return;
@@ -198,6 +201,28 @@
     ctx.fillStyle = col || CORAL; ctx.beginPath(); ctx.moveTo(X(b.x), Y(b.y)); ctx.lineTo(X(b.x) - Math.cos(ang - .5) * 9, Y(b.y) - Math.sin(ang - .5) * 9); ctx.lineTo(X(b.x) - Math.cos(ang + .5) * 9, Y(b.y) - Math.sin(ang + .5) * 9); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
+  // sunlight: from the sun's position towards the room, entering through every
+  // window that faces it — a soft shaft per window, like the app's light cones
+  function sunDir(){ const cx = 440, cy = 280, dx = cx - D.sun.x, dy = cy - D.sun.y, L = Math.hypot(dx, dy); return {x:dx / L, y:dy / L}; }
+  function sunShafts(k){
+    if(!D.sun || k <= 0) return;
+    const dir = sunDir(), L = 420 * ease(k);
+    ctx.save(); ctx.globalAlpha = .9 * k;
+    for(const op of openings){
+      if(op.o.type !== 'window') continue;
+      const w = op.w; if(w.nx * dir.x + w.ny * dir.y <= .15) continue; // light has to come in, not graze
+      const cx = w.x1 + w.ux * w.L * op.o.t, cy = w.y1 + w.uy * w.L * op.o.t, hw = op.o.w / 2;
+      const p1 = {x:cx - w.ux * hw, y:cy - w.uy * hw}, p2 = {x:cx + w.ux * hw, y:cy + w.uy * hw};
+      const g = ctx.createLinearGradient(X(cx), Y(cy), X(cx + dir.x * L), Y(cy + dir.y * L));
+      g.addColorStop(0, 'rgba(226,169,59,.30)'); g.addColorStop(1, 'rgba(226,169,59,0)');
+      ctx.fillStyle = g; ctx.beginPath();
+      ctx.moveTo(X(p1.x), Y(p1.y)); ctx.lineTo(X(p2.x), Y(p2.y)); ctx.lineTo(X(p2.x + dir.x * L), Y(p2.y + dir.y * L)); ctx.lineTo(X(p1.x + dir.x * L), Y(p1.y + dir.y * L)); ctx.closePath(); ctx.fill();
+    }
+    // the rays from the sun itself
+    ctx.strokeStyle = 'rgba(226,169,59,.45)'; ctx.lineWidth = 1; ctx.setLineDash([5, 6]);
+    for(const off of [-60, 0, 60]){ const sx = D.sun.x + -dir.y * off, sy = D.sun.y + dir.x * off; ctx.beginPath(); ctx.moveTo(X(sx + dir.x * 30), Y(sy + dir.y * 30)); ctx.lineTo(X(sx + dir.x * 200), Y(sy + dir.y * 200)); ctx.stroke(); }
+    ctx.setLineDash([]); ctx.restore();
+  }
   function sun(k){
     if(!D.sun || k <= 0) return;
     ctx.save(); ctx.globalAlpha = k; const r = Math.max(8, 18 * S);
@@ -228,6 +253,8 @@
       openings.forEach((op, i)=>{ const k = step === 1 ? pop(t, .25 + i * .42, .5) : 1; drawOpening(op, k); });
       if(step === 1){ const i = Math.min(openings.length - 1, Math.max(0, Math.floor((t - .25) / .42) + 1)); const op = openings[i]; const k = pop(t, .25 + i * .42, .5); if(k < 1 && t > .05){ const w = op.w; cursor(w.x1 + w.ux * w.L * op.o.t, w.y1 + w.uy * w.L * op.o.t); } }
     }
+    // the afternoon sun through the windows (arrives with the light, step 3)
+    if(step >= 3) sunShafts(step === 3 ? pop(t, 5.3, .7) : 1);
     // 2 · furniture
     if(step >= 2){
       D.props.forEach((p, i)=>{ const k = step === 2 ? pop(t, .2 + i * .24, .45) : 1; drawProp(p, k); });
@@ -264,7 +291,10 @@
         if(step === 4){
           const P = 7.2, u = (t % P) / P;                 // one ride per loop
           const m = ease((u - .12) / .68);                 // hold · move · hold
-          const bx = lerp(B.x, end.x, m), by = lerp(B.y, end.y, m), br = rotA(B.rot, end.rot == null ? B.rot : end.rot, m);
+          const bx = lerp(B.x, end.x, m), by = lerp(B.y, end.y, m);
+          // the operator pans with Anna: aim at where she is right now
+          const aim = walker ? walkAt(m) : null;
+          const br = aim ? Math.atan2(aim.y - by, aim.x - bx) : rotA(B.rot, end.rot == null ? B.rot : end.rot, m);
           drawPath(walkPts, 1);
           drawPath([{x:B.x, y:B.y}, {x:end.x, y:end.y}], .9, ACC);
           drawCam(B, bx, by, br, B.fov, 1, true);
