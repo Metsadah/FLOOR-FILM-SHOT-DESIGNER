@@ -334,8 +334,8 @@ function openPlanPop(){
       if(r.on && seenOn){
         const gap = document.createElement('div');
         gap.className = 'plan-gap';
-        gap.innerHTML = '↳ travel <input type="number" min="0" step="5" value="' + r.travel + '"> ' +
-          '+ setup <input type="number" min="0" step="5" value="' + r.setup + '"> min';
+        gap.innerHTML = '↳ travel <input type="number" min="0" step="5" value="' + (+r.travel || 0) + '"> ' +
+          '+ setup <input type="number" min="0" step="5" value="' + (+r.setup || 0) + '"> min';
         const [ti, si] = gap.querySelectorAll('input');
         ti.addEventListener('change', ()=>{ r.travel = Math.max(0, +ti.value||0); paint(); });
         si.addEventListener('change', ()=>{ r.setup = Math.max(0, +si.value||0); paint(); });

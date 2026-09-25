@@ -303,6 +303,38 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.95 — security audit: SQL hardening, XSS fixes, pdf.js 4, headers, retention
+See SECURITY.md. Database (setup/security-v1.sql, schema §8): no anonymous
+listing of share tokens or comments (comments via share_comments_for RPC,
+viewer polls every 20 s instead of Realtime), comment insert only for a live
+share with author ≤ 80, public bucket takes only your own <token>.json ≤ 20 MB
+(share row is created BEFORE the upload now), helpers signed-in only,
+TRUNCATE/REFERENCES/TRIGGER revoked from API roles, reserved display names
+(root, admin, support, floorboard…) refused by trigger + client
+(reservedNameProblem), productions owner locked by trigger (a co-editor could
+set owner = self), email-bound invites only for that confirmed address and
+single-use, links expire after a year, claim_email_invites needs a confirmed
+email, trial length fixed at 14 days server-side, promo codes once per
+account with FOR UPDATE, 16 MB value ceiling on kv / production_docs, shares
+expire after 180 days + purge_expired() (pg_cron), delete_my_account also
+clears scout photos / opened_by and never aborts on storage rows.
+Client: esc() covers '; ids and numbers escaped in the viewer scene picker,
+budget page, shot/scene pickers, plan gaps, room cards; safeSrc() for room
+thumbs and audio; openExternal() = noopener for every link; ?join= asks
+before joining; passwords ≥ 10; sign-out wipes localStorage extras, caches
+and the local IndexedDB copy; data export includes owned productions,
+docs, memberships, shares, subscription; policy version change re-prompts
+the privacy overlay; deleting a production removes its stills/files (unless
+another production references them) and its share links. pdf.js 3.11 →
+4.10.38 ESM (CVE-2024-4367) with isEvalSupported:false. No inline scripts
+left (CDN fallback dropped, landing/news-feed.js) so the CSP in _headers
+runs without unsafe-inline for scripts; setup/nginx-security.conf for the
+Docker image. Service worker caches navigations by bare path and only
+res.ok. Webhook decides the plan from PRO_PRICE_IDS / STUDIO_PRICE_IDS,
+checks Paddle ts freshness, ignores out-of-order events, validates user_id.
+privacy.html: retention table, sub-processors, controller/processor note
+(version 2026-09-25).
+
 ## v0.94 — opens on Mood · guided tour
 Boot ends with switchTab('mood') (when that floor is open to the member):
 the app starts on the ground floor instead of the shot designer.

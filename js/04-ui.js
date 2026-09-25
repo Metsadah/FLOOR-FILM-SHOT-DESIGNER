@@ -254,7 +254,7 @@ function refreshSelBar(){
       url.addEventListener('keydown', e=>{ if(e.key==='Enter') url.blur(); e.stopPropagation(); });
       selBar.appendChild(url);
       sbtn('Open \u2197', ()=>{
-        if(o.url) window.open(/^https?:\/\//i.test(o.url) ? o.url : 'https://'+o.url, '_blank');
+        if(o.url) openExternal(o.url);
         else toast('Add a URL first');
       });
     }
@@ -324,7 +324,7 @@ function refreshSelBar(){
       ks.style.cssText = 'font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);max-width:150px;';
       // grouped like the library, current kind first, Custom… at the end
       const seenK = new Set();
-      if(!CATS.some(c=>c.items.some(i=>i.kind === o.kind))) ks.insertAdjacentHTML('beforeend', '<option value="' + o.kind + '" selected>' + esc(PROPS[o.kind].name || o.kind) + '</option>');
+      if(!CATS.some(c=>c.items.some(i=>i.kind === o.kind))) ks.insertAdjacentHTML('beforeend', '<option value="' + esc(o.kind) + '" selected>' + esc(PROPS[o.kind].name || o.kind) + '</option>');
       for(const c of CATS){
         const ks2 = c.items.filter(i=>i.cat === 'prop' && PROPS[i.kind] && !GEAR_KINDS.has(i.kind) && !PROPLIST_SKIP.has(i.kind) && i.kind !== 'track' && !seenK.has(i.kind)).map(i=>i.kind);
         if(!ks2.length) continue;
@@ -759,7 +759,7 @@ function refreshSelBar(){
         try{
           const r = await window.storage.get('sd:file:' + o.fileId);
           if(!r || !r.value){ toast('Audio data not found'); return; }
-          const blob = await (await fetch(r.value)).blob();
+          const blob = await (await fetch(safeSrc(r.value) || 'data:,')).blob();
           const a = document.createElement('a');
           a.download = o.name || 'audio';
           a.href = URL.createObjectURL(blob);
@@ -773,7 +773,7 @@ function refreshSelBar(){
         try{
           const r = await window.storage.get('sd:file:' + o.fileId);
           if(!r || !r.value){ toast('File data not found'); return; }
-          const blob = await (await fetch(r.value)).blob();
+          const blob = await (await fetch(safeSrc(r.value) || 'data:,')).blob();
           const a = document.createElement('a');
           a.download = o.name || 'file';
           a.href = URL.createObjectURL(blob);
@@ -905,7 +905,7 @@ function refreshSelBar(){
       shSel.insertAdjacentHTML('beforeend', `<option value="">\u2014 shot\u2026</option>`);
       (shot.shots||[]).forEach(sh=>{
         shSel.insertAdjacentHTML('beforeend',
-          `<option value="${sh.id}">${esc(sh.name||'Shot')}</option>`);
+          `<option value="${esc(sh.id)}">${esc(sh.name||'Shot')}</option>`);
       });
       shSel.insertAdjacentHTML('beforeend', `<option value="__new">+ New shot\u2026</option>`);
       shSel.value = (shot.shots||[]).some(x=>x.id===o.shotId) ? o.shotId : '';
@@ -2371,7 +2371,7 @@ function propPickOverlay(o){
   el.innerHTML = '<div class="fb-ov-box" style="width:520px"><div class="fb-ov-title">Pick from the scene boards</div>' +
     '<div class="fb-ov-sub">Tick what actually has to be brought along. Sofas, sinks and pianos on the plan are usually part of the location — leave those off.</div>' +
     (scenes.length ? scenes.map(g=>'<div class="fb-pick-scene"><b>' + esc(plSceneHead(g.s)) + '</b>' +
-      g.items.map(it=>'<label class="fb-pick"><input type="checkbox" data-scene="' + g.s.id + '" data-name="' + esc(it.name) + '" data-n="' + it.n + '"' + (it.on ? ' checked disabled' : '') + '><span>' + esc(it.name) + (it.n > 1 ? ' <i>×' + it.n + '</i>' : '') + '</span></label>').join('') + '</div>').join('')
+      g.items.map(it=>'<label class="fb-pick"><input type="checkbox" data-scene="' + esc(g.s.id) + '" data-name="' + esc(it.name) + '" data-n="' + (+it.n || 0) + '"' + (it.on ? ' checked disabled' : '') + '><span>' + esc(it.name) + (it.n > 1 ? ' <i>×' + it.n + '</i>' : '') + '</span></label>').join('') + '</div>').join('')
       : '<p class="fb-dim">Nothing placed on the scene boards yet.</p>') +
     '<div class="fb-ov-actions"><button class="btn" id="ppNo">Cancel</button><span style="flex:1"></span><button class="btn primary" id="ppGo">Add ticked</button></div></div>';
   document.body.appendChild(el);

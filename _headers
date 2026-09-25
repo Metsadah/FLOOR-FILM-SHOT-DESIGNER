@@ -1,0 +1,17 @@
+# Floorboard — security headers for Netlify (copied into every deploy zip).
+# CSP: scripts only from this origin (no inline scripts anywhere — keep it that way),
+# inline styles allowed, this project's Supabase + Open-Meteo for data, images from
+# anywhere over https (mood boards link out), no framing by other sites.
+# Self-hosters: replace the supabase host with your own project's.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.paddle.com https://*.lemonsqueezy.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' data: blob: https://jcasjylzosgtitaxbrjo.supabase.co wss://jcasjylzosgtitaxbrjo.supabase.co https://api.open-meteo.com https://geocoding-api.open-meteo.com https://cdn.jsdelivr.net https://*.paddle.com https://*.lemonsqueezy.com; frame-src https://*.paddle.com https://*.lemonsqueezy.com; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=(self), usb=(), interest-cohort=()
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# the read-only viewer is meant to be opened from anywhere, but still not framed
+/index.html
+  Cache-Control: no-cache

@@ -41,14 +41,15 @@ async function createShareLink(){
     const token = shareToken();
     const pack = {shared:1, exported:new Date().toISOString(),
       name:project.shootName || 'production', project, assets};
+    // the row first: the bucket only accepts <token>.json for a share you own
+    const ins = await sb.from('shares').insert({token, title:project.shootName || 'Untitled production'});
+    if(ins.error) throw ins.error;
     const up = await sb.storage.from('shares')
       .upload(token + '.json', new Blob([JSON.stringify(pack)], {type:'application/json'}),
         {contentType:'application/json', upsert:false});
-    if(up.error) throw up.error;
-    const ins = await sb.from('shares').insert({token, title:project.shootName || 'Untitled production'});
-    if(ins.error) throw ins.error;
+    if(up.error){ await sb.from('shares').delete().eq('token', token); throw up.error; }
     const url = shareUrlFor(token);
-    try{ await navigator.clipboard.writeText(url); toast('Share link copied — anyone with it can view & comment'); }
+    try{ await navigator.clipboard.writeText(url); toast('Share link copied — anyone with it can view & comment, for 180 days'); }
     catch(_){ prompt('Share link (copy it):', url); }
     buildSharePop();
   }catch(e){
@@ -85,6 +86,7 @@ async function buildSharePop(){
   mk.addEventListener('click', createShareLink);
   pop.appendChild(mk);
   const sb = shareClient();
+  sb.rpc('purge_expired').then(()=>{}, ()=>{}); // storage limitation: expired links go, whoever opens this panel
   const {data, error} = await sb.from('shares').select('*')
     .eq('owner', window.FLOOR_USER.id).order('created_at', {ascending:false});
   if(error || !data || !data.length){
@@ -98,7 +100,8 @@ async function buildSharePop(){
     row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 2px;font-size:11.5px;';
     row.innerHTML = '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
       esc(s.title || s.token) + '</span>' +
-      '<span style="color:var(--ink2)">' + new Date(s.created_at).toLocaleDateString() + '</span>';
+      '<span style="color:var(--ink2)" title="' + (s.expires_at ? 'Expires ' + new Date(s.expires_at).toLocaleDateString() + ' — revoke and re-share for a fresh 180 days' : 'Created') + '">' +
+        (s.expires_at ? 'until ' + new Date(s.expires_at).toLocaleDateString() : new Date(s.created_at).toLocaleDateString()) + '</span>';
     const cp = document.createElement('button');
     cp.className = 'btn'; cp.textContent = 'Copy';
     cp.addEventListener('click', async ()=>{
@@ -107,7 +110,7 @@ async function buildSharePop(){
     });
     const op = document.createElement('button');
     op.className = 'btn'; op.textContent = 'View';
-    op.addEventListener('click', ()=>window.open(shareUrlFor(s.token), '_blank'));
+    op.addEventListener('click', ()=>window.open(shareUrlFor(s.token), '_blank', 'noopener,noreferrer'));
     const rm = document.createElement('button');
     rm.className = 'btn'; rm.textContent = '×'; rm.title = 'Revoke this link';
     rm.addEventListener('click', ()=>deleteShareLink(s.token));
@@ -531,6 +534,9 @@ async function createEditorInvite(floors, opts){
 async function redeemJoinCode(code){
   const sb = shareClient();
   if(!sb || !window.FLOOR_USER){ toast('Sign in with the cloud version to join a production'); return; }
+  if(!/^[a-z0-9]{8,64}$/i.test(code || '')){ history.replaceState(null, '', location.pathname); return; }
+  // a link should not be able to plant a production in someone's account unasked
+  if(!confirm('This link invites you to a shared production. Join it? It becomes the production you are working in.')){ history.replaceState(null, '', location.pathname); return; }
   try{
     const {data, error} = await sb.rpc('redeem_production_invite', {invite_code:code});
     if(error) throw error;
@@ -667,7 +673,7 @@ function updateViewerBar(){
   if(activeTab !== 'design'){ selEl.style.display = 'none'; return; }
   selEl.style.display = '';
   selEl.innerHTML = project.scenes.map((s,i)=>
-    '<option value="' + s.id + '"' + (s.id===project.activeSceneId ? ' selected' : '') + '>' +
+    '<option value="' + esc(s.id) + '"' + (s.id===project.activeSceneId ? ' selected' : '') + '>' +
     (i+1) + ' · ' + esc(s.name) + '</option>').join('');
 }
 
@@ -693,18 +699,19 @@ async function initViewerComments(token, name){
   });
   const sb = shareClient();
   if(!sb) return;
-  const {data} = await sb.from('share_comments').select('*').eq('token', token)
-    .order('created_at', {ascending:true});
+  let {data, error} = await sb.rpc('share_comments_for', {t:token});
+  if(error) ({data} = await sb.from('share_comments').select('*').eq('token', token).order('created_at', {ascending:true}));
   shareComments = data || [];
   render();
-  sb.channel('share-' + token)
-    .on('postgres_changes',
-      {event:'INSERT', schema:'public', table:'share_comments', filter:'token=eq.' + token},
-      payload=>{
-        if(!shareComments.find(c=>c.id === payload.new.id)) shareComments.push(payload.new);
-        render();
-      })
-    .subscribe();
+  // fresh comments every 20 s while the tab is visible (reads go through the RPC, no public table)
+  setInterval(async ()=>{
+    if(document.visibilityState !== 'visible') return;
+    const r = await sb.rpc('share_comments_for', {t:token});
+    if(r.error || !r.data) return;
+    let added = false;
+    for(const c of r.data) if(!shareComments.find(x=>x.id === c.id)){ shareComments.push(c); added = true; }
+    if(added) render();
+  }, 20000);
 }
 
 function drawCommentPins(){
@@ -774,8 +781,8 @@ function showCommentThread(list, cx, cy){
 function showCommentForm(wx, wy, cx, cy){
   const pop = commentPopShell(cx, cy);
   pop.innerHTML =
-    '<input id="cmtName" placeholder="Your name" style="width:100%;margin-bottom:6px">' +
-    '<textarea id="cmtBody" rows="3" placeholder="Say something useful…" style="width:100%"></textarea>' +
+    '<input id="cmtName" placeholder="Your name" maxlength="80" style="width:100%;margin-bottom:6px">' +
+    '<textarea id="cmtBody" rows="3" maxlength="2000" placeholder="Say something useful…" style="width:100%"></textarea>' +
     '<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px">' +
     '<button class="btn" id="cmtCancel">Cancel</button>' +
     '<button class="btn primary" id="cmtSend">Pin comment</button></div>';
@@ -786,7 +793,8 @@ function showCommentForm(wx, wy, cx, cy){
   pop.querySelector('#cmtSend').addEventListener('click', async ()=>{
     const body = pop.querySelector('#cmtBody').value.trim();
     if(!body){ toast('Write something first'); return; }
-    const author = nameI.value.trim();
+    const author = nameI.value.trim().slice(0, 80);
+    if(typeof reservedNameProblem === 'function' && reservedNameProblem(author)){ toast(reservedNameProblem(author)); return; }
     localStorage.setItem('floor-comment-name', author);
     const sb = shareClient();
     const {data, error} = await sb.from('share_comments')

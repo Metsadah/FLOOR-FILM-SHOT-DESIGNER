@@ -102,7 +102,7 @@
             <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;
                           font-size:12px;color:var(--body);line-height:1.45;cursor:pointer">
               <input id="flConsent" type="checkbox" style="margin-top:2px">
-              <span>I agree to the <a href="privacy.html" target="_blank"
+              <span>I agree to the <a href="privacy.html" target="_blank" rel="noopener"
                 style="color:var(--accent)">privacy policy</a> — my email (and any profile
                 details I choose to add later) are stored to run my account.</span>
             </label>
@@ -179,7 +179,7 @@
         el.querySelector('.fl-card').insertAdjacentHTML('beforeend', body);
         fetch('news.json', {cache:'no-store'}).then(r=>r.json()).then(items=>{
           const box = el.querySelector('#flNews'); if(!box) return;
-          box.innerHTML = '<h3>News</h3><div class="fl-news">' + items.slice(0, 2).map(n=>'<div><small>' + n.date + (n.tag ? ' · ' + n.tag : '') + '</small><b>' + n.title + '</b>' + (n.text || '').slice(0, 140) + (n.text && n.text.length > 140 ? '…' : '') + (n.link ? ' <a href="' + n.link + '">More</a>' : '') + '</div>').join('') + '</div><p style="margin:8px 0 0"><a href="news.html">All news →</a></p>';
+          box.innerHTML = '<h3>News</h3><div class="fl-news">' + items.slice(0, 2).map(n=>'<div><small>' + escA(n.date) + (n.tag ? ' · ' + escA(n.tag) : '') + '</small><b>' + escA(n.title) + '</b>' + escA((n.text || '').slice(0, 140)) + (n.text && n.text.length > 140 ? '…' : '') + (n.link ? ' <a href="' + escA(safeLink(n.link)) + '">More</a>' : '') + '</div>').join('') + '</div><p style="margin:8px 0 0"><a href="news.html">All news →</a></p>';
         }).catch(()=>{ const box = el.querySelector('#flNews'); if(box) box.remove(); });
         wire();
       }
@@ -208,7 +208,7 @@
           // success resolves via onAuthStateChange below
         } else if(mode === 'signup'){
           if(!email || !pass){ msg().textContent = 'Enter an email and a password.'; return; }
-          if(pass.length < 6){ msg().textContent = 'Password needs at least 6 characters.'; return; }
+          if(pass.length < 10){ msg().textContent = 'Password needs at least 10 characters — a short sentence works well.'; return; }
           if(!el.querySelector('#flConsent')?.checked){
             msg().textContent = 'Please agree to the privacy policy to create an account.';
             return;
@@ -228,7 +228,7 @@
             ? 'Could not send the reset link: ' + error.message
             : 'Check your inbox for a password reset link and open it on this device.';
         } else if(mode === 'reset'){
-          if(!pass || pass.length < 6){ msg().textContent = 'Password needs at least 6 characters.'; return; }
+          if(!pass || pass.length < 10){ msg().textContent = 'Password needs at least 10 characters — a short sentence works well.'; return; }
           const pass2 = el.querySelector('#flPass2')?.value;
           if(pass !== pass2){ msg().textContent = 'The two passwords don’t match.'; return; }
           msg().textContent = 'Setting password…';
@@ -337,7 +337,15 @@
   // timestamp) is recorded on the profile row. FLOOR_ACCOUNT.open() is the
   // in-app panel: view/edit (rectification), download my data (access +
   // portability), sign out, delete account (erasure via delete_my_account RPC).
-  const PRIVACY_VERSION = '2026-08-17';
+  const PRIVACY_VERSION = '2026-09-25'; // retention table + sub-processors added
+  const escA = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const safeLink = u => (typeof u === 'string' && /^(https?:\/\/|[a-z0-9_./#-]+$)/i.test(u) && !/^javascript:/i.test(u)) ? u : 'news.html';
+  // everything this browser remembers about the account, gone at sign-out (shared computers)
+  async function wipeLocal(){
+    try{ for(const k of ['floorPromo', 'floor-comment-name', 'floorSeen']) localStorage.removeItem(k); }catch(_){}
+    try{ if(window.caches){ for(const k of await caches.keys()) if(!/floor-shell/.test(k)) await caches.delete(k); } }catch(_){}
+    try{ indexedDB.deleteDatabase('blockingBoard'); }catch(_){}
+  }
 
   function accountOverlay(profile, firstRun){
     const el = document.createElement('div');
@@ -361,7 +369,7 @@
         <div style="color:var(--ink2);font-size:12px;margin-top:6px;line-height:1.5">
           ${firstRun
             ? 'Everything below is optional — it only prefills your call sheets and crew cards. Skip it freely.'
-            : 'Signed in as <b>' + ((window.FLOOR_USER && window.FLOOR_USER.email) || '') + '</b>'}
+            : 'Signed in as <b>' + escA((window.FLOOR_USER && window.FLOOR_USER.email) || '') + '</b>'}
         </div>
         ${f('apName','NAME', profile.name, 'Your name')}
         ${f('apAddress','ADDRESS', profile.address, 'Street, city')}
@@ -396,7 +404,7 @@
             padding:9px;font-size:12.5px;cursor:pointer">Sign out</button>
           <button id="apDelete" style="background:var(--panel);border:1px solid var(--danger-line);color:var(--danger);
             border-radius:8px;padding:9px;font-size:12.5px;cursor:pointer">Delete my account & all data…</button>
-          <a href="privacy.html" target="_blank" style="color:var(--accent);font-size:12px">Privacy policy</a>
+          <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px">Privacy policy</a>
         </div>`}
       </div>`;
     document.body.appendChild(el);
@@ -434,6 +442,8 @@
     document.addEventListener('floor-plan-changed', renderPlan);
 
     async function save(){
+      const bad = typeof reservedNameProblem === 'function' ? reservedNameProblem(el.querySelector('#apName').value) : null;
+      if(bad){ msg.textContent = bad; return false; }
       msg.textContent = 'Saving…';
       const row = {
         user_id: window.FLOOR_USER.id,
@@ -491,6 +501,16 @@
         dump.profile = p;
         const {data: rows} = await sb.from('kv').select('key, value, updated_at');
         for(const r of rows || []) dump.kv[r.key] = {value: r.value, updated_at: r.updated_at};
+        // everything else that is about you: shared productions you own or joined, share links, plan
+        try{
+          const own = await sb.from('productions').select('*').eq('owner', FLOOR_USER.id);
+          dump.productions_owned = own.data || [];
+          dump.production_docs = {};
+          for(const p of dump.productions_owned){ const d = await sb.from('production_docs').select('key, value, updated_at').eq('production_id', p.id); dump.production_docs[p.id] = d.data || []; }
+          dump.memberships = (await sb.from('production_members').select('*').eq('user_id', FLOOR_USER.id)).data || [];
+          dump.share_links = (await sb.from('shares').select('*').eq('owner', FLOOR_USER.id)).data || [];
+          dump.subscription = (await sb.from('subscriptions').select('*').eq('user_id', FLOOR_USER.id).maybeSingle()).data || null;
+        }catch(_){}
         const a = document.createElement('a');
         a.download = 'floor-studio-my-data.json';
         a.href = URL.createObjectURL(new Blob([JSON.stringify(dump)], {type:'application/json'}));
@@ -501,6 +521,7 @@
     });
     el.querySelector('#apSignout')?.addEventListener('click', async ()=>{
       await sb.auth.signOut();
+      await wipeLocal();
       location.replace('landing.html'); // signed out → the front door, not an empty app
     });
     el.querySelector('#apDelete')?.addEventListener('click', async ()=>{
@@ -508,9 +529,17 @@
         'profile from our servers. This cannot be undone.\n\nType DELETE to confirm:');
       if(sure !== 'DELETE'){ msg.textContent = 'Not deleted.'; return; }
       msg.textContent = 'Deleting everything…';
+      // files first, through the Storage API (SQL cannot reliably remove them): share snapshots + Floor Scanner photos
+      try{
+        const {data: sh} = await sb.from('shares').select('token').eq('owner', FLOOR_USER.id);
+        if(sh && sh.length) await sb.storage.from('shares').remove(sh.map(s=>s.token + '.json'));
+        const {data: ph} = await sb.storage.from('scout').list(FLOOR_USER.id, {limit:1000});
+        if(ph && ph.length) await sb.storage.from('scout').remove(ph.map(f=>FLOOR_USER.id + '/' + f.name));
+      }catch(_){}
       const {error} = await sb.rpc('delete_my_account');
       if(error){ msg.textContent = 'Could not delete: ' + error.message; return; }
       await sb.auth.signOut().catch(()=>{});
+      await wipeLocal();
       alert('Your account and all data have been deleted.');
       location.replace('landing.html');
     });
@@ -633,7 +662,7 @@
         u.searchParams.set('checkout[custom][user_id]', FLOOR_USER.id);
         u.searchParams.set('checkout[custom][plan]', BILL.plan || 'pro');
         if(FLOOR_USER.email) u.searchParams.set('checkout[email]', FLOOR_USER.email);
-        window.open(u.toString(), '_blank');
+        window.open(u.toString(), '_blank', 'noopener,noreferrer');
         pollPlan();
         return;
       }
@@ -656,7 +685,7 @@
     },
     manage(){
       const url = (subRow && (subRow.cancel_url || subRow.update_url)) || BILL.portalUrl;
-      if(url) window.open(url, '_blank');
+      if(url) window.open(url, '_blank', 'noopener,noreferrer');
       else alert('Manage your subscription via the e-mail receipt from ' +
         (BILL.provider === 'paddle' ? 'Paddle' : 'Lemon Squeezy') + '.');
     },
@@ -673,9 +702,15 @@
     // one-time optional profile prompt after the first sign-in
     async maybeProfilePrompt(){
       await ready;
-      const {data: p} = await sb.from('profiles').select('user_id')
+      const {data: p} = await sb.from('profiles').select('*')
         .eq('user_id', FLOOR_USER.id).maybeSingle();
-      if(!p) accountOverlay({}, true);
+      if(!p){ accountOverlay({}, true); return; }
+      // the policy changed since they accepted it → show it again, once
+      if(p.privacy_version && p.privacy_version !== PRIVACY_VERSION){
+        if(typeof toast === 'function') toast('Our privacy policy was updated (' + PRIVACY_VERSION + ') — please have a look');
+        const q = Object.assign({}, p, {privacy_version: null, privacy_accepted_at: null});
+        accountOverlay(q, false);
+      }
     },
   };
 })();

@@ -796,22 +796,18 @@ let _pdfjsReady = null;
 function loadPdfJs(){
   if(window.pdfjsLib) return Promise.resolve();
   if(_pdfjsReady) return _pdfjsReady;
-  _pdfjsReady = new Promise((ok, bad)=>{
-    const sc = document.createElement('script');
-    sc.src = './js/vendor/pdf.min.js';
-    sc.onload = ()=>{
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = './js/vendor/pdf.worker.min.js';
-      ok();
-    };
-    sc.onerror = ()=>bad(new Error('pdf.js failed to load'));
-    document.head.appendChild(sc);
+  // pdf.js 4.10 (ESM build): CVE-2024-4367 fixed, and isEvalSupported stays off below
+  // import() resolves against THIS file (js/06-tabs.js); the worker URL against the page
+  _pdfjsReady = import('./vendor/pdfjs4.min.js').then(m=>{
+    window.pdfjsLib = m;
+    m.GlobalWorkerOptions.workerSrc = new URL('js/vendor/pdfjs4.worker.min.js', document.baseURI).href;
   });
   return _pdfjsReady;
 }
 async function extractPdfText(file){
   await loadPdfJs();
   const buf = await file.arrayBuffer();
-  const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
+  const doc = await window.pdfjsLib.getDocument({data:buf, isEvalSupported:false}).promise;
   const out = [];
   for(let p=1; p<=doc.numPages; p++){
     const page = await doc.getPage(p);
@@ -834,7 +830,7 @@ async function extractPdfText(file){
 async function pdfFirstPageThumb(file){
   await loadPdfJs();
   const buf = await file.arrayBuffer();
-  const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
+  const doc = await window.pdfjsLib.getDocument({data:buf, isEvalSupported:false}).promise;
   const page = await doc.getPage(1);
   const vp0 = page.getViewport({scale:1});
   const scale = 420 / vp0.width;
@@ -866,7 +862,7 @@ function pickAvStill(row, idx){
 // every page rendered full-res (≤1600px wide, JPEG) onto a fresh sub-board
 async function pdfPagesToSubboard(buf, name, x, y){
   await loadPdfJs();
-  const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
+  const doc = await window.pdfjsLib.getDocument({data:buf, isEvalSupported:false}).promise;
   const sub = {id:uid(), cat:'subboard', kind:'subboard', x, y, rot:0, w:260, h:180,
     color:'#5B6472', label:(name || 'PDF').replace(/\.pdf$/i,''), path:[],
     board:{id:uid(), name:'', objects:[], walls:[], stills:[], shots:[]}};
@@ -906,7 +902,7 @@ async function pdfCardToSubboard(o){
     toast('Reading PDF…');
     const r = await window.storage.get('sd:file:' + o.fileId);
     if(!r || !r.value){ toast('File data not found'); return; }
-    const blob = await (await fetch(r.value)).blob();
+    const blob = await (await fetch(safeSrc(r.value) || 'data:,')).blob();
     await pdfPagesToSubboard(await blob.arrayBuffer(), o.name, o.x + o.w/2 + 200, o.y);
   }catch(e){ console.error('pdf → board failed', e); toast('Could not read that PDF'); }
 }
@@ -961,6 +957,7 @@ async function toggleAudio(o){
       audioEl = new Audio();
       audioEl.addEventListener('ended', ()=>{ audioPlayingId = null; render(); });
     }
+    if(!safeSrc(r.value)){ toast('This audio clip is not stored in the production'); return; }
     audioEl.src = r.value;
     await audioEl.play();
     audioPlayingId = o.id;
@@ -2145,6 +2142,8 @@ async function openProjectPop(){
           : 'Delete "' + (project.shootName || 'Untitled production') + '" permanently? This cannot be undone.';
         if(!confirm(warn)) return;
         if(curShared) await window.FLOOR_SB.from('productions').delete().eq('id', currentProjectId);
+        // its stills, files and share links go with it (privacy.html promises that)
+        if(typeof deleteProductionAssets === 'function') await deleteProductionAssets(currentProjectId).catch(()=>{});
         await window.storage.delete('sd:project:' + currentProjectId).catch(()=>{});
       }
       const idx2 = ((await loadProjectIndex()) || []).filter(p=>p.id !== currentProjectId);
@@ -2156,6 +2155,37 @@ async function openProjectPop(){
   }
   // account & privacy moved to the top-right account icon (v0.52)
   pop.classList.add('show');
+}
+// assets referenced only by this production (others may share a still after a copy) plus its share links
+async function deleteProductionAssets(pid){
+  const mine = new Set();
+  const scan = (obj)=>{
+    if(!obj || typeof obj !== 'object') return;
+    if(Array.isArray(obj)){ obj.forEach(scan); return; }
+    for(const [k, v] of Object.entries(obj)){
+      if((k === 'imgId' || k === 'fileId' || k === 'videoId' || k === 'audioId' || k === 'logo') && typeof v === 'string') mine.add(v);
+      else if(k === 'imgs' && Array.isArray(v)) v.forEach(id=>typeof id === 'string' && mine.add(id));
+      else if(typeof v === 'object') scan(v);
+    }
+  };
+  scan(project);
+  if(!mine.size && !window.FLOOR_SB) return;
+  const idx = (await loadProjectIndex()) || [];
+  for(const p of idx){
+    if(p.id === pid) continue;
+    try{ const r = await window.storage.get('sd:project:' + p.id); if(r && r.value){ const other = new Set(); const o = JSON.parse(r.value); const s2 = (x)=>{ if(!x || typeof x !== 'object') return; if(Array.isArray(x)){ x.forEach(s2); return; } for(const [k, v] of Object.entries(x)){ if((k === 'imgId' || k === 'fileId' || k === 'videoId' || k === 'audioId' || k === 'logo') && typeof v === 'string') other.add(v); else if(k === 'imgs' && Array.isArray(v)) v.forEach(id=>typeof id === 'string' && other.add(id)); else if(typeof v === 'object') s2(v); } }; s2(o); for(const id of other) mine.delete(id); } }catch(_){}
+  }
+  for(const id of mine){
+    await window.storage.delete('sd:img:' + id).catch(()=>{});
+    await window.storage.delete('sd:file:' + id).catch(()=>{});
+  }
+  // read-only links made from this production
+  if(window.FLOOR_SB && window.FLOOR_USER){
+    try{
+      const {data} = await window.FLOOR_SB.from('shares').select('token').eq('owner', window.FLOOR_USER.id).eq('title', project.shootName || 'Untitled production');
+      for(const s of (data || [])){ await window.FLOOR_SB.from('shares').delete().eq('token', s.token); await window.FLOOR_SB.storage.from('shares').remove([s.token + '.json']); }
+    }catch(_){}
+  }
 }
 document.getElementById('projBtn').addEventListener('click', openProjectPop);
 document.addEventListener('pointerdown', e=>{

@@ -1238,7 +1238,7 @@ cv.addEventListener('pointerup', e => {
   // a clean tap on a link (no real movement) opens it in a new tab
   if(drag.kind === 'move' && drag.o && drag.o.cat === 'link' && drag.linkX0 !== undefined){
     if(dist(drag.o.x, drag.o.y, drag.linkX0, drag.linkY0) < 4/Math.max(view.scale,.3) && drag.o.url){
-      window.open(/^https?:\/\//i.test(drag.o.url) ? drag.o.url : 'https://' + drag.o.url, '_blank');
+      openExternal(drag.o.url);
     }
   }
   // clean taps: to-do checkbox, audio play, table + chips
@@ -1591,7 +1591,7 @@ cv.addEventListener('dblclick', e => {
       return;
     }
     if(o.cat === 'link'){
-      if(o.url){ window.open(/^https?:\/\//i.test(o.url) ? o.url : 'https://'+o.url, '_blank'); }
+      if(o.url){ openExternal(o.url); }
       else toast('Add a URL in the selection bar first');
       return;
     }

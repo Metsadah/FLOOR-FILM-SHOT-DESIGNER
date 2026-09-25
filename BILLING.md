@@ -141,6 +141,15 @@ app polls its own row for ~3 min after checkout ──────────�
 
 ---
 
+## Webhook secrets (v0.95)
+
+The webhook no longer trusts `custom_data.plan`. Set `PRO_PRICE_IDS` (and
+optionally `STUDIO_PRICE_IDS`) in Edge Functions → Secrets to the Paddle
+price ids / Lemon Squeezy variant ids you sell; events for other products
+are ignored. Paddle signatures older than 5 minutes are refused and an event
+older than the stored state never overwrites it. Redeploy after changing:
+`supabase functions deploy billing-webhook --no-verify-jwt`.
+
 ## Invites v2 (v0.92): email, read-only, and the "no active plan" trap
 
 Run `setup/invites-v2.sql` once. Before it, `redeem_production_invite()`

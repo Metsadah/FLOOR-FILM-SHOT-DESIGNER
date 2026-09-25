@@ -261,20 +261,6 @@
     <div class="howto-open">This room is a real production. <a href="index.html?example=atelier">Open “Atelier” in Floorboard →</a><span>Move the sofa, change the lens, redraw the dolly move — it is yours.</span></div>
     <script src="js/15-atelier.js"></script>
     <script src="landing/howto.js"></script>
-    <script>
-    (function(){
-      return; // the static slideshow is replaced by landing/howto.js (kept for reference)
-      const box = document.getElementById('howto'); if(!box) return;
-      const imgs = [...box.querySelectorAll('.stage-imgs img')], items = [...box.querySelectorAll('.stepsl li')], nameEl = document.getElementById('stageName'), bar = box.querySelector('.stage-bar i');
-      const names = ['Scene 1 · Atelier — walls', 'Scene 1 · Atelier — doors & windows', 'Scene 1 · Atelier — set dressing', 'Scene 1 · Atelier — cast, cameras, light', 'Room library — scanned with Floor Scanner'];
-      let cur = 0, paused = false;
-      function show(i){ cur = i; imgs.forEach(im=>im.classList.toggle('on', +im.dataset.step === i)); items.forEach(li=>li.classList.toggle('on', +li.dataset.step === i)); nameEl.textContent = names[i]; bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = paused ? 'none' : 'stagebar 3.2s linear forwards'; }
-      items.forEach(li=>{ li.addEventListener('mouseenter', ()=>{ paused = true; show(+li.dataset.step); }); li.addEventListener('click', ()=>{ paused = true; show(+li.dataset.step); }); });
-      box.addEventListener('mouseleave', ()=>{ paused = false; show(cur); });
-      setInterval(()=>{ if(!paused) show((cur + 1) % imgs.length); }, 3200);
-      show(0);
-    })();
-    </script>
   </div>
 </section>
 
@@ -415,12 +401,7 @@
     <p style="margin-top:14px"><a href="news.html">All news →</a></p>
   </div>
 </section>
-<script>
-fetch('news.json', {cache:'no-store'}).then(r=>r.json()).then(items=>{
-  const g = document.getElementById('newsGrid');
-  g.innerHTML = items.slice(0, 3).map(n=>'<a class="card" href="' + (n.link || 'news.html') + '" style="text-decoration:none;color:inherit;display:block"><small style="color:var(--ink3);font-size:12px">' + n.date + (n.tag ? ' · ' + n.tag : '') + '</small><h4 style="margin:6px 0 6px">' + n.title + '</h4><p>' + (n.text || '') + '</p></a>').join('');
-}).catch(()=>{ document.getElementById('news').remove(); });
-</script>
+<script src="landing/news-feed.js"></script>
 
 <section id="everywhere">
   <div class="wrap">

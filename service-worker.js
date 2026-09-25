@@ -5,7 +5,7 @@
 // offline fallback. Icons/manifest are cache-first. Project data lives in
 // IndexedDB / Supabase and is never touched here.
 
-const CACHE = 'floor-shell-v93';
+const CACHE = 'floor-shell-v94';
 const SHELL = [
   './',
   './index.html',
@@ -60,18 +60,19 @@ self.addEventListener('fetch', e => {
     p.endsWith('.html') || p.endsWith('/') || p.endsWith('.js') || p.endsWith('.css');
 
   if (codeLike) {
+    // cache under the bare path: ?view= / ?join= tokens never land in Cache Storage
+    const key = new Request(url.origin + url.pathname);
     e.respondWith(
       // cache:'no-cache' forces revalidation with the SERVER — without it,
       // Safari answers this fetch from its own HTTP cache and "network-first"
       // quietly becomes "stale-first" (the eternal old-version bug)
       fetch(e.request, {cache: 'no-cache'})
         .then(res => {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, copy));
+          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(key, copy)); }
           return res;
         })
         .catch(() =>
-          caches.match(e.request).then(hit =>
+          caches.match(key).then(hit =>
             hit || (e.request.mode === 'navigate' ? caches.match('./index.html') : undefined)
           )
         )

@@ -5,4 +5,5 @@
 FROM nginx:alpine
 COPY index.html manifest.json service-worker.js supabase-adapter.js config.js styles.css /usr/share/nginx/html/
 COPY js /usr/share/nginx/html/js
+COPY setup/nginx-security.conf /etc/nginx/conf.d/security-headers.conf
 COPY icons /usr/share/nginx/html/icons

@@ -14,6 +14,11 @@
 -- needed. Read-only members cannot write production_docs (RLS), and only the
 -- owner can change a member's role or floors.
 
+-- role checks: the viewer (read-only) role must be allowed by the constraints
+alter table production_members drop constraint if exists production_members_role_check;
+alter table production_members add constraint production_members_role_check check (role in ('owner','editor','viewer'));
+alter table production_invites drop constraint if exists production_invites_role_check;
+alter table production_invites add constraint production_invites_role_check check (role in ('owner','editor','viewer'));
 alter table production_invites add column if not exists email text;
 alter table production_invites add column if not exists name text;
 

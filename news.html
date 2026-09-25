@@ -32,10 +32,6 @@
   <div id="list"><article><p>Loading…</p></article></div>
 </main>
 <footer><div class="wrap"><a href="landing.html">Floorboard</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></div></footer>
-<script>
-fetch('news.json', {cache:'no-store'}).then(r=>r.json()).then(items=>{
-  document.getElementById('list').innerHTML = items.map(n=>'<article><small>' + n.date + '</small>' + (n.tag ? '<span class="tag">' + n.tag + '</span>' : '') + '<h2>' + n.title + '</h2><p>' + (n.text || '') + (n.link ? ' <a href="' + n.link + '">More →</a>' : '') + '</p></article>').join('');
-}).catch(()=>{ document.getElementById('list').innerHTML = '<article><p>No news yet.</p></article>'; });
-</script>
+<script src="landing/news-feed.js"></script>
 </body>
 </html>

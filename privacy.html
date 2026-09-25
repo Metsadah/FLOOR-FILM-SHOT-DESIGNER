@@ -23,7 +23,7 @@
 <body>
 <main>
   <h1><span class="mark"></span>Floorboard — Privacy policy</h1>
-  <div class="meta">Version 2026-08-17 · applies to the hosted (cloud) version of Floorboard</div>
+  <div class="meta">Version 2026-09-25 · applies to the hosted (cloud) version of Floorboard</div>
 
   <h2>Who is responsible</h2>
   <p>Floorboard is operated by <span class="fill">[your legal name / company name]</span>,
@@ -63,9 +63,25 @@
   </ul>
 
   <h2>How long we keep it</h2>
-  <p>Until you delete it. Deleting a project removes it; deleting your account
-  (<i>Production ▾ → Account &amp; privacy → Delete my account</i>) permanently removes your
-  account, profile, projects, uploads and share links from our servers, immediately.</p>
+  <p>As short as the purpose allows (GDPR art. 5(1)(e)). Concretely:</p>
+  <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+    <tr><th style="text-align:left;padding:4px 0">What</th><th style="text-align:left;padding:4px 0">Kept</th></tr>
+    <tr><td>Account, profile, productions, stills, rooms and scans</td><td>Until you delete them. Deleting a production removes its data; <i>Delete my account</i> removes everything of yours at once, immediately.</td></tr>
+    <tr><td>Read-only share links (snapshots) and the comments pinned on them</td><td>180 days from creation, or until you revoke the link — whichever comes first. Expired snapshots and their comments are purged automatically.</td></tr>
+    <tr><td>Co-editing invites that were never used</td><td>One year, then they stop working and are removed.</td></tr>
+    <tr><td>Accounts that were never used again</td><td>After 24 months without a sign-in we may delete the account and its data, after a warning by email where we have a verified address.</td></tr>
+    <tr><td>Database backups at our processor</td><td>Rolling backups of at most 7 days; deleted data disappears from them within that window.</td></tr>
+    <tr><td>Technical logs (sign-ins, errors, API calls)</td><td>Up to 7 days at Supabase; Netlify serves the app without access logs on our side.</td></tr>
+    <tr><td>Billing records (when you pay for Floorboard)</td><td>7 years, as Dutch tax law requires — held by the payment provider, not by us.</td></tr>
+  </table>
+  <p>Sub-processors: <a href="https://supabase.com">Supabase</a> (database, files, sign-in — Ireland),
+  <a href="https://www.netlify.com">Netlify</a> (serves the app), <a href="https://resend.com">Resend</a>
+  (sign-in emails) and, for paying customers, the payment provider named at checkout. Each is bound by a
+  data processing agreement. Your data is not sold and not used to train anything.</p>
+  <p><b>Other people’s data in your productions.</b> Call sheets, cast and crew lists contain personal data of
+  people who are not our users. You decide to store it and whom you share it with, so for that data you are
+  the controller and we are your processor. Keep read-only links to productions with contact details short-lived,
+  and revoke them when the job is done.</p>
 
   <h2>Your rights</h2>
   <p>Under the GDPR you can access, correct, export, and erase your data — all of which you

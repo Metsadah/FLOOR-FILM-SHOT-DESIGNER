@@ -158,7 +158,7 @@ function buildBudgetPage(){
     const hasT = k !== 'var';
     const v = t.byPhase[k], tg = hasT ? +b.target[k] : 0;
     return `<div class="bud-phase${over(v, tg) ? ' over' : ''}" data-ph="${k}">
-      <div class="bud-phase-top"><span>${label}</span>${hasT ? `<label>Target <input data-target="${k}" type="number" min="0" step="100" value="${b.target[k] || ''}" placeholder="0"></label>` : '<span class="bud-dim">not in target</span>'}</div>
+      <div class="bud-phase-top"><span>${label}</span>${hasT ? `<label>Target <input data-target="${k}" type="number" min="0" step="100" value="${+b.target[k] || ''}" placeholder="0"></label>` : '<span class="bud-dim">not in target</span>'}</div>
       <div class="bud-bar"><i style="width:${pct(v, tg)}%"></i></div>
       <div class="bud-phase-num"><b>${budgetFmt(v, cur)}</b><span>${tg ? 'of ' + budgetFmt(tg, cur) : (hasT ? 'no target yet' : '')}</span></div>
     </div>`;
@@ -182,11 +182,11 @@ function buildBudgetPage(){
         <thead><tr><th class="n">Qty</th><th>Unit</th><th>Description</th><th class="n">Rate</th><th class="n">Amount</th><th>Note</th><th></th></tr></thead>
         <tbody>
         ${rows.map(it=>`
-          <tr data-id="${it.id}" draggable="true">
-            <td class="n"><input data-k="qty" type="number" min="0" step="0.5" value="${it.qty ?? 1}"></td>
+          <tr data-id="${esc(it.id)}" draggable="true">
+            <td class="n"><input data-k="qty" type="number" min="0" step="0.5" value="${+(it.qty ?? 1) || 0}"></td>
             <td><select data-k="unit">${BUDGET_UNITS.map(u=>`<option${(it.unit || 'days') === u ? ' selected' : ''}>${u}</option>`).join('')}</select></td>
             <td><input data-k="name" value="${esc(it.name || '')}" placeholder="${k === 'var' ? 'Travel, hotel, styling…' : 'Role — name, or a task'}"></td>
-            <td class="n"><input data-k="rate" type="number" min="0" step="10" value="${it.rate ?? 0}"></td>
+            <td class="n"><input data-k="rate" type="number" min="0" step="10" value="${+(it.rate ?? 0) || 0}"></td>
             <td class="n bud-amt">${budgetFmt(budgetAmount(it), cur)}</td>
             <td><input data-k="note" value="${esc(it.note || '')}" placeholder="…"></td>
             <td><button class="mini" data-act="del" title="Remove line">×</button></td>
@@ -205,8 +205,8 @@ function buildBudgetPage(){
       </div>
       <div class="bud-headactions">
         <label class="bud-cur">Currency <select id="budCur">${['EUR', 'USD', 'GBP', 'CHF'].map(c=>`<option${cur === c ? ' selected' : ''}>${c}</option>`).join('')}</select></label>
-        <label class="bud-cur">VAT % <input id="budVat" type="number" min="0" max="100" step="1" value="${b.vat}"></label>
-        <label class="bud-cur" title="A safety margin over the subtotal (typically 5–10%)">Contingency % <input id="budCont" type="number" min="0" max="100" step="1" value="${b.contPct}"></label>
+        <label class="bud-cur">VAT % <input id="budVat" type="number" min="0" max="100" step="1" value="${+b.vat || 0}"></label>
+        <label class="bud-cur" title="A safety margin over the subtotal (typically 5–10%)">Contingency % <input id="budCont" type="number" min="0" max="100" step="1" value="${+b.contPct || 0}"></label>
         <button class="btn" id="budCsv">CSV</button>
         <button class="btn primary" id="budPdf">Export PDF</button>
       </div>

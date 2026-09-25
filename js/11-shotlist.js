@@ -160,7 +160,7 @@ function slPullOverlay(o){
     '<div class="fb-ov-sub">Every camera on a scene board is a shot. Tick what shoots on <b>' + esc((o.day || {}).name || 'this day') + '</b> — they land at the bottom in scene order; drag rows into shooting order afterwards. Greyed shots are already on a shot list.</div>' +
     (groups.length ? '<div class="fb-row" style="margin-bottom:6px"><button class="btn" id="slAll">Tick all unscheduled</button><button class="btn" id="slNone">Untick</button></div>' +
       groups.map(g=>'<div class="fb-pick-scene"><b>' + esc((g.sc ? 'SC ' + g.sc + ' · ' : '') + g.scene) + '</b>' +
-        g.shots.map(s=>'<label class="fb-pick"><input type="checkbox" data-key="' + s.key + '"' + (sched.has(s.key) ? ' data-dup="1"' : '') + '><span>' + esc([s.shot, s.label].filter(Boolean).join(' · ') || 'Shot') +
+        g.shots.map(s=>'<label class="fb-pick"><input type="checkbox" data-key="' + esc(s.key) + '"' + (sched.has(s.key) ? ' data-dup="1"' : '') + '><span>' + esc([s.shot, s.label].filter(Boolean).join(' · ') || 'Shot') +
           ' <i>' + esc(slCamText(s)) + (sched.has(s.key) ? ' · already listed' : '') + '</i></span></label>').join('') + '</div>').join('')
       : '<p class="fb-dim">No cameras on any scene board yet — place them on the 2nd floor.</p>') +
     '<div class="fb-ov-actions"><button class="btn" id="slNo">Cancel</button><span style="flex:1"></span><button class="btn primary" id="slGo">Add ticked</button></div></div>';
@@ -314,7 +314,7 @@ function slRowMoveButtons(o, sbtn){
   if(others.length > 6){
     const sel2 = document.createElement('select');
     sel2.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel);';
-    sel2.insertAdjacentHTML('beforeend', '<option value="">more…</option>' + others.slice(6).map(c=>'<option value="' + c.id + '">' + esc((c.day || {}).name || 'Day') + '</option>').join(''));
+    sel2.insertAdjacentHTML('beforeend', '<option value="">more…</option>' + others.slice(6).map(c=>'<option value="' + esc(c.id) + '">' + esc((c.day || {}).name || 'Day') + '</option>').join(''));
     sel2.addEventListener('change', ()=>{ const t = others.find(c=>c.id === sel2.value); if(t) slMoveRow(o, row.id, t); });
     sel2.addEventListener('pointerdown', e=>e.stopPropagation());
     document.getElementById('selBar').appendChild(sel2);

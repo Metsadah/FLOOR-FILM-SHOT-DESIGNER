@@ -18,7 +18,12 @@ function ptSeg(px,py,x1,y1,x2,y2){
   const x=x1+t*dx, y=y1+t*dy;
   return {d:Math.hypot(px-x,py-y), t, x, y};
 }
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// only in-app data URLs / blobs may become an <img>/<audio> source — a shared snapshot
+// or an imported .floorproj must not be able to point a viewer's browser at a tracking URL
+const safeSrc = v => (typeof v === 'string' && /^(data:|blob:)/i.test(v)) ? v : '';
+// links open in a new tab without a handle on this one (reverse tabnabbing)
+function openExternal(url){ const u = /^https?:\/\//i.test(url) ? url : 'https://' + url; window.open(u, '_blank', 'noopener,noreferrer'); }
 
 // ---------------------------------------------------------------- palette
 // Floorboard palette — pastel, complementary, still distinct for colour-blind
@@ -50,6 +55,17 @@ const WALL_COLOR = '#3B3A36';
 // lens presets (full-frame horizontal FOV)
 const LENSES = [10,16,20,24,28,35,50,85,100,135];
 const FRAMINGS = ['','Extreme wide','Wide','Full shot','Medium','Medium close-up','Close-up','Extreme close-up','Insert','Top shot','Over-shoulder','POV','Two-shot'];
+// display names people see (profile name, comment author): no impersonation of
+// staff or system accounts, no markup, 80 characters. setup/security-v1.sql
+// enforces the same list in the database.
+const RESERVED_NAMES = new Set(['root','admin','administrator','superuser','sysadmin','system','support','helpdesk','moderator','mod','staff','owner','security','abuse','postmaster','webmaster','noreply','floorboard','floorboardsupport','floorboardteam','floorboardadmin','zoutwater','zoutwaterfilms']);
+function reservedNameProblem(name){
+  const v = String(name || '').trim();
+  if(v.length > 80) return 'Name is too long (80 characters at most)';
+  if(/[<>]/.test(v)) return 'A name cannot contain < or >';
+  if(RESERVED_NAMES.has(v.toLowerCase().replace(/[^a-z0-9]/g, ''))) return 'That name is reserved — use your own name';
+  return null;
+}
 const SUPPORTS = ['','Tripod','Handheld','Shoulder rig','Slider','Dolly','Gimbal','Steadicam','Jib','Crane','Car mount'];
 function shortUrl(u){
   if(!u) return '';

@@ -224,8 +224,8 @@ async function roomLibraryOverlay(){
     for(const r of list){ const key = (r.location || '').trim() || 'No location'; let g = groups.find(x=>x.key === key); if(!g){ g = {key, rooms:[], newest:''}; groups.push(g); } g.rooms.push(r); if((r.updatedAt || '') > g.newest) g.newest = r.updatedAt || ''; }
     groups.sort((x, y)=> (x.key === 'No location') - (y.key === 'No location') || y.newest.localeCompare(x.newest));
     const card = r=>`
-      <div class="rm-card" data-id="${r.id}">
-        <div class="rm-thumb">${r.thumb ? '<img src="' + r.thumb + '" alt="">' : ''}</div>
+      <div class="rm-card" data-id="${esc(r.id)}">
+        <div class="rm-thumb">${safeSrc(r.thumb) ? '<img src="' + safeSrc(r.thumb) + '" alt="">' : ''}</div>
         <div class="rm-meta"><b>${esc(r.name || 'Room')}</b><span>${esc(r.location || '')}</span>
           <small>${r.bbox ? (r.bbox.w / 100).toFixed(1) + ' × ' + (r.bbox.h / 100).toFixed(1) + ' m · ' : ''}${(r.walls || []).length} walls · ${(r.props || []).length} pieces</small>
           <i class="rm-src rm-${esc(r.source || 'manual')}">${ROOM_SOURCES[r.source] || 'Drawn'}</i></div>
