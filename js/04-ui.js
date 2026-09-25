@@ -885,23 +885,55 @@ function refreshSelBar(){
       sen.title = 'Sensor / film format this camera shoots on — the lens presets follow it';
       for(const [k, n] of SENSORS) sen.insertAdjacentHTML('beforeend', `<option value="${k}">${n}</option>`);
       sen.value = o.sensor || project.defaultSensor || 'ff';
+      const refov = ()=>{ if(o.lens) o.fov = fovForLens(o.lens, o.sensor || project.defaultSensor || 'ff', +o.squeeze || 1); };
       sen.addEventListener('change', ()=>{
         o.sensor = sen.value; project.defaultSensor = sen.value; // new cameras follow the last choice
-        if(o.lens) o.fov = fovForLens(o.lens, o.sensor);
-        markDirty(); render(); refreshSelBar();
+        refov(); markDirty(); render(); refreshSelBar();
       });
       selBar.appendChild(sen);
+      // the production's lens set: one choice, every camera's lens menu follows it
+      const set = lensSet();
+      const setSel = document.createElement('select');
+      setSel.title = 'Lens set of this production — the lens menu shows its focal lengths. "Any lens" for specials (macro, probe) or a set that is not listed.';
+      for(const s of LENS_SETS) setSel.insertAdjacentHTML('beforeend', `<option value="${s.key}">${esc(s.name)}</option>`);
+      setSel.value = set.key;
+      setSel.addEventListener('change', ()=>{
+        project.production = project.production || {};
+        project.production.lensSet = setSel.value;
+        const ns = lensSet();
+        // this camera takes the set's squeeze (spherical set → spherical camera); others keep theirs until touched
+        o.squeeze = ns.squeeze;
+        refov(); markDirty(); render(); refreshSelBar();
+        toast('Lens set: ' + ns.name + ' — new cameras follow it');
+      });
+      selBar.appendChild(setSel);
       const lens = document.createElement('select');
-      lens.title = 'Lens preset on ' + (SENSORS.find(s=>s[0] === (o.sensor || 'ff')) || SENSORS[0])[1];
-      lens.insertAdjacentHTML('beforeend', `<option value="">Lens: custom</option>`);
-      for(const f of LENSES) lens.insertAdjacentHTML('beforeend', `<option value="${f}">${f} mm · ${Math.round(fovForLens(f, o.sensor || 'ff'))}°</option>`);
+      const sq = +o.squeeze || 1;
+      lens.title = 'Lens on ' + (SENSORS.find(s=>s[0] === (o.sensor || 'ff')) || SENSORS[0])[1] + (sq > 1 ? ' with ' + sq + '× squeeze' : '');
+      lens.insertAdjacentHTML('beforeend', `<option value="">Lens: none</option>`);
+      const focals = set.focals.slice();
+      if(o.lens && !focals.includes(o.lens)) focals.push(o.lens); // a custom length stays visible
+      focals.sort((a, b)=>a - b);
+      for(const f of focals) lens.insertAdjacentHTML('beforeend', `<option value="${f}">${f} mm · ${Math.round(fovForLens(f, o.sensor || 'ff', sq))}°${set.focals.includes(f) ? '' : ' (custom)'}</option>`);
+      lens.insertAdjacentHTML('beforeend', `<option value="__custom">Other focal length…</option>`);
       lens.value = o.lens || '';
       lens.addEventListener('change', ()=>{
-        if(lens.value){ o.lens = +lens.value; o.fov = fovForLens(o.lens, o.sensor || project.defaultSensor || 'ff'); }
+        if(lens.value === '__custom'){
+          const v = parseFloat(prompt('Focal length in mm (e.g. 24, 65, 100 — a macro or probe lens too)', o.lens || ''));
+          if(!(v > 0)){ lens.value = o.lens || ''; return; }
+          o.lens = Math.round(v * 10) / 10;
+        } else if(lens.value) o.lens = +lens.value;
         else o.lens = null;
-        markDirty(); render();
+        refov(); markDirty(); render(); refreshSelBar();
       });
       selBar.appendChild(lens);
+      // spherical or anamorphic — preset by the lens set, free per camera
+      const sqSel = document.createElement('select');
+      sqSel.title = 'Spherical, or anamorphic with this squeeze — the horizontal field of view widens accordingly';
+      for(const [v, n] of SQUEEZES) sqSel.insertAdjacentHTML('beforeend', `<option value="${v}">${n}</option>`);
+      sqSel.value = String(SQUEEZES.some(([v])=>v === sq) ? sq : 1);
+      sqSel.addEventListener('change', ()=>{ o.squeeze = +sqSel.value; refov(); markDirty(); render(); refreshSelBar(); });
+      selBar.appendChild(sqSel);
       const shSel = document.createElement('select');
       shSel.title = 'Which shot this camera films';
       shSel.insertAdjacentHTML('beforeend', `<option value="">\u2014 shot\u2026</option>`);
@@ -2123,7 +2155,7 @@ function dropLib(e){
         label: libDrag.label || '',
         path: [],
       };
-      if(libDrag.cat === 'camera'){ o.fov = libDrag.fov; o.range = libDrag.range; o.lens = null; o.sensor = project.defaultSensor || 'ff'; }
+      if(libDrag.cat === 'camera'){ o.fov = libDrag.fov; o.range = libDrag.range; o.lens = null; o.sensor = project.defaultSensor || 'ff'; o.squeeze = lensSet().squeeze; }
       if(libDrag.cat === 'note'){ o.text = ''; }
       if(libDrag.props) Object.assign(o, libDrag.props);
       if(libDrag.kind === 'actor' && !o.label){

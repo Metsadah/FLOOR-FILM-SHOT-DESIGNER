@@ -1157,7 +1157,7 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
   await loadProject();
   if(typeof applyReadOnlyRole === 'function') applyReadOnlyRole();
   // the app opens on the ground floor: mood first, plans later
-  if(typeof switchTab === 'function' && typeof floorAllowed === 'function' && floorAllowed('mood')) switchTab('mood');
+  if(window.FLOOR_MODE !== 'shot' && typeof switchTab === 'function' && typeof floorAllowed === 'function' && floorAllowed('mood')) switchTab('mood');
   if(typeof sharedPresenceGuard === 'function') sharedPresenceGuard();
   if(typeof initPresence === 'function') initPresence(); // green "who's online" chip
   if(!window.FLOOR_SB){

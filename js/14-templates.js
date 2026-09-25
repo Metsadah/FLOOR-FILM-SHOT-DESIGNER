@@ -225,7 +225,7 @@ function tplImg(id, x, y, w, caption){
   const ar = im && im.naturalWidth ? im.naturalHeight / im.naturalWidth : .5625;
   return {id:uid(), cat:'image', kind:'image', imgId:id, x, y, rot:0, w, h:w * ar, color:'#5B6472', label:'', caption:caption || '', path:[]};
 }
-function tplCamText(cam){ return [CAMS[cam.kind].name, cam.framing, cam.lens ? cam.lens + 'mm' : '', cam.support].filter(Boolean).join(' · '); }
+function tplCamText(cam){ return [CAMS[cam.kind].name, cam.framing, cam.lens ? lensLabel(cam) : '', cam.support].filter(Boolean).join(' · '); }
 function tplSlRow(s, cam, sh, dur, video, audio, notes){
   return {id:uid(), key:s.id + '|' + cam.id, no:String(s.scene), shot:sh, dur:String(dur), cam:tplCamText(cam), camAuto:tplCamText(cam), video:video || '', audio:audio || '', notes:notes || '', imgs:[]};
 }

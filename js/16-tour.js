@@ -25,6 +25,23 @@ const TOUR_STEPS = [
    text:'Read-only links for a client, or invite people by name and email as co-editor or read-only, per floor. Press ? any time for the guide per floor, and to take this tour again.'},
 ];
 
+// the iPad / shot-designer build (FLOOR_MODE === 'shot') is a different product:
+// one floor, the plan. Its tour never mentions boards.
+const TOUR_SHOT = [
+  {sel:'#toolbar', title:'Draw the room',
+   text:'Walls, doors and windows, curves, a measure tool. One unit is one centimetre, everything snaps to 90° and to wall ends.'},
+  {sel:'#sidebar', pos:'right', title:'The library',
+   text:'Furniture at real size, cast, cameras with sensor and lens, light with its throw. Drag onto the plan. Rooms you scanned with Floor Scanner wait behind the house button.'},
+  {sel:'#main', pos:'center', title:'The plan',
+   text:'Drag to move, handles to rotate and resize, pinch to zoom. Give a camera a move and an actor a path and press play to see the blocking. Tap a wall for a door.'},
+  {sel:'.scriptbtn', title:'Scripts in, scenes out',
+   text:'Import a script (Fountain, PDF, Word) or write one here; every scene heading becomes a plan of its own.'},
+  {sel:'#roomLibBtn', title:'Room library',
+   text:'Rooms you drew or scanned before, across productions — insert one into any scene.'},
+  {sel:'#exportBtn', title:'Export',
+   text:'A PNG of the plan or a PDF with scene pages, shots and stills. The ? button has the guide, and this tour again.'},
+];
+const tourSteps = ()=>window.FLOOR_MODE === 'shot' ? TOUR_SHOT : TOUR_STEPS;
 let tourI = -1, tourEls = null, tourResize = null;
 function tourEl(){
   if(tourEls) return tourEls;
@@ -61,15 +78,15 @@ function endTour(){
 }
 function tourGo(i){
   if(i < 0) i = 0;
-  if(i >= TOUR_STEPS.length){ endTour(); toast('That is the tour — the ? button has the guide per floor'); return; }
+  if(i >= tourSteps().length){ endTour(); toast('That is the tour — the ? button has the guide per floor'); return; }
   tourI = i;
-  const st = TOUR_STEPS[i];
+  const st = tourSteps()[i];
   if(st.tab && typeof switchTab === 'function' && typeof activeTab !== 'undefined' && activeTab !== st.tab && (typeof floorAllowed !== 'function' || floorAllowed(st.tab))) switchTab(st.tab);
   const {card} = tourEl();
-  card.innerHTML = '<div class="tour-n">' + (i + 1) + ' / ' + TOUR_STEPS.length + '</div><h3>' + esc(st.title) + '</h3><p>' + esc(st.text) + '</p>' +
+  card.innerHTML = '<div class="tour-n">' + (i + 1) + ' / ' + tourSteps().length + '</div><h3>' + esc(st.title) + '</h3><p>' + esc(st.text) + '</p>' +
     '<div class="tour-b"><button class="btn" id="tourSkip">Skip</button><span style="flex:1"></span>' +
     (i ? '<button class="btn" id="tourBack">Back</button>' : '') +
-    '<button class="btn primary" id="tourNext">' + (i === TOUR_STEPS.length - 1 ? 'Done' : 'Next') + '</button></div>';
+    '<button class="btn primary" id="tourNext">' + (i === tourSteps().length - 1 ? 'Done' : 'Next') + '</button></div>';
   card.querySelector('#tourSkip').addEventListener('click', endTour);
   const bk = card.querySelector('#tourBack'); if(bk) bk.addEventListener('click', ()=>tourGo(i - 1));
   card.querySelector('#tourNext').addEventListener('click', ()=>tourGo(i + 1));
@@ -77,7 +94,7 @@ function tourGo(i){
   requestAnimationFrame(()=>requestAnimationFrame(placeTour));
 }
 function placeTour(){
-  const st = TOUR_STEPS[tourI]; if(!st || !tourEls) return;
+  const st = tourSteps()[tourI]; if(!st || !tourEls) return;
   const {ring, card} = tourEls;
   const el = document.querySelector(st.sel);
   const vw = window.innerWidth, vh = window.innerHeight;

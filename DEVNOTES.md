@@ -303,6 +303,27 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc1 — lens sets, anamorphic, open gate · iPad build kept apart
+Cameras: sensor list gained open-gate formats (Alexa 35 4.6K 3:2, Alexa LF /
+Mini LF 4.5K, Alexa Mini 3.4K, Venice 2 8.6K 3:2, V-Raptor 8K VV, FX3 full);
+only the width matters for the horizontal FOV, the taller gate is what
+anamorphic needs. LENS_SETS (00-catalog): 21 sets — spherical primes and
+zooms, anamorphic 2× / 1.8× / 1.5× / 1.3× (Cooke, Atlas, ARRI/Zeiss Master,
+Vazen, Mercury, Nanomorph, Hawk), "Anamorphic 2× (common)" with 33 / 45 /
+65 / 100, and "Any lens (custom)". The production stores ONE set
+(project.production.lensSet); each camera's lens menu lists that set plus
+"Other focal length…" (macro, probe). Per camera a squeeze select
+(spherical … 2×) preset by the set; fovForLens(f, sensor, squeeze) widens
+the horizontal FOV by the squeeze. Chips, shot list and templates print
+"50mm 2×" (lensLabel). Mirrors the Floor Scanner viewfinder lists.
+iPad / shot-designer build (FLOOR_MODE === 'shot'): boot no longer switches
+to Mood, the tour has its own six stops without floors (TOUR_SHOT), the
+new-production overlay hides the floor templates (body.lite). Rule from
+here: anything about floors/boards must check FLOOR_MODE or hide under
+body.lite — the iPad app is a shot designer, not the production suite.
+Version chip now reads v1.0-rc1: feature-complete for 1.0, release
+checklist in the chat / LANCERING.md.
+
 ## v0.99 — read-only link to one sub-board
 buildSharePack({board}) (07-share) freezes only that sub-board: a slim
 project whose moodboard IS the board (other floors null, one empty scene

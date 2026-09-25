@@ -2728,7 +2728,7 @@ function drawObjectShape(o, ghost){
         ? (()=>{ // camera chips carry the SHOT and the focal length too
             const sh = o.shotId && typeof activeShot === 'function'
               ? ((activeShot().shots || []).find(x=>x.id === o.shotId) || null) : null;
-            return [sh && sh.name, o.label, o.framing, o.lens ? o.lens + 'mm' + (sensorShort(o.sensor) ? ' ' + sensorShort(o.sensor) : '') : null,
+            return [sh && sh.name, o.label, o.framing, o.lens ? lensLabel(o) + (sensorShort(o.sensor) ? ' ' + sensorShort(o.sensor) : '') : null,
                     o.support].filter(Boolean).join(' \u00b7 ');
           })()
         : o.label)

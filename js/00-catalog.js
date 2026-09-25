@@ -94,11 +94,45 @@ function noteFont(o, base){
 // shoots on — a 35 mm on Super 35 is a 50 mm look on full frame.
 const SENSORS = [['ff','Full frame 36×24',36],['s35','Super 35',24.89],['alexa35','ARRI Alexa 35',27.99],['minilf','ARRI Alexa Mini LF',36.70],
   ['alexamini','ARRI Alexa Mini 16:9',23.76],['venice','Sony Venice FF',36],['vv','RED V-Raptor VV',40.96],['komodo','RED Komodo S35',27.03],
-  ['bmpcc6k','Blackmagic 6K S35',23.10],['apsc','APS-C',23.6],['m43','Micro 4/3',17.3],['16mm','16 mm',10.26]];
+  ['bmpcc6k','Blackmagic 6K S35',23.10],['apsc','APS-C',23.6],['m43','Micro 4/3',17.3],['16mm','16 mm',10.26],
+  // open gate: the whole sensor, taller than 16:9 — what anamorphic shoots on. Width is what sets the horizontal field of view here.
+  ['alexa35og','ARRI Alexa 35 · open gate 4.6K 3:2',27.99],['minilfog','ARRI Alexa LF / Mini LF · open gate 4.5K',36.70],['alexaminiog','ARRI Alexa Mini · open gate 3.4K',28.25],
+  ['venice2og','Sony Venice 2 · 8.6K 3:2 full',36.2],['vvog','RED V-Raptor · 8K VV full',40.96],['fx3og','Sony FX3 / A7S · full 3:2',35.6]];
 const sensorWidth = key => (SENSORS.find(s=>s[0] === key) || SENSORS[0])[2];
-const SENSOR_SHORT = {s35:'S35', alexa35:'A35', minilf:'Mini LF', alexamini:'Mini', venice:'Venice', vv:'VV', komodo:'Komodo', bmpcc6k:'BM6K', apsc:'APS-C', m43:'M4/3', '16mm':'16mm'};
+const SENSOR_SHORT = {s35:'S35', alexa35:'A35', minilf:'Mini LF', alexamini:'Mini', venice:'Venice', vv:'VV', komodo:'Komodo', bmpcc6k:'BM6K', apsc:'APS-C', m43:'M4/3', '16mm':'16mm',
+  alexa35og:'A35 OG', minilfog:'LF OG', alexaminiog:'Mini OG', venice2og:'Venice OG', vvog:'VV OG', fx3og:'FX3 OG'};
 const sensorShort = key => (key && key !== 'ff') ? (SENSOR_SHORT[key] || key) : '';
-const fovForLens = (f, sensor) => deg(2*Math.atan(sensorWidth(sensor)/2/f));
+// horizontal field of view; an anamorphic squeeze widens what the sensor width captures
+const fovForLens = (f, sensor, squeeze) => deg(2*Math.atan(sensorWidth(sensor)*(squeeze > 1 ? squeeze : 1)/2/f));
+// lens sets: pick one for the production, every camera's lens menu follows it.
+// "custom" keeps any focal length available; squeeze 1 = spherical.
+const LENS_SETS = [
+  {key:'cine',      name:'Cine primes (common)',            squeeze:1,    focals:[12,14,16,18,21,24,27,32,35,40,50,65,75,85,100,135,200]},
+  {key:'signature', name:'ARRI Signature Prime',            squeeze:1,    focals:[12,15,18,21,25,29,35,40,47,58,75,95,125,150,200,280]},
+  {key:'supreme',   name:'Zeiss Supreme Prime',             squeeze:1,    focals:[15,18,21,25,29,35,40,50,65,85,100,135,150,200]},
+  {key:'cp3',       name:'Zeiss CP.3',                      squeeze:1,    focals:[15,18,21,25,28,35,50,85,100,135]},
+  {key:'s4',        name:'Cooke S4/i',                      squeeze:1,    focals:[12,14,16,18,21,25,27,32,35,40,50,65,75,100,135,150,180]},
+  {key:'s7',        name:'Cooke S7/i FF',                   squeeze:1,    focals:[16,18,21,25,27,32,40,50,65,75,100,135,180]},
+  {key:'summilux',  name:'Leica Summilux-C',                squeeze:1,    focals:[16,18,21,25,29,35,40,50,65,75,100,135]},
+  {key:'k35',       name:'Canon K35',                       squeeze:1,    focals:[18,24,35,55,85]},
+  {key:'sumire',    name:'Canon Sumire',                    squeeze:1,    focals:[14,20,24,35,50,85,135]},
+  {key:'sigma',     name:'Sigma Cine FF',                   squeeze:1,    focals:[14,20,24,28,35,40,50,85,105,135]},
+  {key:'zoom',      name:'Zoom 15–200 (every 5 mm)',        squeeze:1,    focals:Array.from({length:38}, (_, i)=>15 + i*5)},
+  {key:'ana2',      name:'Anamorphic 2× (common)',          squeeze:2,    focals:[25,32,33,40,45,50,65,75,100,135,180]},
+  {key:'cookeana',  name:'Cooke Anamorphic/i 2×',           squeeze:2,    focals:[25,32,40,50,65,75,100,135,180]},
+  {key:'orion',     name:'Atlas Orion 2×',                  squeeze:2,    focals:[25,32,40,50,65,80,100]},
+  {key:'masterana', name:'ARRI / Zeiss Master Anamorphic 2×', squeeze:2,  focals:[28,35,40,50,60,75,100,135,180]},
+  {key:'cookeff',   name:'Cooke Anamorphic/i FF 1.8×',      squeeze:1.8,  focals:[32,40,50,75,85,100,135,180]},
+  {key:'vazen',     name:'Vazen 1.8×',                      squeeze:1.8,  focals:[28,40,65,85,135]},
+  {key:'mercury',   name:'Atlas Mercury 1.5×',              squeeze:1.5,  focals:[36,42,54,72,95]},
+  {key:'nanomorph', name:'Laowa Nanomorph 1.5×',            squeeze:1.5,  focals:[27,35,50,65,80]},
+  {key:'hawk',      name:'Hawk V-Lite 1.3×',                squeeze:1.3,  focals:[28,35,45,55,65,80,110,140]},
+  {key:'custom',    name:'Any lens (custom)',               squeeze:1,    focals:LENSES},
+];
+const SQUEEZES = [[1,'Spherical'],[1.3,'1.3×'],[1.33,'1.33×'],[1.5,'1.5×'],[1.8,'1.8×'],[2,'2× anamorphic']];
+function lensSet(){ const k = project && project.production && project.production.lensSet; return LENS_SETS.find(s=>s.key === k) || LENS_SETS[0]; }
+// "50mm 2×" on chips and lists — the squeeze only when it is not spherical
+function lensLabel(o){ if(!o || !o.lens) return ''; const sq = +o.squeeze || 1; return o.lens + 'mm' + (sq > 1 ? ' ' + (sq % 1 ? sq : sq) + '×' : ''); }
 
 // ---------------------------------------------------------------- prop drawing
 function shade(hex, f){

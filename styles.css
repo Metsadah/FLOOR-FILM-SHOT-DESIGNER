@@ -946,3 +946,6 @@ body.touch .side-head .setup-chip{ width:32px; height:32px; font-size:12px; }
 #tourCard .tour-n{ font-size:10.5px; font-weight:700; letter-spacing:.08em; color:var(--accent); }
 #tourCard .tour-b{ display:flex; gap:6px; margin-top:14px; align-items:center; }
 .help-nav .tour-start{ margin-left:auto; color:var(--accent) !important; border-color:var(--accent-soft) !important; background:var(--accent-soft) !important; font-weight:600; }
+
+/* the iPad / shot-designer build: no floors, so no floor templates — Blank + the examples only */
+body.lite .tpl-grid, body.lite .tpl-exhead span{ display:none; }
