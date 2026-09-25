@@ -173,8 +173,20 @@
     h1{font-size:40px} h2{font-size:28px}
     nav a:not(.btn){display:none}
   }
+  .frame.anim canvas{display:block;width:100%;aspect-ratio:16/10;background:#fff}
+  .libstrip{margin-top:34px;border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow:hidden}
+  .libstrip img{display:block;width:100%;height:auto}
+  .libstrip p{margin:0;padding:10px 16px;font-size:13px;color:var(--ink2);border-top:1px solid var(--line)}
+  .gal2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}
+  #designer .gallery,#script .gallery{margin-top:22px}
+  .credit{margin:12px 0 0;font-size:12.5px;color:var(--ink3)}
+  .credit a{color:var(--ink2)}
+  .scansteps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .scansteps li{border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--ink2);background:var(--bg)}
+  .scansteps li b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:2px}
+  @media (max-width:820px){ .scan{grid-template-columns:1fr;padding:26px} }
   @media (max-width:600px){
-    .floors,.steps,.gallery,.grid3,.plans{grid-template-columns:1fr} .pair{grid-template-columns:1fr}
+    .floors,.steps,.scansteps,.gallery,.grid3,.plans,.gal2{grid-template-columns:1fr} .pair{grid-template-columns:1fr}
     .wrap{padding:0 18px} section{padding-top:56px} .hero{padding-top:44px} h1{font-size:34px}
   }
 </style>
@@ -188,8 +200,9 @@
     </a>
     <nav>
       <a href="#floors">Floors</a>
-      <a href="#draw">How it works</a>
-      <a href="#example">Example</a>
+      <a href="#mood">Mood</a>
+      <a href="#script">Script</a>
+      <a href="#draw">Shot designer</a>
       <a href="#scanner">Floor Scanner</a>
       <a href="#plans">Plans</a>
       <a href="news.html">News</a>
@@ -203,7 +216,7 @@
     <div>
       <div class="eyebrow"><i></i>Pre-production for film, commercials &amp; series</div>
       <h1>Plan the shoot<br>on the <em>real floor</em>.</h1>
-      <p class="sub">Draw the set to scale, place cast, cameras and light, and let the shot list, call sheet and budget follow from it. One browser app, also on your iPad.</p>
+      <p class="sub">Draw the set to scale, place cast, cameras and light, and let the shot list, call sheet and budget follow from it. Or start earlier: brainstorm on the mood board, write the script, and the plans grow out of it. One browser app, also on your iPad.</p>
       <div class="cta">
         <a class="btn" href="index.html?start=1">Start for free</a>
         <a class="btn ghost" href="#draw">See how it works</a>
@@ -235,9 +248,60 @@
   </div>
 </section>
 
+<section id="mood">
+  <div class="wrap">
+    <p class="kicker">Ground floor · Mood</p>
+    <h2>Start with the feeling.</h2>
+    <p class="lead">Before there is a plan there is a hunch. The ground floor is a free board for it: drop images, GIFs, video, audio, PDFs and links, write sticky notes, sort into columns, group into sub-boards. Nothing here is decoration — every still can become a camera's frame later.</p>
+    <div class="feat" style="padding-top:26px">
+      <div class="txt">
+        <h3>Drop, write, group.</h3>
+        <ul>
+          <li>Drag files straight from your desktop or phone: photos, animated GIFs, video with a poster and a play button, audio, PDFs with a first-page preview.</li>
+          <li>Sticky notes, text, colour swatches, link cards with a thumbnail, tables and to-do lists — the same cards on every floor.</li>
+          <li>Columns for Idea · Question · Theme · Do / Don't; sub-boards for a location scout or a wardrobe wall, with their own read-only share link.</li>
+          <li>Select a still and send it to a camera as its viewfinder frame; the mood is on the plan.</li>
+        </ul>
+      </div>
+      <div class="frame anim"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Mood · Licht — a brand film in three rooms</span></div><canvas id="moodCv" aria-label="A mood board filling itself: photos, a note, a column, a link, a sub-board"></canvas></div>
+    </div>
+    <div class="libstrip"><img src="landing/img/lib-mood.png" alt="The board menu: sticky note, image, text, line, sub-board, measure, link, column, to-do, table, colour, audio, file, idea, question, theme, do / don't"><p>The board menu, one drag away on every floor.</p></div>
+    <div class="gal2">
+      <a class="g" href="landing/img/velderhof-mood.jpg" target="_blank" rel="noopener"><img src="landing/img/velderhof-mood.jpg" alt="Mood board of the Velderhof commercial with stills from the finished spot" style="object-position:center 55%"><div><b>Velderhof — TV commercial</b><span>Stills, the look, the confetti note</span></div></a>
+      <a class="g" href="landing/img/nudes-mood.jpg" target="_blank" rel="noopener"><img src="landing/img/nudes-mood.jpg" alt="Mood board of the short film Nudes" style="object-position:center 55%"><div><b>Nudes — fiction short</b><span>Faces, window light, the rule for the conversations</span></div></a>
+    </div>
+    <p class="credit">Boards from two <a href="https://www.zoutwater.com" rel="noopener">Zoutwater</a> productions, rebuilt in Floorboard for this page. Stills © Zoutwater.</p>
+  </div>
+</section>
+
+<section id="script">
+  <div class="wrap">
+    <p class="kicker">1st floor · Script</p>
+    <h2>The script breaks itself down.</h2>
+    <p class="lead">Write an AV script in seconds, or import a screenplay as text, Fountain, PDF or Word. Every SC number or scene heading becomes a scene with its own floor plan one floor up. Change the script later and the scenes follow.</p>
+    <div class="feat flip" style="padding-top:26px">
+      <div class="txt">
+        <h3>AV script or screenplay, your call.</h3>
+        <ul>
+          <li>AV script card: SC · time that adds up · seconds · stills · video · audio · regie notes, plus your own columns. Drop a still on a row.</li>
+          <li>Screenplay card with scene headings; <b>Break down → scenes</b> makes a plan per scene and keeps them in sync afterwards.</li>
+          <li>Storyboard rows chain frames per scene; the shot list on the 3rd floor is the same table in shooting order.</li>
+          <li>Export as PDF or Word, with the stills.</li>
+        </ul>
+      </div>
+      <div class="frame anim"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Script · Haver — 15" TV</span></div><canvas id="scriptCv" aria-label="An AV script being written, then a screenplay breaking down into three scenes"></canvas></div>
+    </div>
+    <div class="gallery">
+      <a class="g" href="landing/img/script.png" target="_blank" rel="noopener"><img src="landing/img/script.png" alt="A shooting script card next to an AV script table"><div><b>Script and AV script side by side</b><span>Two cards, one production</span></div></a>
+      <a class="g" href="landing/img/velderhof-av.png" target="_blank" rel="noopener"><img src="landing/img/velderhof-av.png" alt="AV script of the Velderhof commercial" style="object-position:left center"><div><b>AV script — Velderhof</b><span>Five beats, thirty seconds</span></div></a>
+      <a class="g" href="landing/img/nudes-script.png" target="_blank" rel="noopener"><img src="landing/img/nudes-script.png" alt="Script breakdown card of Nudes" style="object-position:left center"><div><b>Breakdown — Nudes</b><span>Four scenes, two rooms, a corridor</span></div></a>
+    </div>
+  </div>
+</section>
+
 <section id="draw">
   <div class="wrap">
-    <p class="kicker">How it works</p>
+    <p class="kicker">2nd floor · Shot designer</p>
     <h2>A floor plan in a minute, to scale.</h2>
     <p class="lead">One unit is one centimetre. Drag a room, tap the walls for doors and windows, drop furniture with real sizes, then bring in the crew. Every object is a thing the film needs, not a drawing.</p>
     <div class="howto" id="howto">
@@ -261,6 +325,7 @@
     <div class="howto-open">This room is a real production. <a href="index.html?example=atelier">Open “Atelier” in Floorboard →</a><span>Move the sofa, change the lens, redraw the dolly move — it is yours.</span></div>
     <script src="js/15-atelier.js"></script>
     <script src="landing/howto.js"></script>
+    <script src="landing/floors-anim.js"></script>
   </div>
 </section>
 
@@ -270,64 +335,50 @@
       <div class="txt">
         <p class="kicker">2nd floor · Shot designer</p>
         <h3>See the shot before you light it.</h3>
-        <p>A camera in Floorboard is a real camera: pick the lens and the field of view follows, set framing, support and shot name. Cast has names, lights have a throw.</p>
+        <p>A camera in Floorboard is a real camera: pick the sensor and the lens and the field of view follows, set framing, support and shot name. Cast has names, lights have a throw.</p>
         <ul>
-          <li>Lens presets 10–135 mm on the sensor you shoot on — full frame, Super 35, Alexa 35, Mini LF, APS-C, Micro 4/3 and more; purple handles set field of view and reach in one drag.</li>
-          <li>Movement: keyframes for cast and cameras, dolly track, jib and technocrane a camera can ride. Press play.</li>
-          <li>Setups A / B for lighting or blocking variants of the same scene.</li>
-          <li>Sun and north for the time of day; drop a still on a camera as its viewfinder frame.</li>
+          <li>Lens sets you actually rent — Cooke, Zeiss, ARRI, DZOFilm, vintage Nikon and Canon FD, anamorphic 1.3× to 2× — on the sensor you shoot on, open gate included. Or any focal length for a macro or probe.</li>
+          <li>Movement: paths for cast and cameras, dolly track, jib and technocrane a camera can ride. Press play.</li>
+          <li>Setups A / B for lighting or blocking variants of the same scene; sun and north for the time of day.</li>
           <li>Made for the iPad and the pencil: palm rejection, big targets, pinch to zoom.</li>
         </ul>
       </div>
-      <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Scene 3 · INT. CAFÉ — NIGHT</span></div><img class="shot" src="landing/img/cafe.jpg" alt="Café floor plan with bar, four tables, pendants, tube lights, four actors and two cameras" style="max-height:none"></div>
+      <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Scene 3 · INT. CAFÉ — NIGHT</span></div><img class="shot" src="landing/img/cafe.jpg" alt="Café floor plan with bar, four tables, pendants, tube lights, four actors and two cameras" style="object-position:center 40%"></div>
     </div>
-
-    <div class="feat flip" id="script">
-      <div class="txt">
-        <p class="kicker">1st floor · Script</p>
-        <h3>The script breaks itself down.</h3>
-        <p>Import a screenplay (text, Fountain, PDF) or an AV table from Excel. Every scene heading, or every SC number, becomes a scene with its own floor plan. Change the script later and the scenes follow; nothing you planned is thrown away.</p>
-        <ul>
-          <li>AV script card: SC · time that adds up · seconds · stills · audio · video · regie notes, plus your own columns.</li>
-          <li>Drop images on a row for stills; storyboard rows chain frames per scene.</li>
-          <li>Export the script or AV script as PDF or Word.</li>
-        </ul>
-      </div>
-      <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Script &amp; AV script</span></div><img class="shot cover" src="landing/img/script.png" alt="A shooting script card next to an AV script table with SC, time, seconds, audio, video and regie notes" style="object-position:left center"></div>
+    <div class="libstrip"><img src="landing/img/lib-design.png" alt="The library: cameras, steadicam, gimbal, GoPro, drone, cast, animals, LED, Kino Flo, panels, Fresnel, HMI, tubes, bounce, negative fill, flags, reflector, dolly track, dolly cart, jib"><p>Cast, cameras and light from the library — furniture, vehicles and set pieces come at their real size.</p></div>
+    <div class="gallery">
+      <a class="g" href="landing/img/velderhof-plan.jpg" target="_blank" rel="noopener"><img src="landing/img/velderhof-plan.jpg" alt="Floor plan of the Velderhof living room: five chairs, cast, three cameras, HMI through the window"><div><b>Velderhof — living room</b><span>Five chairs with bows, three cameras, HMI as sun</span></div></a>
+      <a class="g" href="landing/img/nudes-plan.png" target="_blank" rel="noopener"><img src="landing/img/nudes-plan.png" alt="Floor plan of the teachers' room: one table, two chairs, three cameras"><div><b>Nudes — teachers' room</b><span>Two over-shoulders and a two-shot</span></div></a>
+      <a class="g" href="landing/img/nudes-classroom.jpg" target="_blank" rel="noopener"><img src="landing/img/nudes-classroom.jpg" alt="Floor plan of the classroom with eight desks"><div><b>Nudes — classroom</b><span>Eight desks, bookcases, window light</span></div></a>
     </div>
+    <p class="credit">Plans from two Zoutwater productions, reconstructed in Floorboard.</p>
+  </div>
+</section>
 
-    <div class="feat" id="shotlist">
+<section id="shotlist">
+  <div class="wrap">
+    <div class="feat flip">
       <div class="txt">
         <p class="kicker">3rd floor · Shot list</p>
         <h3>Shooting order, with the clock running.</h3>
         <p>Every camera you placed is a shot. Pull them onto a day card, drag them into shooting order and add breaks, build time and company moves. Start times count from the call, so the wrap is always in view.</p>
         <ul>
           <li>Camera, lens and move come from the Shot designer — still editable, one tap to sync.</li>
-          <li>Video, audio and regie notes per shot, stills if you want them.</li>
-          <li>Move a shot to another day with one tap; PDF per day or for the whole shoot.</li>
-        </ul>
-      </div>
-      <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Day 1 · ma 6 okt · call 08:00</span></div><img class="shot" src="landing/img/shotlist.png" alt="Shot list card for day 1 with start times, shots, camera and lens, a lunch break and a company move" style="max-height:none"></div>
-    </div>
-
-    <div class="feat flip" id="production">
-      <div class="txt">
-        <p class="kicker">5th floor · Production</p>
-        <h3>The call sheet writes itself.</h3>
-        <p>Crew, cast and client live in one registry with real roles. The day header holds calls and locations, the prop list what travels. The call sheet composes all of it, live, with clickable phone numbers and addresses.</p>
-        <ul>
-          <li>Documents in one place: scripts, AV scripts, prop and gear lists, shot list, budget — PDF, Word, CSV.</li>
-          <li>Your house style on every PDF: accent colour, logo, footer.</li>
-          <li>Mail the call sheet to crew, cast or client; share read-only links with comment pins; invite a co-editor.</li>
+          <li>Video, audio and regie notes per shot; stills and screengrabs go into the PDF and the Word export.</li>
+          <li>Move a shot to another day with one tap; export one day, a selection of days or the whole shoot.</li>
         </ul>
       </div>
       <div class="pair">
-        <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Production board</span></div><img class="shot cover" src="landing/img/production.jpg" alt="Production board with day header, crew and cast lists, location card, prop list and the live call sheet" style="aspect-ratio:4/3;object-position:12% 55%"></div>
-        <div class="doc"><img src="landing/img/pdf-callsheet.png" alt="The exported call sheet PDF, A4, with the production's accent colour"></div>
+        <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Day 1 · ma 6 okt · call 08:00</span></div><img class="shot" src="landing/img/shotlist.png" alt="Shot list card for day 1 with start times, shots, camera and lens, a lunch break and a company move"></div>
+        <div class="doc"><img src="landing/img/pdf-shotlist.png" alt="The exported shot list PDF, A4 landscape"></div>
       </div>
     </div>
+  </div>
+</section>
 
-    <div class="feat" id="budget">
+<section id="budget">
+  <div class="wrap">
+    <div class="feat">
       <div class="txt">
         <p class="kicker">4th floor · Budget</p>
         <h3>A budget laid out like a quote.</h3>
@@ -335,61 +386,53 @@
         <ul>
           <li>Target per phase, contingency and VAT; the cards show where you stand.</li>
           <li>Gear lines from what is actually on the scene boards.</li>
-          <li>Export as a quote-style PDF or CSV.</li>
+          <li>Export as a quote-style PDF or CSV. Crew you invite without this floor never sees it.</li>
         </ul>
       </div>
       <div class="doc" style="max-width:520px;justify-self:center"><img src="landing/img/pdf-budget.png" alt="Budget PDF with pre-production, production and post lines, rates, amounts and totals"></div>
     </div>
-
-    <div class="feat flip" id="mood">
-      <div class="txt">
-        <p class="kicker">Ground floor · Mood</p>
-        <h3>Start with the feeling.</h3>
-        <p>A free board for references, palettes and thoughts: images, animated GIFs, video, audio, PDFs, links, sticky notes and columns. Group into sub-boards. Everything you drop here can travel to a camera as a frame later.</p>
-      </div>
-      <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Mood</span></div><img class="shot cover" src="landing/img/moodboard.jpg" alt="Mood board with six colour references, notes and an idea card" style="aspect-ratio:16/10;object-position:center 62%"></div>
-    </div>
   </div>
 </section>
 
-<section id="example">
+<section id="production">
   <div class="wrap">
-    <p class="kicker">Real productions, re-created in Floorboard</p>
-    <h2>A TV commercial and a fiction short.</h2>
-    <p class="lead">Two productions by <a href="https://www.zoutwater.com" rel="noopener">Zoutwater</a>, planned again in Floorboard after the fact so you can see the floors at work: the plan, the mood board with the real stills, the AV script or breakdown, the shooting order.</p>
-
-    <div class="ex">
-      <div class="ex-hero"><img src="landing/img/velderhof-3.jpg" alt="Velderhof commercial: a birthday party with five armchairs wearing red bows"><span class="ex-tag">Commercial · 30"</span></div>
-      <div class="ex-txt">
-        <h3>Velderhof — TV commercial 2024</h3>
-        <p>A 65th birthday, a gift that is not quite her taste, and five armchairs with red bows: at Velderhof you try up to five chairs at home. One living room, three cameras, a lot of confetti.</p>
-        <p class="ex-credits">Producer Jan-Peter Boer · Director Kees-Jan Mulder · Cinematography &amp; edit Gerbert Floor · Lead Willeke Alberti · Script Wicher Schuurman · Art direction Floortje Mols · <a href="https://www.zoutwater.com/work/velderhof-tv-commercial-2024-r47ne" rel="noopener">Watch it →</a></p>
-        <a class="ex-open" href="index.html?example=velderhof">Open this production in Floorboard <small>· yours to edit</small></a>
+    <div class="feat flip">
+      <div class="txt">
+        <p class="kicker">5th floor · Production</p>
+        <h3>The call sheet writes itself.</h3>
+        <p>Crew, cast and client live in one registry with real roles. The day header holds calls and locations, the prop list what travels. The call sheet composes all of it, live, with clickable phone numbers and addresses.</p>
+        <ul>
+          <li>Documents in one place: scripts, AV scripts, prop and gear lists, shot list, budget — PDF, Word, CSV.</li>
+          <li>Your house style on every PDF: accent colour, logo, footer.</li>
+          <li>Invite people by name and e-mail as co-editor or read-only, per floor; share read-only links with comment pins.</li>
+        </ul>
       </div>
-      <div class="ex-grid">
-        <a class="g" href="landing/img/velderhof-plan.jpg" target="_blank" rel="noopener"><img src="landing/img/velderhof-plan.jpg" alt="Floor plan of the living room: five chairs, cast, three cameras, HMI through the window"><div><b>Shot designer</b><span>Living room, five chairs, cast, A / B / C cameras on Super 35, HMI as sun</span></div></a>
-        <a class="g" href="landing/img/velderhof-mood.jpg" target="_blank" rel="noopener"><img src="landing/img/velderhof-mood.jpg" alt="Mood board with stills from the commercial" style="object-position:center 55%"><div><b>Mood</b><span>The stills, the look, the confetti warning</span></div></a>
-        <a class="g" href="landing/img/velderhof-av.png" target="_blank" rel="noopener"><img src="landing/img/velderhof-av.png" alt="AV script of the 30-second commercial" style="object-position:left center"><div><b>AV script</b><span>Five beats, thirty seconds, regie notes per beat</span></div></a>
-        <a class="g" href="landing/img/velderhof-shotlist.png" target="_blank" rel="noopener"><img src="landing/img/velderhof-shotlist.png" alt="Shot list for the shoot day" style="object-position:left top"><div><b>Shot list</b><span>Shooting order with the confetti reset and lunch</span></div></a>
+      <div class="pair">
+        <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Production board</span></div><img class="shot cover" src="landing/img/production.jpg" alt="Production board with day header, crew and cast lists, location card, prop list and the live call sheet"></div>
+        <div class="doc"><img src="landing/img/pdf-callsheet.png" alt="The exported call sheet PDF, A4, with the production's accent colour"></div>
       </div>
     </div>
+    <div class="libstrip"><img src="landing/img/lib-prod.png" alt="The production menu: day header, crew, cast, client, location, prop list, call sheet and the board cards"><p>Day header, crew, cast, client, location, prop list, call sheet.</p></div>
+  </div>
+</section>
 
-    <div class="ex">
-      <div class="ex-hero"><img src="landing/img/nudes-4.jpg" alt="Nudes: a classroom, pupils at their desks, window light"><span class="ex-tag">Fiction short</span></div>
-      <div class="ex-txt">
-        <h3>Nudes — Dan moet je wat voor me doen</h3>
-        <p>Nude photographs of pupils have been shared at a secondary school. In face-to-face conversations the teachers try to find out what happened, and whether anyone was made to. Classrooms, a small room with one table, long lenses.</p>
-        <p class="ex-credits">Directors &amp; writers Kees-Jan Mulder, Gerbert Floor, Robert Pruis · Producer Robert Pruis · Cinematography Gerbert Floor · Selected for Cinekid, Shortcutz Amsterdam, Student World Impact Festival · <a href="https://www.zoutwater.com/fiction-documentary/nudes-dan-moet-je-wat-voor-me-doen-4ba9n" rel="noopener">About the film →</a></p>
-        <a class="ex-open" href="index.html?example=nudes">Open this production in Floorboard <small>· yours to edit</small></a>
+<section id="scanner">
+  <div class="wrap">
+    <div class="scan">
+      <div>
+        <p class="kicker">Floor Scanner · iPhone</p>
+        <h2 style="margin-top:0">Scan the location, plan it here.</h2>
+        <p class="lead" style="margin-bottom:14px">The companion app for scouting. Walk the room with LiDAR or measure it with the camera, check the scan on the phone, photograph through a director's viewfinder with real sensors and lens sets, export a PDF — and, signed in, find it all in Floorboard's room library, ready to insert in any scene.</p>
+        <ul class="scansteps">
+          <li><b>Scan</b><span>LiDAR on iPhone 12 Pro and later; camera measuring on every iPhone.</span></li>
+          <li><b>Check</b><span>Tap a piece to change what it is, turn the plan, square up the walls.</span></li>
+          <li><b>Frame</b><span>Viewfinder with Super 35, full frame, open gate, spherical and anamorphic sets.</span></li>
+          <li><b>Sync</b><span>Rooms and photos land in your library; insert a room into a scene with one tap.</span></li>
+        </ul>
+        <p class="credit" style="margin-top:14px">Coming to the App Store; TestFlight first. Included in the hosted plan.</p>
       </div>
-      <div class="ex-grid">
-        <a class="g" href="landing/img/nudes-plan.png" target="_blank" rel="noopener"><img src="landing/img/nudes-plan.png" alt="Floor plan of the teachers' room: one table, two chairs, three cameras"><div><b>Shot designer</b><span>The conversation: two over-shoulders and a two-shot</span></div></a>
-        <a class="g" href="landing/img/nudes-classroom.jpg" target="_blank" rel="noopener"><img src="landing/img/nudes-classroom.jpg" alt="Floor plan of the classroom with eight desks"><div><b>Classroom</b><span>Eight desks, bookcases, window light, two cameras</span></div></a>
-        <a class="g" href="landing/img/nudes-mood.jpg" target="_blank" rel="noopener"><img src="landing/img/nudes-mood.jpg" alt="Mood board with stills from the film" style="object-position:center 55%"><div><b>Mood</b><span>Stills, the rule for the conversations, do / don’t</span></div></a>
-        <a class="g" href="landing/img/nudes-script.png" target="_blank" rel="noopener"><img src="landing/img/nudes-script.png" alt="Script breakdown card" style="object-position:left center"><div><b>Script</b><span>The breakdown that became the scenes on the left</span></div></a>
-      </div>
+      <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Room library · scanned with Floor Scanner</span></div><img class="shot" src="landing/img/room-thumb.jpg" alt="A scanned room in the room library"></div>
     </div>
-    <p class="fb-dim" style="font-size:13px;color:var(--ink2);margin-top:14px">Plans and boards are reconstructions made in Floorboard for this page; stills © Zoutwater. Every example opens as a production of your own: the plans, boards, stills and shot lists are all there to change. Signed out? You sign in first, then it builds.</p>
   </div>
 </section>
 
@@ -454,8 +497,8 @@
 
 <footer>
   <div class="wrap">
-    <div>© <span class="fill">[your company]</span> · <span class="fill">[city]</span>, the Netherlands · Floorboard — the floor is yours</div>
-    <div><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="mailto:[hello@yourdomain]"><span class="fill">[hello@yourdomain]</span></a></div>
+    <div>© In beeld met Floor · Elburg, the Netherlands · Floorboard — the floor is yours</div>
+    <div><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="selfhost.html">Self-host</a> · info@inbeeldmetfloor.nl</div>
   </div>
 </footer>
 </body>

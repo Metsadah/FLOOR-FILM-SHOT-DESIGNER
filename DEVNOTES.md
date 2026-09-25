@@ -303,6 +303,22 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc6 — landing in floor order, Mood and Script animated, examples folded in
+Sections now run Ground → 5th: Mood (new: landing/floors-anim.js draws a
+mood board filling itself — photos, note, column, link + GIF cards, a
+marquee that becomes a sub-board, a still travelling to a camera), Script
+(same file: an AV script typing itself with the seconds adding up, then a
+screenplay whose headings break down into three scene cards), Shot
+designer (the "floor plan in a minute" animation + features + real plans),
+Shot list, Budget, Production, then Floor Scanner (section had gone
+missing; back), news, everywhere, plans. The "real productions" section is
+gone; its boards, AV script and plans now illustrate the floors they belong
+to, with a one-line credit. Library strips (landing/img/lib-*.png) are
+composed from the app's own tile icons and show the board menu, the shot
+designer library and the production cards. Hero copy: "Or start earlier:
+brainstorm on the mood board, write the script, and the plans grow out of
+it." Footer filled in. Both canvases pause on hover.
+
 ## v1.0-rc5 — Unpack a sub-board
 Sub-board selection bar: "Unpack" dissolves the card and drops its
 contents (objects, walls, stills) onto the board the card sits on, centred
