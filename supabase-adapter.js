@@ -88,14 +88,14 @@
             <div style="margin-top:10px">${link('flForgot','Forgot password?')}</div>
             <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px">
               <div style="font-size:12.5px;color:var(--ink2);margin-bottom:2px">New to Floorboard?</div>
-              ${btn('flToSignup','Create account — 14 days free',false)}
+              ${btn('flToSignup','Create account — first month free',false)}
               <div style="font-size:11.5px;color:var(--ink3);margin-top:6px;line-height:1.45">No card needed. Invited by someone? Create an account with the e-mail the invite went to — working in their productions is always free.</div>
             </div>
             <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
               ${link('flToMagic','Email me a login link instead')}
             </div>` :
           mode === 'signup' ? `
-            <div style="color:var(--ink2);font-size:12.5px;margin-bottom:2px">Every floor, 14 days, no card. Then €9 a month, or free as a collaborator.</div>
+            <div style="color:var(--ink2);font-size:12.5px;margin-bottom:2px">Every floor for a month, no card, nothing renews by itself. Then €7 a month or €77 a year — or free as a collaborator.</div>
             ${field('flEmail','email','you@example.com')}
             ${field('flPass','password','Choose a password (6+ characters)')}
             ${field('flPromo','text','Promo code (optional)')}
@@ -424,7 +424,7 @@
         : st.kind === 'canceled' ? '<b>Pro</b> — cancelled, works until ' + until + '.'
         : st.kind === 'trial' ? '<b>Free trial</b> — ' + st.days + ' day' + (st.days === 1 ? '' : 's') + ' left, everything unlocked.'
         : st.kind === 'promo' ? '<b>Pro via code</b> — until ' + until + '.'
-        : st.kind === 'trial-ended' ? '<b>Trial ended</b> — you can still work in productions you were invited to.'
+        : st.kind === 'trial-ended' ? '<b>Free month over</b> — your productions stay stored for a year, and you can still work in productions you were invited to.'
         : '<b>Guest</b> — you work in productions others invited you to.';
       planBox.innerHTML = line +
         (st.kind === 'pro' || st.kind === 'canceled'
@@ -633,11 +633,11 @@
       const el = document.createElement('div');
       el.className = 'fb-ov';
       const reason = feature === 'productions' ? 'Starting a production of your own needs a plan.' : feature === 'coedit' ? 'Inviting people into your production needs a plan.' : '';
-      const head = st.kind === 'trial-ended' ? 'Your 14-day trial has ended' : 'Your plan';
+      const head = st.kind === 'trial-ended' ? 'Your free month is over' : 'Your plan';
       el.innerHTML = '<div class="fb-ov-box" style="width:560px"><div class="fb-ov-title">' + head + '</div>' +
-        '<div class="fb-ov-sub">' + reason + ' You can keep working in every production you were invited to — that is always free. To start and own productions, go Pro or enter a code.</div>' +
+        '<div class="fb-ov-sub">' + reason + ' Nothing was charged and nothing renews by itself. Your own productions stay stored for a year, and you can keep working in every production you were invited to — that is always free. To start and own productions, go Pro or enter a code.</div>' +
         '<div class="plan-cards">' +
-          '<div class="plan-card pro"><span class="tag">Pro</span><b>' + (BILL.priceLabel || '€9 / month') + '</b><ul><li>Unlimited productions, every floor</li><li>Invite up to ' + SEATS + ' collaborators — free for them</li><li>Co-editing, share links, documents in your house style</li><li>iPad app and Floor Scanner sync</li></ul><button class="btn primary" id="plUp">Upgrade to Pro</button><small>Cancel any time · billed by ' + (BILL.provider === 'paddle' ? 'Paddle' : 'Lemon Squeezy') + ', VAT handled</small></div>' +
+          '<div class="plan-card pro"><span class="tag">Pro</span><b>' + (BILL.priceLabel || '€9 / month') + '</b><ul><li>Unlimited productions, every floor</li><li>Invite up to ' + SEATS + ' collaborators — free for them</li><li>Co-editing, share links, documents in your house style</li><li>iPad app and Floor Scanner sync</li></ul><button class="btn primary" id="plUp">Pro — ' + (BILL.priceLabel || '€7 / month') + '</button>' + ((BILL.priceIdYear || BILL.checkoutUrlYear) ? '<button class="btn" id="plUpYear" style="margin-top:6px">Pro — ' + (BILL.priceLabelYear || '€77 / year') + ' · one month free</button>' : '') + '<small>Cancel any time · billed by ' + (BILL.provider === 'paddle' ? 'Paddle' : 'Lemon Squeezy') + ', VAT handled</small></div>' +
           '<div class="plan-card"><span class="tag" style="background:var(--soft);color:var(--ink2)">Code</span><b>Have a code?</b><p>Festival, school, crew or launch codes give a free period of Pro.</p><div class="fb-row"><input id="plCode" class="fb-inp" placeholder="e.g. LAUNCH-2026" style="text-transform:uppercase"><button class="btn" id="plRedeem">Apply</button></div><p id="plMsg" class="fb-dim"></p></div>' +
         '</div>' +
         '<div class="fb-ov-actions"><span class="fb-dim">' + (st.kind === 'trial' ? st.days + ' trial days left' : st.kind === 'promo' ? 'Code active until ' + new Date(st.until).toLocaleDateString() : '') + '</span><span style="flex:1"></span><button class="btn" id="plClose">Not now</button></div></div>';
@@ -645,7 +645,8 @@
       el.addEventListener('keydown', e=>e.stopPropagation());
       el.querySelector('#plClose').addEventListener('click', ()=>el.remove());
       el.addEventListener('click', e=>{ if(e.target === el) el.remove(); });
-      el.querySelector('#plUp').addEventListener('click', ()=>{ el.remove(); this.upgrade(); });
+      el.querySelector('#plUp').addEventListener('click', ()=>{ el.remove(); this.upgrade('month'); });
+      const yb = el.querySelector('#plUpYear'); if(yb) yb.addEventListener('click', ()=>{ el.remove(); this.upgrade('year'); });
       el.querySelector('#plRedeem').addEventListener('click', async ()=>{
         const c = el.querySelector('#plCode').value.trim(); if(!c) return;
         el.querySelector('#plMsg').textContent = 'Checking…';
@@ -654,11 +655,12 @@
         if(ok) setTimeout(()=>el.remove(), 900);
       });
     },
-    async upgrade(){
+    async upgrade(period){
       await ready;
       if(!billingOn) return;
+      const year = period === 'year';
       if(BILL.provider === 'lemonsqueezy'){
-        const u = new URL(BILL.checkoutUrl);
+        const u = new URL((year && BILL.checkoutUrlYear) || BILL.checkoutUrl);
         u.searchParams.set('checkout[custom][user_id]', FLOOR_USER.id);
         u.searchParams.set('checkout[custom][plan]', BILL.plan || 'pro');
         if(FLOOR_USER.email) u.searchParams.set('checkout[email]', FLOOR_USER.email);
@@ -677,7 +679,7 @@
         window.Paddle.Initialize({token: BILL.token});
       }
       window.Paddle.Checkout.open({
-        items: [{priceId: BILL.priceId, quantity: 1}],
+        items: [{priceId: (year && BILL.priceIdYear) || BILL.priceId, quantity: 1}],
         customer: FLOOR_USER.email ? {email: FLOOR_USER.email} : undefined,
         customData: {user_id: FLOOR_USER.id, plan: BILL.plan || 'pro'},
       });

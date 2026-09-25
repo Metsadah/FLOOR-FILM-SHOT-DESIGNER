@@ -360,6 +360,47 @@ const PROPS = {
     ctx.lineWidth=2;
   }},
   // ---- set dressing ----
+  bench:{w:180,h:45,name:'Bench (museum)',draw(ctx,w,h,c){
+    // a slab on two blocks — the padded bench in the middle of a gallery
+    baseRect(ctx,w,h,c,6);
+    ctx.strokeStyle=c; ctx.globalAlpha=.55;
+    ctx.beginPath(); ctx.moveTo(-w/2+8,-h/2+h*.3); ctx.lineTo(w/2-8,-h/2+h*.3); ctx.stroke();
+    for(const x of [-w*.32, w*.32]){ ctx.beginPath(); ctx.roundRect(x-w*.06,-h/2+h*.45,w*.12,h*.45,2); ctx.stroke(); }
+    ctx.globalAlpha=1;
+  }},
+  pouf:{w:60,h:60,name:'Pouf',round:1,draw(ctx,w,h,c){
+    const r=Math.min(w,h)/2;
+    ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fillStyle=c; ctx.globalAlpha=.3; ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=c; ctx.stroke();
+    ctx.globalAlpha=.5; ctx.beginPath(); ctx.arc(0,0,r*.55,0,7); ctx.stroke(); // tufted centre
+    ctx.beginPath(); ctx.arc(0,0,2.5,0,7); ctx.fill(); ctx.globalAlpha=1;
+  }},
+  painting:{w:100,h:6,name:'Painting (on the wall)',draw(ctx,w,h,c){
+    // hangs flat against a wall: a frame line with the canvas inside — drop it onto the wall line
+    ctx.beginPath(); ctx.rect(-w/2,-h/2,w,h); ctx.fillStyle=c; ctx.globalAlpha=.55; ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=c; ctx.lineWidth=2; ctx.stroke();
+    ctx.globalAlpha=.7; ctx.beginPath(); ctx.moveTo(-w/2+6,0); ctx.lineTo(w/2-6,0); ctx.stroke(); ctx.globalAlpha=1;
+    // the viewing side
+    ctx.beginPath(); ctx.moveTo(-w*.1,h/2+2); ctx.lineTo(0,h/2+7); ctx.lineTo(w*.1,h/2+2); ctx.stroke();
+  }},
+  painting_large:{w:180,h:8,name:'Large painting',draw(ctx,w,h,c){
+    ctx.beginPath(); ctx.rect(-w/2,-h/2,w,h); ctx.fillStyle=c; ctx.globalAlpha=.55; ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=c; ctx.lineWidth=2; ctx.stroke();
+    ctx.globalAlpha=.7; ctx.beginPath(); ctx.moveTo(-w/2+8,0); ctx.lineTo(w/2-8,0); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.beginPath(); ctx.moveTo(-w*.06,h/2+2); ctx.lineTo(0,h/2+8); ctx.lineTo(w*.06,h/2+2); ctx.stroke();
+  }},
+  radiator:{w:100,h:12,name:'Radiator',draw(ctx,w,h,c){
+    baseRect(ctx,w,h,c,2);
+    ctx.strokeStyle=c; ctx.globalAlpha=.6;
+    ctx.beginPath(); for(let x=-w/2+6; x<w/2-3; x+=6){ ctx.moveTo(x,-h/2+2); ctx.lineTo(x,h/2-2); } ctx.stroke();
+    ctx.globalAlpha=1;
+  }},
+  closet_builtin:{w:120,h:60,name:'Built-in closet',draw(ctx,w,h,c){
+    // recessed into the wall: dashed back and sides, solid doors on the room side
+    ctx.strokeStyle=c; ctx.fillStyle=c; ctx.globalAlpha=.14; ctx.fillRect(-w/2,-h/2,w,h); ctx.globalAlpha=1;
+    ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(-w/2,h/2); ctx.lineTo(-w/2,-h/2); ctx.lineTo(w/2,-h/2); ctx.lineTo(w/2,h/2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-w/2,h/2); ctx.lineTo(w/2,h/2); ctx.stroke(); ctx.lineWidth=1;
+    ctx.globalAlpha=.6; ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(0,-h/2+4); ctx.stroke(); // two doors
+    for(const x of [-w*.08, w*.08]){ ctx.beginPath(); ctx.arc(x,h/2-7,1.8,0,7); ctx.fill(); } // handles
+    ctx.globalAlpha=1;
+  }},
   plant:{w:50,h:50,name:'Plant',round:1,draw(ctx,w,h,c){
     const r=Math.min(w,h)/2;
     ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fillStyle=c; ctx.globalAlpha=.25; ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=c; ctx.stroke();
@@ -1220,7 +1261,7 @@ const CATS = [
     'cstand','kino','ledpanel','fresnel','hmi','tube','astera','bounce','negfill','flag','reflector','track','dollycart','jib','technocrane','truss','monitor','camcart','hazer'
   ].map(k=>({cat:'prop', kind:k}))},
   {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','tl','neon'].map(k=>({cat:'prop', kind:k}))},
-  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','tvunit','cabinet','bookcase','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
+  {name:'Furniture', open:true, items:['chair','armchair','relaxchair','pouf','bench','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','closet_builtin','tvunit','cabinet','bookcase','painting','painting_large','radiator','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
   {name:'Bathroom', open:false, items:['bath','shower','toilet','sink','mirror'].map(k=>({cat:'prop', kind:k}))},
   {name:'Vehicles', open:false, items:['bicycle','motorcycle','car_small','car','car_suv','car_police','minivan','bus','train','tractor'].map(k=>({cat:'prop', kind:k}))},
   {name:'Outdoor', open:false, items:['road','crossing','bikelane','rails'].map(k=>({cat:'prop', kind:k}))},

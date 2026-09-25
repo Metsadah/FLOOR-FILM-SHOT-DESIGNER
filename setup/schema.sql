@@ -245,7 +245,7 @@ returns boolean language sql stable security definer set search_path to 'public'
 as $$ select exists(select 1 from subscriptions s where s.user_id = uid
   and (s.status in ('active','past_due')
        or (s.status in ('canceled','trial','promo') and s.current_period_end is not null and s.current_period_end > now()))) $$;
-create or replace function public.start_trial(days int default 14)
+create or replace function public.start_trial(days int default 30)
 returns table(plan text, status text, current_period_end timestamptz)
 language plpgsql security definer set search_path to 'public'
 as $$

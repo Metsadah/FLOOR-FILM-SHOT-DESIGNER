@@ -211,14 +211,14 @@ drop trigger if exists share_comments_clean on share_comments;
 create trigger share_comments_clean before insert or update on share_comments for each row execute function public.share_comments_clean();
 
 -- 12 · trial length is not the client's to choose; a promo code counts once per account; no double-spend on uses_left
-create or replace function public.start_trial(days int default 14)
+create or replace function public.start_trial(days int default 30)
 returns table(plan text, status text, current_period_end timestamptz)
 language plpgsql security definer set search_path to 'public'
 as $$
 begin
   if auth.uid() is null then raise exception 'sign in first'; end if;
   insert into subscriptions(user_id, plan, status, provider, current_period_end, note)
-    values (auth.uid(), 'pro', 'trial', 'trial', now() + interval '14 days', 'trial')
+    values (auth.uid(), 'pro', 'trial', 'trial', now() + interval '30 days', 'trial')
     on conflict (user_id) do nothing;
   return query select s.plan, s.status, s.current_period_end from subscriptions s where s.user_id = auth.uid();
 end $$;

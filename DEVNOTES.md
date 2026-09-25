@@ -303,6 +303,19 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.98 — €7 / €77, one free month, six pieces of furniture
+Pricing decided: Pro €7 a month or €77 a year (Paddle, month + year price
+ids: config.billing.priceId / priceIdYear, Lemon Squeezy checkoutUrlYear).
+Every new account gets one free month — start_trial now fixes 30 days
+server-side (migration trial_one_month), no card, no auto-renewal, and
+productions of an account without an active plan stay stored for 12
+months (terms §4, privacy retention table; deletion after a warning is a
+manual step until SMTP is in place). Plan panel offers month and year,
+copy everywhere says "first month free". Catalogue: bench (museum), pouf,
+painting + large painting (flat, drop on the wall line), radiator,
+built-in closet (dashed sides — sits inside a wall), all under Furniture.
+Bookcase already existed. Webhook v3 deployed to the hosted project.
+
 ## v0.97 — security SQL applied to the hosted project
 invites-v2 + security-v1 ran as migrations (invites_v2_email_roles_readonly,
 security_hardening_v1, pg_cron_nightly_purge, security_v1_followups).

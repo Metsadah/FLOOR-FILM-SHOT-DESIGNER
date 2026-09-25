@@ -62,7 +62,7 @@ first — they ask for the URLs.
 
 1. https://sandbox-vendors.paddle.com → account (sandbox first, always).
 2. **Catalog → Products → New**: "Floorboard Pro". Add a **price**:
-   €9.00 / month, tax category "Standard digital goods". Note the price id
+   €7.00 / month (and a second price €77.00 / year), tax category "Standard digital goods". Note the price id
    `pri_…`.
 3. **Developer tools → Authentication → Client-side tokens → Generate**.
    Note the token (`test_…` in sandbox, `live_…` later).
@@ -78,7 +78,7 @@ first — they ask for the URLs.
 6. `config.js`:
    ```js
    billing: { provider:'paddle', token:'test_…', priceId:'pri_…',
-              environment:'sandbox', priceLabel:'€9 / month', plan:'pro' }
+              environment:'sandbox', priceLabel:'€7 / month', priceIdYear:'pri_…', plan:'pro' }
    ```
 7. Test with Paddle's sandbox card `4242 4242 4242 4242`. Within ~5 s the
    account panel flips to "PRO plan ✓".
@@ -88,7 +88,7 @@ first — they ask for the URLs.
 ### 2b · Lemon Squeezy
 
 1. https://app.lemonsqueezy.com → store (turn **Test mode** on first).
-2. **Products → New**: "Floorboard Pro", subscription, €9/month. Open the
+2. **Products → New**: "Floorboard Pro", subscription, €7/month. Open the
    product → **Share** → copy the checkout link
    `https://YOURSTORE.lemonsqueezy.com/buy/…`.
 3. **Settings → Webhooks → +**:
@@ -101,7 +101,7 @@ first — they ask for the URLs.
    billing: { provider:'lemonsqueezy',
               checkoutUrl:'https://YOURSTORE.lemonsqueezy.com/buy/…',
               portalUrl:'https://YOURSTORE.lemonsqueezy.com/billing',
-              priceLabel:'€9 / month', plan:'pro' }
+              priceLabel:'€7 / month', priceIdYear:'pri_…', plan:'pro' }
    ```
 6. Test in test mode (card `4242…`), then switch test mode off and repeat 2–3
    for the live product.
@@ -172,8 +172,8 @@ app only shows it:
 
 | Account | Can | Cannot |
 |---|---|---|
-| **Trial** — every new account, 14 days (`billing.trialDays`) | everything | — |
-| **Pro** — €9 / month via Paddle or Lemon Squeezy | everything; invites up to 5 collaborators (`billing.seats`) | — |
+| **Free month** — every new account, 30 days (`billing.trialDays`, fixed server-side in `start_trial`), no card, no auto-renewal | everything | — |
+| **Pro** — €7 / month or €77 / year via Paddle | everything; invites up to 5 collaborators (`billing.seats`) | — |
 | **Code** — a promo code gives N days of Pro | everything while it runs | — |
 | **Guest** — no live plan (trial ended, never paid) | open and edit every production they were invited to, share links, exports | start productions of their own; invite people |
 
@@ -195,6 +195,6 @@ Codes are case-insensitive. A code on a running trial or another code adds
 its days on top; a paying customer keeps the paid plan unchanged.
 
 **Local mode** (self-host, `billing.provider` empty) has none of this: no
-trial, no seats, everything on. That is the free product; the hosted €9 is
+trial, no seats, everything on. That is the free product; the hosted €7 is
 convenience; a one-time self-host cloud licence (if you want one) is a
 licence-text matter, not something the code can enforce.

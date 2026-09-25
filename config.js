@@ -19,16 +19,19 @@ window.FLOOR_CONFIG = {
   // without plans: every feature unlocked (self-host, local, development).
   billing: {
     provider: '',              // 'paddle' | 'lemonsqueezy' | ''
-    trialDays: 14,             // every new account starts with this many Pro days
+    trialDays: 30,             // every new account starts with one free month of Pro (no card, no auto-renewal)
     seats: 5,                  // collaborators a Pro owner can invite for free
-    priceLabel: '€9 / month',  // shown on the Upgrade button
+    priceLabel: '€7 / month',  // shown on the Upgrade button
+    priceLabelYear: '€77 / year', // shown when priceIdYear / checkoutUrlYear is set
     plan: 'pro',               // plan name the webhook stores for this checkout
     // Paddle Billing
     token: '',                 // client-side token (Paddle → Developer tools → Authentication)
-    priceId: '',               // pri_… of the Pro price
+    priceId: '',               // pri_… of the Pro month price
+    priceIdYear: '',           // pri_… of the Pro year price (optional)
     environment: 'production', // 'sandbox' while testing
     // Lemon Squeezy
-    checkoutUrl: '',           // https://YOURSTORE.lemonsqueezy.com/buy/…
+    checkoutUrl: '',           // https://YOURSTORE.lemonsqueezy.com/buy/… (month)
+    checkoutUrlYear: '',       // optional year checkout
     portalUrl: '',             // optional customer-portal link for "Manage subscription"
   },
 };
