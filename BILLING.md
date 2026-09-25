@@ -53,6 +53,7 @@ the customer. Pick one; the app supports either.
 | Fees | 5 % + €0.50 | 5 % + €0.50 |
 | Set-up | more forms (business verification) | 15 minutes |
 | Needed | KvK number, bank account, website with terms + privacy | same |
+| Status 2026 | independent, recommended | part of Stripe since 2024; future as a standalone product unclear |
 
 Either way you need `privacy.html` filled in and `terms.html` published
 first — they ask for the URLs.
@@ -71,7 +72,9 @@ first — they ask for the URLs.
      updated, canceled, past_due, paused, resumed)
    - Copy the **secret key** (`pdl_ntfset_…`).
 5. Supabase → **Edge Functions → billing-webhook → Secrets** (or *Project
-   settings → Edge Functions*): add `PADDLE_WEBHOOK_SECRET` = that key.
+   settings → Edge Functions*): add `PADDLE_WEBHOOK_SECRET` = that key and
+   `PRO_PRICE_IDS` = the `pri_…` id(s) from step 2 (comma-separated for
+   month + year). Events for any other price are ignored (v0.95).
 6. `config.js`:
    ```js
    billing: { provider:'paddle', token:'test_…', priceId:'pri_…',
