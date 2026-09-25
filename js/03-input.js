@@ -177,7 +177,7 @@ function linePts(o){
 function hitObject(shot, wx, wy, underlayOnly){
   const test = o => {
     if(o.kind === 'track') return false;
-    if((o.cat === 'image' && o.underlay) !== !!underlayOnly) return false;
+    if(!!(o.cat === 'image' && o.underlay) !== !!underlayOnly) return false; // (v0.96 regression: an image without the flag compared undefined !== false and was never hit)
     if(o.cat === 'line'){
       const thr = Math.max(10/view.scale, (o.weight||3)/2 + 6);
       const lp = linePts(o);

@@ -303,6 +303,15 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc3 — images were unselectable since v0.96 (regression)
+The underlay fix in hitObject compared \`(o.cat === 'image' && o.underlay) !== !!underlayOnly\`;
+for an ordinary image o.underlay is undefined, so the left side was
+undefined, never false, and every image without the flag was skipped —
+on boards, in sub-boards, everywhere (reported as "cannot select a single
+photo in the Location scout sub-board" of the Van Gogh trailer). Now
+coerced with !!. Verified: root image hit, sub-board images hit one by
+one, underlay still skipped and reachable via underlayOnly.
+
 ## v1.0-rc2 — more bodies and glass · many photos at once land as a grid
 Sensors (25 now): Sony FX3/FX2/A7 and FX6/FX9, Kinefinity Mavo Edge 8K and
 6K open gate, Canon EOS C50 open gate 7K and C70/C80, Panasonic S1H/S5 II
