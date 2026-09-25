@@ -97,10 +97,13 @@ const SENSORS = [['ff','Full frame 36×24',36],['s35','Super 35',24.89],['alexa3
   ['bmpcc6k','Blackmagic 6K S35',23.10],['apsc','APS-C',23.6],['m43','Micro 4/3',17.3],['16mm','16 mm',10.26],
   // open gate: the whole sensor, taller than 16:9 — what anamorphic shoots on. Width is what sets the horizontal field of view here.
   ['alexa35og','ARRI Alexa 35 · open gate 4.6K 3:2',27.99],['minilfog','ARRI Alexa LF / Mini LF · open gate 4.5K',36.70],['alexaminiog','ARRI Alexa Mini · open gate 3.4K',28.25],
-  ['venice2og','Sony Venice 2 · 8.6K 3:2 full',36.2],['vvog','RED V-Raptor · 8K VV full',40.96],['fx3og','Sony FX3 / A7S · full 3:2',35.6]];
+  ['venice2og','Sony Venice 2 · 8.6K 3:2 full',36.2],['vvog','RED V-Raptor · 8K VV full',40.96],['fx3og','Sony FX3 / FX2 / A7 · full 3:2',35.6],
+  ['fx6og','Sony FX6 / FX9 · full frame 17:9',35.7],['kineedge8k','Kinefinity Mavo Edge 8K · open gate 3:2',36.0],['kineedge6k','Kinefinity Mavo Edge 6K · S35 open gate',26.4],
+  ['c50og','Canon EOS C50 · open gate 7K 3:2',36.0],['c70','Canon C70 / C80 · S35 / FF',26.2],['s1hog','Panasonic S1H / S5 II / S1R II · open gate 6K 3:2',35.6],['gh7og','Panasonic GH6 / GH7 · open gate 5.7K 4:3',17.3]];
 const sensorWidth = key => (SENSORS.find(s=>s[0] === key) || SENSORS[0])[2];
 const SENSOR_SHORT = {s35:'S35', alexa35:'A35', minilf:'Mini LF', alexamini:'Mini', venice:'Venice', vv:'VV', komodo:'Komodo', bmpcc6k:'BM6K', apsc:'APS-C', m43:'M4/3', '16mm':'16mm',
-  alexa35og:'A35 OG', minilfog:'LF OG', alexaminiog:'Mini OG', venice2og:'Venice OG', vvog:'VV OG', fx3og:'FX3 OG'};
+  alexa35og:'A35 OG', minilfog:'LF OG', alexaminiog:'Mini OG', venice2og:'Venice OG', vvog:'VV OG', fx3og:'FX3 OG',
+  fx6og:'FX6', kineedge8k:'Mavo 8K OG', kineedge6k:'Mavo 6K OG', c50og:'C50 OG', c70:'C70', s1hog:'S1H OG', gh7og:'GH7 OG'};
 const sensorShort = key => (key && key !== 'ff') ? (SENSOR_SHORT[key] || key) : '';
 // horizontal field of view; an anamorphic squeeze widens what the sensor width captures
 const fovForLens = (f, sensor, squeeze) => deg(2*Math.atan(sensorWidth(sensor)*(squeeze > 1 ? squeeze : 1)/2/f));
@@ -127,9 +130,27 @@ const LENS_SETS = [
   {key:'mercury',   name:'Atlas Mercury 1.5×',              squeeze:1.5,  focals:[36,42,54,72,95]},
   {key:'nanomorph', name:'Laowa Nanomorph 1.5×',            squeeze:1.5,  focals:[27,35,50,65,80]},
   {key:'hawk',      name:'Hawk V-Lite 1.3×',                squeeze:1.3,  focals:[28,35,45,55,65,80,110,140]},
+  // vintage and rehoused
+  {key:'nikonais',  name:'Nikon AI-S primes (vintage)',     squeeze:1,    focals:[20,24,28,35,50,85,105,135,180,200]},
+  {key:'canonfd',   name:'Canon FD primes (vintage)',       squeeze:1,    focals:[17,20,24,28,35,50,85,100,135,200]},
+  {key:'ironglass', name:'IronGlass Soviet rehoused (Mir, Helios, Jupiter)', squeeze:1, focals:[16,20,37,50,58,85,135]},
+  {key:'ironglassana', name:'IronGlass anamorphic 1.5× (LOMO-style)', squeeze:1.5, focals:[35,50,75,100]},
+  // Chinese cine glass
+  {key:'vespid',    name:'DZOFilm Vespid primes',           squeeze:1,    focals:[16,21,25,35,40,50,75,90,100,125]},
+  {key:'arles',     name:'DZOFilm Arles primes',            squeeze:1,    focals:[14,21,25,35,50,75,100]},
+  {key:'gnosis',    name:'DZOFilm Gnosis macro',            squeeze:1,    focals:[32,65,90]},
+  {key:'pictor',    name:'DZOFilm Pictor zooms 14–125',     squeeze:1,    focals:[14,16,18,20,24,28,30,35,40,45,50,55,65,75,85,100,125]},
+  {key:'catta',     name:'DZOFilm Catta zooms 18–135',      squeeze:1,    focals:[18,21,24,28,35,40,50,65,80,100,120,135]},
+  {key:'tango',     name:'DZOFilm Tango zooms 18–280',      squeeze:1,    focals:[18,21,24,28,35,50,65,75,90,120,150,200,250,280]},
+  {key:'pavo',      name:'DZOFilm Pavo anamorphic 2×',      squeeze:2,    focals:[28,32,40,55,75,100]},
+  {key:'remus',     name:'Blazar Remus 1.5×',               squeeze:1.5,  focals:[35,45,65,100]},
+  {key:'cato',      name:'Blazar Cato 2×',                  squeeze:2,    focals:[32,50,85,135]},
+  {key:'sirui133',  name:'Sirui anamorphic 1.33×',          squeeze:1.33, focals:[24,35,50,75,100]},
+  {key:'sirui16',   name:'Sirui Venus 1.6×',                squeeze:1.6,  focals:[35,50,75,100,135]},
+  {key:'greatjoy',  name:'Great Joy 1.8×',                  squeeze:1.8,  focals:[35,50,85]},
   {key:'custom',    name:'Any lens (custom)',               squeeze:1,    focals:LENSES},
 ];
-const SQUEEZES = [[1,'Spherical'],[1.3,'1.3×'],[1.33,'1.33×'],[1.5,'1.5×'],[1.8,'1.8×'],[2,'2× anamorphic']];
+const SQUEEZES = [[1,'Spherical'],[1.3,'1.3×'],[1.33,'1.33×'],[1.5,'1.5×'],[1.6,'1.6×'],[1.8,'1.8×'],[2,'2× anamorphic']];
 function lensSet(){ const k = project && project.production && project.production.lensSet; return LENS_SETS.find(s=>s.key === k) || LENS_SETS[0]; }
 // "50mm 2×" on chips and lists — the squeeze only when it is not spherical
 function lensLabel(o){ if(!o || !o.lens) return ''; const sq = +o.squeeze || 1; return o.lens + 'mm' + (sq > 1 ? ' ' + (sq % 1 ? sq : sq) + '×' : ''); }

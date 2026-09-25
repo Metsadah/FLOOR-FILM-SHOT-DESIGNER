@@ -303,6 +303,19 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc2 — more bodies and glass · many photos at once land as a grid
+Sensors (25 now): Sony FX3/FX2/A7 and FX6/FX9, Kinefinity Mavo Edge 8K and
+6K open gate, Canon EOS C50 open gate 7K and C70/C80, Panasonic S1H/S5 II
+open gate 6K and GH6/GH7 open gate 4:3. Lens sets (37 now): Nikon AI-S,
+Canon FD, IronGlass Soviet rehoused (+ 1.5× anamorphic), DZOFilm Vespid /
+Arles / Gnosis macro / Pictor / Catta / Tango / Pavo 2×, Blazar Remus 1.5×
+(35·45·65·100) and Cato 2×, Sirui 1.33× and Venus 1.6×, Great Joy 1.8×;
+squeeze list gained 1.6×. Same lists in Floor Scanner (floor-ipad f3fcc69).
+Bug: dropping many photos at once stacked them 60 px apart — a staircase
+that reads as one object. addFilesAt now lays several images out as a grid
+(≤ 5 columns) centred on the drop point and selects them all, so it is
+obvious they are separate cards. Other files keep the diagonal offset.
+
 ## v1.0-rc1 — lens sets, anamorphic, open gate · iPad build kept apart
 Cameras: sensor list gained open-gate formats (Alexa 35 4.6K 3:2, Alexa LF /
 Mini LF 4.5K, Alexa Mini 3.4K, Venice 2 8.6K 3:2, V-Raptor 8K VV, FX3 full);

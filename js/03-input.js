@@ -1621,7 +1621,18 @@ cv.addEventListener('drop', async e => {
 // files → board objects at (x,y): images (GIFs animate), video, audio, PDFs, other files.
 // Shared by OS drag & drop and the + Media toolbar button.
 async function addFilesAt(files, x, y){
+  files = [...files];
+  const shot0 = activeShot();
+  const before = new Set(shot0.objects.map(o=>o.id));
+  // several images at once: a grid around the drop point instead of a 60 px
+  // staircase that looks like one object — each is still its own card
+  const nImg = files.filter(f=>f.type.startsWith('image/')).length;
+  const cols = nImg > 1 ? Math.min(5, Math.ceil(Math.sqrt(nImg))) : 1;
+  const CW = 280 + 30, CH = 280 * 0.7 + 30;
+  const gx0 = x - (cols - 1) * CW / 2, gy0 = y - (Math.ceil(nImg / cols) - 1) * CH / 2;
+  let k = 0;
   for(const f of files){
+    if(f.type.startsWith('image/') && nImg > 1){ x = gx0 + (k % cols) * CW; y = gy0 + Math.floor(k / cols) * CH; k++; }
     if(f.type.startsWith('image/')){
       // dropped ON an AV script row? → it becomes one of that beat's stills
       const shot = activeShot();
@@ -1653,8 +1664,11 @@ async function addFilesAt(files, x, y){
     } else if(typeof addBoardFileAt === 'function'){
       await addBoardFileAt(f, x, y); // PDFs get a first-page preview card
     }
-    x += 60; y += 60;
+    if(!(f.type.startsWith('image/') && nImg > 1)){ x += 60; y += 60; }
   }
+  // everything that just landed is selected together — so it is obvious they are separate cards
+  const added = activeShot().objects.filter(o=>!before.has(o.id)).map(o=>o.id);
+  if(added.length > 1){ sel = {type:'multi', ids:added}; refreshSelBar(); render(); }
 }
 
 document.addEventListener('keydown', e => {
