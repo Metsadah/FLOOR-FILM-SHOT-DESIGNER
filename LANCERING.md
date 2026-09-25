@@ -5,6 +5,43 @@ avonden. De technische kant in de app is klaar (v0.66/0.67): tabel
 `subscriptions`, webhook, upgrade-knop, plan-gates en landingspagina.
 Technische details per stap staan in `BILLING.md`; dit is het overzicht.
 
+## Naar 1.0 — de checklist (stand 25 september 2026, build v1.0-rc1)
+
+De code is functioneel compleet voor 1.0. Wat er nog tussen rc1 en 1.0 zit is
+grotendeels geen programmeerwerk. Volgorde van boven naar beneden.
+
+**Beslissen**
+- [ ] Naam: Floorboard houden of hernoemen (Storey / Spike / …). Vóór de App Store en vóór Paddle, daarna is het duur.
+- [ ] Domein en app-URL (nu nog geel in terms.html).
+
+**Aanzetten (jij, in dashboards)**
+- [ ] Netlify: laatste zip deployen (met `_headers`), eigen domein, HTTPS.
+- [ ] Supabase Auth: leaked-password protection aan, minimale wachtwoordlengte 10, e-mailbevestiging aan.
+- [ ] Resend + Supabase SMTP (BILLING.md §1) — nodig voor bevestigingsmails, magic links én de waarschuwing vóór verwijdering na 12 maanden.
+- [ ] Paddle: account, product Pro €7 / €77, sandbox-test, dan live. Ik zet token, prijs-id's en secrets erin.
+- [ ] Supabase Pro-plan zodra de eerste betalende klant er is (back-ups 7 dagen, geen pauze na inactiviteit).
+
+**Testen (samen, één avond)**
+- [ ] Nieuwe gebruiker: registreren → bevestigingsmail → gratis maand → tour → voorbeeldproductie openen.
+- [ ] Co-editing: uitnodigen per e-mail als read-only en als co-edit, floors uit/aan, iemand verwijderen.
+- [ ] Share-link van een productie en van één sub-board in een privévenster; commentaar plaatsen.
+- [ ] Exports: shotlist-PDF met stills, AV-script .docx, budget-PDF, call sheet.
+- [ ] iPad-build: tour, script importeren, kamer uit de bibliotheek, PNG-export. Geen verdiepingen zichtbaar.
+- [ ] Floor Scanner: LiDAR-scan → sync → kamer in Floorboard invoegen.
+- [ ] Verwijderen: productie weg = stills weg; account weg = alles weg (test met een wegwerpaccount).
+
+**Publiceren**
+- [ ] Floor Scanner naar TestFlight, daarna App Store (App Store Connect-sleutel).
+- [ ] news.json: bericht "1.0", landing bijwerken, versie-chip op v1.0.
+- [ ] floor-ipad-repo naar GitHub.
+- [ ] Verwerkingsregister (SECURITY.md §4) als één A4 in je administratie.
+
+**Bewust na 1.0**
+- Budget als aparte rij met eigen policy (harde grens voor crew-toegang).
+- Stills naar Supabase Storage in plaats van de database (bij ~50 gebruikers).
+- Live co-editing (nu: laatste opslag wint, met waarschuwing).
+- Automatische verwijdering na 12 maanden inactiviteit (zodra SMTP er is).
+
 ## Fase 0 · Zakelijk fundament (1 middag, eenmalig)
 
 1. **KvK-inschrijving** (eenmanszaak volstaat). Nodig voor Paddle/Lemon
