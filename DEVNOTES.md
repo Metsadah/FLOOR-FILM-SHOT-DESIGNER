@@ -303,6 +303,17 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc4 — the read-only viewer opens what you tap
+Reported on a shared sub-board full of link cards: nothing was clickable.
+The viewer only knew comments and panning. Now a tap (pointer up within
+6 px of pointer down) calls __viewerOpen: a link card opens its URL in a
+new tab (openExternal), a photo enlarges in a lightbox (caption below,
+Esc / tap closes), a file, video or audio card opens as a blob in a new
+tab, a sub-board is entered (crumb takes you back), a long note or column
+card is shown big. The viewer bar says so. Enable co-editing now disables
+the button and reports "Copying to the shared space… k of n" — it copies
+every still one by one and could look dead for a few seconds.
+
 ## v1.0-rc3 — images were unselectable since v0.96 (regression)
 The underlay fix in hitObject compared \`(o.cat === 'image' && o.underlay) !== !!underlayOnly\`;
 for an ordinary image o.underlay is undefined, so the left side was

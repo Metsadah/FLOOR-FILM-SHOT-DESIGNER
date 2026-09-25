@@ -185,7 +185,7 @@ async function buildCoEditorSection(pop){
     const en = document.createElement('button');
     en.className = 'btn primary'; en.style.cssText = 'width:100%;margin-top:8px;';
     en.textContent = 'Enable co-editing…';
-    en.addEventListener('click', async ()=>{ if(await convertToShared()) buildSharePop(); });
+    en.addEventListener('click', async ()=>{ en.disabled = true; en.textContent = 'Enabling — copying the production…'; if(await convertToShared()) buildSharePop(); else { en.disabled = false; en.textContent = 'Enable co-editing…'; } });
     pop.appendChild(en);
     return;
   }
@@ -531,7 +531,9 @@ async function convertToShared(){
     const assets = await collectAssets();
     for(const [k,v] of Object.entries(assets.img)) rows.push({key:'sd:img:' + k, value:v});
     for(const [k,v] of Object.entries(assets.file)) rows.push({key:'sd:file:' + k, value:v});
+    let k = 0;
     for(const row of rows){
+      if(++k % 3 === 0 || k === rows.length) toast('Copying to the shared space… ' + k + ' of ' + rows.length);
       const u = await sb.from('production_docs').upsert({production_id:id, ...row});
       if(u.error) throw u.error;
     }
@@ -728,7 +730,7 @@ async function initViewerComments(token, name){
   const bar = document.createElement('div');
   bar.id = 'viewerBar';
   bar.innerHTML = '<span style="font-weight:600">' + esc(name || 'Shared production') + '</span>' +
-    '<span style="color:var(--ink2);font-size:11px">read-only</span>' +
+    '<span style="color:var(--ink2);font-size:11px">read-only · tap a link, photo or board to open it</span>' +
     '<select id="vScene" title="Browse scenes" style="display:none;max-width:190px;border:1px solid var(--line);border-radius:2px;padding:4px 6px;font-size:12px"></select>' +
     '<button class="btn" id="cmtToggle">💬 Comment</button>';
   document.body.appendChild(bar);
@@ -793,6 +795,48 @@ function __viewerTap(wx, wy, cx, cy){
   return false;
 }
 
+// read-only viewer: links open, photos enlarge, files open, sub-boards can be entered
+async function __viewerOpen(wx, wy){
+  const shot = activeShot();
+  const o = hitObject(shot, wx, wy) || hitObject(shot, wx, wy, true);
+  if(!o) return;
+  if(o.cat === 'link'){ if(o.url) openExternal(o.url); else toast('This link card has no address'); return; }
+  if(o.cat === 'subboard'){ enterSubboard(o); return; }
+  if(o.cat === 'image' && o.imgId){
+    const im = imgCache[o.imgId] || await loadStill(o.imgId);
+    if(im && im.src) viewerLightbox(im.src, o.caption || o.label || '');
+    return;
+  }
+  if((o.cat === 'file' || o.cat === 'video' || o.cat === 'audio') && (o.fileId || o.videoId || o.audioId)){
+    const id = o.fileId || o.videoId || o.audioId;
+    try{
+      const r = await window.storage.get('sd:file:' + id);
+      if(!r || !r.value || !safeSrc(r.value)){ toast('That file is not part of this snapshot'); return; }
+      const blob = await (await fetch(r.value)).blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(()=>URL.revokeObjectURL(url), 60000);
+    }catch(_){ toast('Could not open that file'); }
+    return;
+  }
+  if(o.cat === 'note' || o.cat === 'text' || o.cat === 'colcard'){
+    const t = (o.text || o.title || '').trim();
+    if(t.length > 240) viewerLightbox(null, t); // long notes read better big
+  }
+}
+function viewerLightbox(src, caption){
+  let el = document.getElementById('viewerLight');
+  if(el) el.remove();
+  el = document.createElement('div'); el.id = 'viewerLight';
+  el.innerHTML = (src ? '<img alt="">' : '') + '<div class="vl-cap"></div><button class="vl-x" aria-label="Close">×</button>';
+  if(src) el.querySelector('img').src = src;
+  el.querySelector('.vl-cap').textContent = caption || '';
+  const close = ()=>{ el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = e=>{ if(e.key === 'Escape'){ close(); e.stopPropagation(); } };
+  el.addEventListener('click', close);
+  document.addEventListener('keydown', onKey, true);
+  document.body.appendChild(el);
+}
 function closeCommentPop(){
   const old = document.getElementById('cmtPop');
   if(old) old.remove();

@@ -374,7 +374,8 @@ cv.addEventListener('pointerdown', e => {
   // shared viewer: look, pan, comment — nothing else
   if(window.VIEW_ONLY){
     if(typeof __viewerTap === 'function' && __viewerTap(wx, wy, e.clientX, e.clientY)) return;
-    drag = {kind:'pan', sx, sy, vx:view.x, vy:view.y};
+    // pan by default; if the finger does not move it was a tap — decided on pointerup
+    drag = {kind:'pan', sx, sy, vx:view.x, vy:view.y, tap:{wx, wy}};
     cv.classList.add('panning');
     return;
   }
@@ -1191,6 +1192,13 @@ cv.addEventListener('pointerup', e => {
     return;
   }
   if(!drag) return;
+  if(window.VIEW_ONLY && drag.kind === 'pan' && drag.tap){
+    const {sx, sy} = evtPos(e);
+    const moved = Math.hypot(sx - drag.sx, sy - drag.sy);
+    const tap = drag.tap; drag = null; cv.classList.remove('panning');
+    if(moved < 6 && typeof __viewerOpen === 'function') __viewerOpen(tap.wx, tap.wy);
+    return;
+  }
   const shot = activeShot();
   if(drag.kind === 'crop'){
     const x1=Math.min(drag.x1,drag.x2), x2=Math.max(drag.x1,drag.x2);

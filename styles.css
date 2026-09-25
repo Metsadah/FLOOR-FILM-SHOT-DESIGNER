@@ -570,6 +570,11 @@ body.view-only #shareBtn, body.view-only #installBtn, body.view-only #trashCan,
 body.view-only #shotTitle, body.view-only #sceneLbl, body.view-only #hint,
 body.view-only #selBar{ display:none !important; }
 body.view-board #tabbar, body.view-board #vScene{ display:none !important; }
+#viewerLight{ position:fixed; inset:0; z-index:400; background:rgba(12,12,14,.92); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:24px; cursor:zoom-out; }
+#viewerLight img{ max-width:min(96vw, 1600px); max-height:82vh; object-fit:contain; border-radius:6px; box-shadow:0 30px 80px rgba(0,0,0,.5); }
+#viewerLight .vl-cap{ color:#F2F1EC; font-size:14px; max-width:70ch; text-align:center; white-space:pre-wrap; line-height:1.5; }
+#viewerLight .vl-x{ position:absolute; top:14px; right:16px; width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; font-size:22px; cursor:pointer; }
+body.view-only #cv{ cursor:grab; }
 body.view-only #main, body.view-only.tab-org #main, body.view-only.tab-mood #main,
 body.view-only.tab-write #main{ display:grid !important; grid-template-columns:1fr !important; }
 .proj-row{
