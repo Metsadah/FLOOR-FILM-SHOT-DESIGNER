@@ -569,6 +569,7 @@ body.view-only #undoBtn, body.view-only #redoBtn, body.view-only #exportBtn,
 body.view-only #shareBtn, body.view-only #installBtn, body.view-only #trashCan,
 body.view-only #shotTitle, body.view-only #sceneLbl, body.view-only #hint,
 body.view-only #selBar{ display:none !important; }
+body.view-board #tabbar, body.view-board #vScene{ display:none !important; }
 body.view-only #main, body.view-only.tab-org #main, body.view-only.tab-mood #main,
 body.view-only.tab-write #main{ display:grid !important; grid-template-columns:1fr !important; }
 .proj-row{

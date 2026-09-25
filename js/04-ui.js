@@ -625,6 +625,8 @@ function refreshSelBar(){
     if(o.cat === 'subboard'){
       sbtn('Open', ()=>enterSubboard(o))
         .title = 'Step inside this sub-board (double-click does the same)';
+      if(window.FLOOR_SB && window.FLOOR_USER && !window.VIEW_ONLY)
+        sbtn('Share link ↗', ()=>createShareLink({board:o})).title = 'Read-only link to this board only — for a client who should see just this';
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
       hint.textContent = 'A board within the board — name it via the Label field';

@@ -1602,6 +1602,20 @@ document.addEventListener('paste', async e=>{
 // ---------------------------------------------------------------- .floorproj export / import
 // One JSON file = the whole production, images and files included. Backup +
 // "send a frozen copy" — the cheap rung of the sharing ladder.
+// asset ids used by one list of objects (a sub-board, say) — same walk as collectAssetIds
+function assetIdsIn(objs, stills){
+  const img = new Set(), file = new Set();
+  const scanObjs = list=>(list||[]).forEach(ob=>{
+    if(ob.imgId) img.add(ob.imgId);
+    if(ob.fileId) file.add(ob.fileId);
+    if(ob.videoId) file.add(ob.videoId);
+    if(ob.cat === 'avscript') (ob.rows||[]).forEach(r=>{ if(r.imgId) img.add(r.imgId); (r.imgs||[]).forEach(id=>img.add(id)); });
+    if(ob.cat === 'subboard' && ob.board){ scanObjs(ob.board.objects); (ob.board.stills||[]).forEach(id=>img.add(id)); }
+  });
+  scanObjs(objs); (stills||[]).forEach(id=>img.add(id));
+  if(project.production && project.production.logo) img.add(project.production.logo);
+  return {img, file};
+}
 function collectAssetIds(){
   const img = new Set(), file = new Set();
   const scanObjs = objs=>(objs||[]).forEach(ob=>{
@@ -1629,8 +1643,8 @@ function collectAssetIds(){
   if(project.production && project.production.logo) img.add(project.production.logo);
   return {img:[...img], file:[...file]};
 }
-async function collectAssets(){
-  const ids = collectAssetIds();
+async function collectAssets(only){
+  const ids = only || collectAssetIds();
   const assets = {img:{}, file:{}};
   for(const id of ids.img){
     const r = await window.storage.get('sd:img:' + id).catch(()=>null);

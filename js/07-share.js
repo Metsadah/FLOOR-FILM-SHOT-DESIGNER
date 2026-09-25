@@ -28,28 +28,50 @@ function shareUrlFor(token){
 }
 
 // ---------------------------------------------------------------- owner side
-async function createShareLink(){
+// the frozen copy behind a read-only link: the whole production, or — with
+// opts.board (a sub-board object) — just that board, as the only board there is
+async function buildSharePack(opts){
+  const o = opts || {};
+  if(!o.board){
+    const assets = await collectAssets();
+    return {shared:1, exported:new Date().toISOString(), name:project.shootName || 'production', project, assets};
+  }
+  const sub = o.board;
+  const board = JSON.parse(JSON.stringify(sub.board || {objects:[], walls:[], stills:[], shots:[]}));
+  board.id = board.id || uid(); board.name = (sub.label || '').trim() || 'Board';
+  const empty = newShot(1); empty.name = board.name; // the viewer needs one scene to exist
+  const slim = {
+    v: project.v, shootName: (sub.label || '').trim() || project.shootName || 'Board',
+    scenes:[empty], activeSceneId: empty.id, customProps: project.customProps || [],
+    moodboard: board, scriptboard:null, prodboard:null, shotboard:null,
+    production: Object.assign({people:[], locations:[]}, project.production ? {brand:project.production.brand, company:project.production.company, logo:project.production.logo} : {}),
+    exportPrefs: project.exportPrefs,
+  };
+  const ids = assetIdsIn(board.objects, board.stills);
+  const assets = await collectAssets(ids);
+  return {shared:1, boardOnly:1, exported:new Date().toISOString(), name:slim.shootName, project:slim, assets};
+}
+async function createShareLink(opts){
   const sb = shareClient();
   if(!window.FLOOR_USER || !sb){
     toast('Sharing needs the cloud version — sign in first (or send a .floorproj)');
     return;
   }
-  toast('Freezing a copy of this production…');
+  const o = opts || {};
+  toast(o.board ? 'Freezing a copy of this board…' : 'Freezing a copy of this production…');
   try{
     await saveProject();
-    const assets = await collectAssets();
     const token = shareToken();
-    const pack = {shared:1, exported:new Date().toISOString(),
-      name:project.shootName || 'production', project, assets};
+    const pack = await buildSharePack(o);
     // the row first: the bucket only accepts <token>.json for a share you own
-    const ins = await sb.from('shares').insert({token, title:project.shootName || 'Untitled production'});
+    const ins = await sb.from('shares').insert({token, title:o.board ? (pack.name + ' — board of ' + (project.shootName || 'production')) : (project.shootName || 'Untitled production')});
     if(ins.error) throw ins.error;
     const up = await sb.storage.from('shares')
       .upload(token + '.json', new Blob([JSON.stringify(pack)], {type:'application/json'}),
         {contentType:'application/json', upsert:false});
     if(up.error){ await sb.from('shares').delete().eq('token', token); throw up.error; }
     const url = shareUrlFor(token);
-    try{ await navigator.clipboard.writeText(url); toast('Share link copied — anyone with it can view & comment, for 180 days'); }
+    try{ await navigator.clipboard.writeText(url); toast((o.board ? 'Board link copied' : 'Share link copied') + ' — anyone with it can view & comment, for 180 days'); }
     catch(_){ prompt('Share link (copy it):', url); }
     buildSharePop();
   }catch(e){
@@ -83,8 +105,21 @@ async function buildSharePop(){
   mk.className = 'btn primary';
   mk.style.cssText = 'width:100%;';
   mk.textContent = '+ Create read-only link';
-  mk.addEventListener('click', createShareLink);
+  mk.addEventListener('click', ()=>createShareLink());
   pop.appendChild(mk);
+  // inside a sub-board: a link to just this board (the client sees nothing else)
+  if(typeof boardStack !== 'undefined' && boardStack.length){
+    const path = typeof subboardPath === 'function' ? subboardPath() : [];
+    const cur = path[path.length - 1];
+    if(cur){
+      const mb = document.createElement('button');
+      mb.className = 'btn'; mb.style.cssText = 'width:100%;margin-top:6px;';
+      mb.textContent = '+ Read-only link to this board only';
+      mb.title = 'A snapshot of "' + ((cur.label || '').trim() || 'this board') + '" alone — the rest of the production stays private';
+      mb.addEventListener('click', ()=>createShareLink({board:cur}));
+      pop.appendChild(mb);
+    }
+  }
   const sb = shareClient();
   sb.rpc('purge_expired').then(()=>{}, ()=>{}); // storage limitation: expired links go, whoever opens this panel
   const {data, error} = await sb.from('shares').select('*')
@@ -661,7 +696,8 @@ async function __floorViewerBoot(token){
     // comment pins draw on top of every frame
     const origRender = render;
     render = function(){ origRender(); drawCommentPins(); };
-    switchTab('org'); // a shared production opens on the production board
+    if(pack.boardOnly){ document.body.classList.add('view-board'); switchTab('mood'); } // one board, nothing else
+    else switchTab('org'); // a shared production opens on the production board
     await ensureShotImages(activeScene(), false);
     zoomFit(); updateZoomPct();
     initViewerComments(token, pack.name);

@@ -303,6 +303,17 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.99 — read-only link to one sub-board
+buildSharePack({board}) (07-share) freezes only that sub-board: a slim
+project whose moodboard IS the board (other floors null, one empty scene
+so the viewer boots), assets limited to what the board references
+(assetIdsIn, collectAssets(ids)). The viewer sees pack.boardOnly, adds
+body.view-board (tabbar + scene picker hidden) and opens on it. Entry
+points: "Share link ↗" in a selected sub-board's selection bar, and
+"+ Read-only link to this board only" in the share popover while you are
+inside a sub-board. Share title = "<board> — board of <production>".
+Floor Scanner picker got the new furniture kinds (floor-ipad db2e3d3).
+
 ## v0.98 — €7 / €77, one free month, six pieces of furniture
 Pricing decided: Pro €7 a month or €77 a year (Paddle, month + year price
 ids: config.billing.priceId / priceIdYear, Lemon Squeezy checkoutUrlYear).
