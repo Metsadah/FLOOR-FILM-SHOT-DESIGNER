@@ -170,9 +170,14 @@ function linePts(o){
   }
   return pts;
 }
-function hitObject(shot, wx, wy){
+// underlayOnly: true → only underlay images are candidates; false/undefined → they
+// are skipped. A map or scan under the plan must never swallow the click that
+// was meant for the wall drawn on top of it — the caller tries walls first and
+// comes back for the underlay only when nothing else was hit.
+function hitObject(shot, wx, wy, underlayOnly){
   const test = o => {
     if(o.kind === 'track') return false;
+    if((o.cat === 'image' && o.underlay) !== !!underlayOnly) return false;
     if(o.cat === 'line'){
       const thr = Math.max(10/view.scale, (o.weight||3)/2 + 6);
       const lp = linePts(o);
@@ -438,8 +443,9 @@ cv.addEventListener('pointerdown', e => {
       drag = Object.assign(snap, {kind:'rotateMulti', cx:rh.cx, cy:rh.cy, a0:Math.atan2(wy - rh.cy, wx - rh.cx)});
       return;
     }
-    const hitO = hitObject(shot, wx, wy) || hitTrack(shot, wx, wy);
-    const hitW = !hitO && hitWall(shot, wx, wy);
+    const hitW0 = hitWall(shot, wx, wy);
+    const hitO = hitObject(shot, wx, wy) || hitTrack(shot, wx, wy) || (!hitW0 && hitObject(shot, wx, wy, true));
+    const hitW = !hitO && hitW0;
     if((hitO && sel.ids.includes(hitO.id)) ||
        (hitW && (sel.wallIds||[]).includes(hitW.wall.id))){
       drag = multiMoveDrag(shot, wx, wy);
@@ -634,7 +640,9 @@ cv.addEventListener('pointerdown', e => {
       return;
     }
   }
-  const obj = hitObject(shot, wx, wy);
+  let obj = hitObject(shot, wx, wy);
+  // nothing on top? then the underlay image itself is fair game (to move it, toggle it, delete it)
+  if(!obj && !hitTrack(shot, wx, wy) && !hitOpening(shot, wx, wy) && !hitWall(shot, wx, wy)) obj = hitObject(shot, wx, wy, true);
   // grouped items: a click on any member selects & moves the whole group
   if(obj && obj.grp && groupSelect(shot, obj.grp, wx, wy)) return;
   if(obj){

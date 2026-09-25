@@ -303,6 +303,16 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.96 — walls over an underlay image are selectable again
+Bug (Van Gogh trailer: a museum floor plan as underlay, walls drawn on
+top): the select tool tests objects before walls, and an underlay image
+covering the whole plan swallowed every click, so the walls on top could
+never be selected — regardless of "to back" or the Underlay toggle.
+hitObject(shot, wx, wy, underlayOnly) now skips underlay images by default;
+the select path tries objects → track → opening → wall first and only
+then asks for the underlay itself (so it can still be moved, toggled or
+deleted). Same fallback in the multi-selection drag path.
+
 ## v0.95 — security audit: SQL hardening, XSS fixes, pdf.js 4, headers, retention
 See SECURITY.md. Database (setup/security-v1.sql, schema §8): no anonymous
 listing of share tokens or comments (comments via share_comments_for RPC,
