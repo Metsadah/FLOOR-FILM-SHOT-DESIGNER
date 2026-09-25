@@ -303,6 +303,17 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc5 — Unpack a sub-board
+Sub-board selection bar: "Unpack" dissolves the card and drops its
+contents (objects, walls, stills) onto the board the card sits on, centred
+where the card was (shiftThing moves x/y, p1/p2/mid, path and track pts;
+walls keep curves). Everything lands grouped under a fresh grp and
+selected, so it can still be moved as one and ungrouped when wanted; more
+than 12 items asks first. Nested sub-boards inside a shared board open
+fine in the viewer since rc4 (tap → enterSubboard; verified with a pack
+built from a board containing a sub-board) — the report came from the
+rc3 deploy that ignored taps.
+
 ## v1.0-rc4 — the read-only viewer opens what you tap
 Reported on a shared sub-board full of link cards: nothing was clickable.
 The viewer only knew comments and panning. Now a tap (pointer up within

@@ -627,6 +627,11 @@ function refreshSelBar(){
         .title = 'Step inside this sub-board (double-click does the same)';
       if(window.FLOOR_SB && window.FLOOR_USER && !window.VIEW_ONLY)
         sbtn('Share link ↗', ()=>createShareLink({board:o})).title = 'Read-only link to this board only — for a client who should see just this';
+      sbtn('Unpack', ()=>{
+        const n = ((o.board && o.board.objects) || []).length + ((o.board && o.board.walls) || []).length;
+        if(n > 12 && !confirm('Unpack ' + n + ' items onto this board? The sub-board card disappears; the items stay grouped so you can still move them together.')) return;
+        unpackSubboard(o);
+      }).title = 'Dissolve this sub-board: its contents land here, centred where the card is';
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:10.5px;color:var(--ink2);padding:0 4px;';
       hint.textContent = 'A board within the board — name it via the Label field';

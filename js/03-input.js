@@ -2126,6 +2126,41 @@ function groupSelect(shot, gid, wx, wy){
   refreshSelBar(); render();
   return true;
 }
+// move one object (and everything that hangs off it) by dx,dy
+function shiftThing(n, dx, dy){
+  if(n.x1 !== undefined){ n.x1 += dx; n.y1 += dy; n.x2 += dx; n.y2 += dy; if(n.mid){ n.mid.x += dx; n.mid.y += dy; } return n; } // wall
+  n.x += dx; n.y += dy;
+  if(n.p1){ n.p1.x += dx; n.p1.y += dy; }
+  if(n.p2){ n.p2.x += dx; n.p2.y += dy; }
+  if(n.mid){ n.mid.x += dx; n.mid.y += dy; }
+  if(n.path) n.path = n.path.map(p=>({...p, x:p.x + dx, y:p.y + dy}));
+  if(n.pts) n.pts = n.pts.map(p=>({...p, x:p.x + dx, y:p.y + dy}));
+  return n;
+}
+// "Unpack": dissolve a sub-board card — its contents land on the board the
+// card is on, centred where the card was, and stay selected together
+function unpackSubboard(o){
+  const host = activeShot();
+  if(!o || o.cat !== 'subboard' || !host.objects.includes(o)) return;
+  const b = o.board || {objects:[], walls:[]};
+  const objs = b.objects || [], walls = b.walls || [];
+  if(!objs.length && !walls.length){
+    host.objects = host.objects.filter(x=>x !== o);
+    sel = null; markDirty(); render(); refreshSelBar(); toast('Empty sub-board removed'); return;
+  }
+  const bb = contentBounds(b);
+  const cx = isFinite(bb.minX) ? (bb.minX + bb.maxX) / 2 : 0, cy = isFinite(bb.minY) ? (bb.minY + bb.maxY) / 2 : 0;
+  const dx = o.x - cx, dy = o.y - cy;
+  const grp = 'g' + uid(); // keep them together for one more move, like a fresh group
+  const ids = [], wallIds = [];
+  for(const n of objs){ shiftThing(n, dx, dy); n.grp = n.grp || grp; host.objects.push(n); ids.push(n.id); }
+  for(const w of walls){ shiftThing(w, dx, dy); w.grp = w.grp || grp; host.walls.push(w); wallIds.push(w.id); }
+  (b.stills || []).forEach(id=>{ if(!host.stills.includes(id)) host.stills.push(id); });
+  host.objects = host.objects.filter(x=>x !== o);
+  sel = {type:'multi', ids, wallIds};
+  markDirty(); render(); refreshSelBar();
+  toast((objs.length + walls.length) + ' items unpacked from “' + ((o.label || '').trim() || 'sub-board') + '” — they move as one until you ungroup');
+}
 function contentBounds(shot){
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   const add=(x,y)=>{minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);};
