@@ -302,3 +302,15 @@ begin
   delete from production_invites where created_at < now() - interval '365 days';
   return query select n1, n2;
 end $$;
+
+-- 15 · follow-ups after the first run (advisor): pinned search_path, owner may list own snapshot files
+alter function public.clean_display_name(text) set search_path = public;
+alter function public.profiles_clean_name() set search_path = public;
+alter function public.productions_clean_name() set search_path = public;
+alter function public.productions_lock_owner() set search_path = public;
+alter function public.share_comments_clean() set search_path = public;
+drop policy if exists "shares bucket owner select" on storage.objects;
+create policy "shares bucket owner select" on storage.objects for select to authenticated
+  using (bucket_id = 'shares' and owner = auth.uid());
+-- nightly purge (pg_cron): create extension if not exists pg_cron with schema pg_catalog;
+--   select cron.schedule('floorboard-purge', '15 3 * * *', $$select public.purge_expired()$$);

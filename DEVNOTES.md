@@ -303,6 +303,16 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v0.97 — security SQL applied to the hosted project
+invites-v2 + security-v1 ran as migrations (invites_v2_email_roles_readonly,
+security_hardening_v1, pg_cron_nightly_purge, security_v1_followups).
+Advisor afterwards: only the intentional anon share_comments_for and the
+dashboard-side leaked-password toggle remain. SQL deletes on
+storage.objects are refused by Supabase (purge_expired reports
+files_removed = -1), so the share panel now lists the owner's snapshot files
+(new "shares bucket owner select" policy) and removes the ones without a
+share row. Daniel (LdH Kerst) added as editor directly.
+
 ## v0.96 — walls over an underlay image are selectable again
 Bug (Van Gogh trailer: a museum floor plan as underlay, walls drawn on
 top): the select tool tests objects before walls, and an underlay image

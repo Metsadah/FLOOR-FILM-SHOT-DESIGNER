@@ -30,7 +30,7 @@ Self-hosters: everything here applies to your instance too.
 |---|---|
 | `setup/schema.sql` | fresh install: everything below in one go |
 | `setup/invites-v2.sql` | roles owner/editor/viewer, invite by email, owner-only member edits, viewer cannot write |
-| `setup/security-v1.sql` | no anonymous listing of share tokens or comments, comment insert only for live shares (author ≤ 80, body ≤ 2000), public bucket accepts only your own `<token>.json` ≤ 20 MB, helpers signed-in only, TRUNCATE/REFERENCES/TRIGGER revoked from API roles, reserved display names refused, share expiry + `purge_expired()` |
+| `setup/security-v1.sql` (applied to the hosted project 25 Sep 2026, with invites-v2) | no anonymous listing of share tokens or comments, comment insert only for live shares (author ≤ 80, body ≤ 2000), public bucket accepts only your own `<token>.json` ≤ 20 MB, helpers signed-in only, TRUNCATE/REFERENCES/TRIGGER revoked from API roles, reserved display names refused, share expiry + `purge_expired()` |
 
 Reserved names (case-insensitive, punctuation ignored): root, admin,
 administrator, superuser, sysadmin, system, support, helpdesk, moderator, mod,
@@ -52,7 +52,7 @@ Supabase → Authentication:
 - [ ] MFA (TOTP) enabled for accounts that want it (optional for users, on for you).
 
 Supabase → Database:
-- [ ] Enable **pg_cron**, then `select cron.schedule('floorboard-purge','15 3 * * *',$$select public.purge_expired()$$);`
+- [x] pg_cron enabled, `floorboard-purge` runs nightly at 03:15 (done 25 Sep 2026). purge_expired() cannot delete storage rows itself; the owner's client removes orphaned snapshot files when the share panel opens.
 - [ ] Pro plan: daily backups (7 days) and point-in-time recovery match the retention promise in privacy.html.
 - [ ] Run the Security Advisor after every migration.
 

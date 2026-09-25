@@ -89,6 +89,16 @@ async function buildSharePop(){
   sb.rpc('purge_expired').then(()=>{}, ()=>{}); // storage limitation: expired links go, whoever opens this panel
   const {data, error} = await sb.from('shares').select('*')
     .eq('owner', window.FLOOR_USER.id).order('created_at', {ascending:false});
+  // snapshot files whose share row is gone (expired, revoked before v0.95): the database
+  // cannot delete storage rows, the owner's client can — quietly, in the background
+  (async ()=>{
+    try{
+      const live = new Set((data || []).map(s=>s.token + '.json'));
+      const {data: files} = await sb.storage.from('shares').list('', {limit:1000});
+      const orphans = (files || []).map(f=>f.name).filter(n=>/\.json$/.test(n) && !live.has(n));
+      if(orphans.length) await sb.storage.from('shares').remove(orphans);
+    }catch(_){}
+  })();
   if(error || !data || !data.length){
     // no read-only links yet — co-editing must still be reachable
     await buildCoEditorSection(pop);
