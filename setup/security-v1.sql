@@ -25,6 +25,8 @@
 --     without pg_cron the app calls it opportunistically when an owner opens
 --     the share panel.
 
+-- 0 · shares get an expiry column first — the comment policy and RPC below refer to it
+alter table shares add column if not exists expires_at timestamptz;
 -- 1 · shares: no anonymous listing
 drop policy if exists "shares public read" on shares;
 
@@ -86,7 +88,6 @@ create trigger productions_clean_name before insert or update of name on product
   for each row execute function public.productions_clean_name();
 
 -- 7 · storage limitation: share links expire, expired data is purged
-alter table shares add column if not exists expires_at timestamptz;
 update shares set expires_at = created_at + interval '180 days' where expires_at is null;
 alter table shares alter column expires_at set default (now() + interval '180 days');
 create or replace function public.purge_expired()
