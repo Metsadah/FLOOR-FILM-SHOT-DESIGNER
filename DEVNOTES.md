@@ -303,6 +303,26 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc7 — the interface in action on the landing
+landing/ui-anim.js redraws the app window (top bar, floors, library with
+the real tile icons from landing/img/ui-icons.png + .json — a sprite of
+all 122 library tiles captured from the app — floating toolbar, selection
+bar, zoom pill) and a cursor that works it. Shot designer (17 s): drag a
+camera from the library, open the lens menu and pick 50 mm (the wedge
+narrows 51° → 28°), drag in an actor and an LED panel, turn the camera by
+its rotate handle, press play and the camera pans with Anna. Mood (16.5 s):
+drag a sticky note and type in it, drop four photos from outside the
+window (stack with a count badge, lands as a grid, selected), → Sub-board
+folds them into "Location scout", drag a column and a link card. The icon
+strips (lib-*.png) are gone. landing/scanner-anim.js replaces the low-res
+room thumbnail: an iPhone runs Scan (LiDAR edges + detected pieces + plan
+growing), Check (tap Storage → sheet → Corner sofa, Square up), Frame
+(Alexa 35 open gate · Cooke S4/i · 2.39 frame lines, lens strip 32 → 40,
+shutter) and Sync (room flies into a Floorboard room-library window); the
+step list beside it lights up per step and jumps on click. All canvases
+pause on hover; scripts load at the end of the body (the canvases must
+exist). canvas.__seek(t) freezes a frame for screenshots.
+
 ## v1.0-rc6 — landing in floor order, Mood and Script animated, examples folded in
 Sections now run Ground → 5th: Mood (new: landing/floors-anim.js draws a
 mood board filling itself — photos, note, column, link + GIF cards, a

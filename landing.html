@@ -174,9 +174,14 @@
     nav a:not(.btn){display:none}
   }
   .frame.anim canvas{display:block;width:100%;aspect-ratio:16/10;background:#fff}
-  .libstrip{margin-top:34px;border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow:hidden}
-  .libstrip img{display:block;width:100%;height:auto}
-  .libstrip p{margin:0;padding:10px 16px;font-size:13px;color:var(--ink2);border-top:1px solid var(--line)}
+  .uiframe canvas{display:block;width:100%;aspect-ratio:1280/760;background:#fff}
+  .uilist{margin-top:22px}
+  .cols2{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px 28px}
+  .cols2 li{display:flex;gap:10px;font-size:14.5px;color:var(--body)}
+  .cols2 li::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none;margin-top:7px}
+  .scanstage canvas{display:block;width:100%;aspect-ratio:760/700}
+  .scansteps li{cursor:pointer;transition:border-color .2s,background .2s,transform .2s}
+  .scansteps li.on{border-color:var(--accent);background:var(--accent-soft);transform:translateY(-1px)}
   .gal2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}
   #designer .gallery,#script .gallery{margin-top:22px}
   .credit{margin:12px 0 0;font-size:12.5px;color:var(--ink3)}
@@ -186,7 +191,7 @@
   .scansteps li b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:2px}
   @media (max-width:820px){ .scan{grid-template-columns:1fr;padding:26px} }
   @media (max-width:600px){
-    .floors,.steps,.scansteps,.gallery,.grid3,.plans,.gal2{grid-template-columns:1fr} .pair{grid-template-columns:1fr}
+    .floors,.steps,.scansteps,.gallery,.grid3,.plans,.gal2,.cols2{grid-template-columns:1fr} .pair{grid-template-columns:1fr}
     .wrap{padding:0 18px} section{padding-top:56px} .hero{padding-top:44px} h1{font-size:34px}
   }
 </style>
@@ -253,19 +258,15 @@
     <p class="kicker">Ground floor · Mood</p>
     <h2>Start with the feeling.</h2>
     <p class="lead">Before there is a plan there is a hunch. The ground floor is a free board for it: drop images, GIFs, video, audio, PDFs and links, write sticky notes, sort into columns, group into sub-boards. Nothing here is decoration — every still can become a camera's frame later.</p>
-    <div class="feat" style="padding-top:26px">
-      <div class="txt">
-        <h3>Drop, write, group.</h3>
-        <ul>
+    <div class="frame uiframe"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Floorboard · Ground floor · Mood</span></div><canvas id="uiMood" aria-label="The Floorboard window: a sticky note is dragged from the library onto the board and typed in, four photos are dropped from outside and grouped into a sub-board, a column card and a link card are added"></canvas></div>
+    <div class="uilist">
+      <ul class="cols2">
           <li>Drag files straight from your desktop or phone: photos, animated GIFs, video with a poster and a play button, audio, PDFs with a first-page preview.</li>
           <li>Sticky notes, text, colour swatches, link cards with a thumbnail, tables and to-do lists — the same cards on every floor.</li>
           <li>Columns for Idea · Question · Theme · Do / Don't; sub-boards for a location scout or a wardrobe wall, with their own read-only share link.</li>
           <li>Select a still and send it to a camera as its viewfinder frame; the mood is on the plan.</li>
         </ul>
-      </div>
-      <div class="frame anim"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Mood · Licht — a brand film in three rooms</span></div><canvas id="moodCv" aria-label="A mood board filling itself: photos, a note, a column, a link, a sub-board"></canvas></div>
     </div>
-    <div class="libstrip"><img src="landing/img/lib-mood.png" alt="The board menu: sticky note, image, text, line, sub-board, measure, link, column, to-do, table, colour, audio, file, idea, question, theme, do / don't"><p>The board menu, one drag away on every floor.</p></div>
     <div class="gal2">
       <a class="g" href="landing/img/velderhof-mood.jpg" target="_blank" rel="noopener"><img src="landing/img/velderhof-mood.jpg" alt="Mood board of the Velderhof commercial with stills from the finished spot" style="object-position:center 55%"><div><b>Velderhof — TV commercial</b><span>Stills, the look, the confetti note</span></div></a>
       <a class="g" href="landing/img/nudes-mood.jpg" target="_blank" rel="noopener"><img src="landing/img/nudes-mood.jpg" alt="Mood board of the short film Nudes" style="object-position:center 55%"><div><b>Nudes — fiction short</b><span>Faces, window light, the rule for the conversations</span></div></a>
@@ -345,7 +346,9 @@
       </div>
       <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Scene 3 · INT. CAFÉ — NIGHT</span></div><img class="shot" src="landing/img/cafe.jpg" alt="Café floor plan with bar, four tables, pendants, tube lights, four actors and two cameras" style="object-position:center 40%"></div>
     </div>
-    <div class="libstrip"><img src="landing/img/lib-design.png" alt="The library: cameras, steadicam, gimbal, GoPro, drone, cast, animals, LED, Kino Flo, panels, Fresnel, HMI, tubes, bounce, negative fill, flags, reflector, dolly track, dolly cart, jib"><p>Cast, cameras and light from the library — furniture, vehicles and set pieces come at their real size.</p></div>
+    <div class="frame uiframe" style="margin-top:34px"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Floorboard · 2nd floor · Shot designer</span></div><canvas id="uiDesign" aria-label="The Floorboard window: a camera is dragged from the library onto the plan, its lens is changed from 35 to 50 mm in the menu, an actor and an LED panel are added, the camera is turned towards the actor and play shows the blocking"></canvas></div>
+    <p class="credit">Drag from the library, pick the lens from the menu, press play. This is the real interface, redrawn for the page.</p>
+
     <div class="gallery">
       <a class="g" href="landing/img/velderhof-plan.jpg" target="_blank" rel="noopener"><img src="landing/img/velderhof-plan.jpg" alt="Floor plan of the Velderhof living room: five chairs, cast, three cameras, HMI through the window"><div><b>Velderhof — living room</b><span>Five chairs with bows, three cameras, HMI as sun</span></div></a>
       <a class="g" href="landing/img/nudes-plan.png" target="_blank" rel="noopener"><img src="landing/img/nudes-plan.png" alt="Floor plan of the teachers' room: one table, two chairs, three cameras"><div><b>Nudes — teachers' room</b><span>Two over-shoulders and a two-shot</span></div></a>
@@ -412,7 +415,7 @@
         <div class="doc"><img src="landing/img/pdf-callsheet.png" alt="The exported call sheet PDF, A4, with the production's accent colour"></div>
       </div>
     </div>
-    <div class="libstrip"><img src="landing/img/lib-prod.png" alt="The production menu: day header, crew, cast, client, location, prop list, call sheet and the board cards"><p>Day header, crew, cast, client, location, prop list, call sheet.</p></div>
+
   </div>
 </section>
 
@@ -431,7 +434,7 @@
         </ul>
         <p class="credit" style="margin-top:14px">Coming to the App Store; TestFlight first. Included in the hosted plan.</p>
       </div>
-      <div class="frame"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Room library · scanned with Floor Scanner</span></div><img class="shot" src="landing/img/room-thumb.jpg" alt="A scanned room in the room library"></div>
+      <div class="scanstage"><canvas id="scanCv" aria-label="Floor Scanner on an iPhone: a LiDAR scan outlines the room, a piece is corrected in the check view, the viewfinder frames a shot on a 40 mm lens, and the room syncs into Floorboard's room library"></canvas></div>
     </div>
   </div>
 </section>
@@ -501,5 +504,7 @@
     <div><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="selfhost.html">Self-host</a> · info@inbeeldmetfloor.nl</div>
   </div>
 </footer>
+<script src="landing/ui-anim.js"></script>
+<script src="landing/scanner-anim.js"></script>
 </body>
 </html>
