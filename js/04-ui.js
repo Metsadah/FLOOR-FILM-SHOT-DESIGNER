@@ -2127,7 +2127,58 @@ function cancelLibDrag(){
   if(libGhost){ libGhost.remove(); libGhost = null; }
   libDrag = null;
 }
-function startLibDrag(e, spec){
+// ---- touch (iPad / iPhone, finger or Pencil) ----
+// The library scrolls vertically (touch-action: pan-y), so iOS used to take a
+// slightly vertical drag for a scroll and cancel it — tiles needed several
+// tries. Now a touch on a tile waits for the first few pixels: mostly
+// vertical = scroll the library; sideways or diagonal = pick the tile up
+// (and stop the scroll); holding still for a moment picks it up too. Touch
+// events carry the drag from there, so a pointercancel can't drop it.
+let libPending = null, libTouchOn = false, libTouchLast = null;
+function armTouchLibDrag(e, spec){
+  if(libPending) clearTimeout(libPending.timer);
+  libPending = {spec, x:e.clientX, y:e.clientY,
+    timer:setTimeout(()=>{ if(libPending) beginTouchLibDrag(libPending.x, libPending.y); }, 260)};
+}
+function beginTouchLibDrag(x, y){
+  const p = libPending; if(!p) return;
+  clearTimeout(p.timer); libPending = null;
+  libTouchOn = true; libTouchLast = {clientX:x, clientY:y};
+  startLibDrag({clientX:x, clientY:y, preventDefault(){}}, p.spec, true);
+  if(navigator.vibrate) try{ navigator.vibrate(8); }catch(_){}
+}
+document.addEventListener('touchmove', ev=>{
+  const t = ev.touches && ev.touches[0]; if(!t) return;
+  if(libPending){
+    const dx = t.clientX - libPending.x, dy = t.clientY - libPending.y;
+    if(Math.hypot(dx, dy) < 6) return;              // not decided yet
+    if(!ev.cancelable || Math.abs(dy) > Math.abs(dx)*1.4){ // a scroll through the library
+      clearTimeout(libPending.timer); libPending = null; return;
+    }
+    ev.preventDefault();
+    beginTouchLibDrag(t.clientX, t.clientY);
+    return;
+  }
+  if(libTouchOn){
+    if(ev.cancelable) ev.preventDefault();           // the page must not scroll under the ghost
+    libTouchLast = {clientX:t.clientX, clientY:t.clientY};
+    moveLibGhost(libTouchLast);
+  }
+}, {passive:false});
+document.addEventListener('touchend', ev=>{
+  if(libPending){ clearTimeout(libPending.timer); libPending = null; }
+  if(libTouchOn){
+    libTouchOn = false;
+    const t = ev.changedTouches && ev.changedTouches[0];
+    dropLib(t ? {clientX:t.clientX, clientY:t.clientY} : libTouchLast);
+  }
+}, {passive:false});
+document.addEventListener('touchcancel', ()=>{
+  if(libPending){ clearTimeout(libPending.timer); libPending = null; }
+  if(libTouchOn){ libTouchOn = false; cancelLibDrag(); }
+});
+function startLibDrag(e, spec, fromTouch){
+  if(!fromTouch && (e.pointerType === 'touch' || e.pointerType === 'pen')){ armTouchLibDrag(e, spec); return; }
   e.preventDefault();
   if(e.target && e.target.hasPointerCapture && e.target.hasPointerCapture(e.pointerId)){
     try{ e.target.releasePointerCapture(e.pointerId); }catch(_){}
@@ -2177,6 +2228,7 @@ function startLibDrag(e, spec){
   libGhost.appendChild(tileCanvas(drawFn, spec.w, spec.h, spec.color||'#5B6472'));
   document.body.appendChild(libGhost);
   moveLibGhost(e);
+  if(fromTouch) return; // touch events carry this drag (see armTouchLibDrag)
   document.addEventListener('pointermove', moveLibGhost);
   document.addEventListener('pointerup', dropLib, {once:true});
   document.addEventListener('pointercancel', cancelLibDrag, {once:true});

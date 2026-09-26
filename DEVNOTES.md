@@ -303,6 +303,17 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc10 — library drags on iPad land first time
+Library tiles are touch-action: pan-y so the library scrolls; iOS took any
+slightly vertical drag for a scroll and fired pointercancel, so a tile often
+needed several tries. startLibDrag now hands touch / Pencil to
+armTouchLibDrag: the first 6 px decide — mostly vertical (|dy| > 1.4·|dx|)
+= scroll, anything else = pick up (touchmove preventDefault stops the
+scroll); holding 260 ms picks up too. Touch events (non-passive document
+listeners) carry the drag and the drop, so pointercancel can no longer kill
+it. Mouse drags are unchanged. Tested with CDP touch emulation: sideways,
+steep diagonal and hold-then-drag place the item; a vertical swipe scrolls.
+
 ## v1.0-rc9 — rigs, direction keys, LED attachments · self-host without invites
 - **Direction keys** (o.aim = [{rot, fov?, range?}]): a camera or a
   directional light stays put and turns — start at o.rot, then through each
