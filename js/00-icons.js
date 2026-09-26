@@ -59,7 +59,7 @@ const TILE_GLYPH = (()=>{
   g.hazer = tc=>{ prep(tc); circ(tc,-5,1,6); tc.fill(); circ(tc,3,-2,7); tc.fill(); circ(tc,9,3,5); tc.fill(); rr(tc,-11,3,22,6,3); tc.fill(); };
 
   // ---- board tools: each its own shape ----
-  g.text = tc=>{ prep(tc); tc.font='800 17px -apple-system,Segoe UI,sans-serif'; tc.textAlign='center'; tc.textBaseline='middle'; tc.fillText('Aa',0,1); };
+  g.text = tc=>{ prep(tc); tc.font='800 17px Geist,-apple-system,Segoe UI,sans-serif'; tc.textAlign='center'; tc.textBaseline='middle'; tc.fillText('Aa',0,1); };
   g.line = tc=>{ prep(tc,2.8); poly(tc,[[-11,10],[10,-10]]); tc.stroke(); poly(tc,[[1,-10],[10,-10],[10,-1]]); tc.stroke(); };
   g.dim = tc=>{ prep(tc,2.2); rr(tc,-14,-5,28,10,2); tc.stroke(); for(const x of [-8,-3,2,7]){ poly(tc,[[x,-5],[x,x%2?0:-1]]); tc.stroke(); } };
   g.subboard = tc=>{ prep(tc,2.4); rr(tc,-13,-9,18,14,3); tc.stroke(); rr(tc,-5,-2,18,14,3); tc.fill(); };

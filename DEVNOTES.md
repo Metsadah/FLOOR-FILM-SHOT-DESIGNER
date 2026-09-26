@@ -303,6 +303,27 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc11 — board cards in the UI 2.0 look (like the landing)
+The canvas objects now match the landing animation:
+- cardShadowOn/Off (01-state-render.js): every smart card body casts a soft
+  floating shadow (device px, scaled with the zoom); only on the live board
+  — exports draw flat (window.__boardCtx check).
+- Header strips are solid in the vivid version of the card colour
+  (headFill → tileVivid) with white titles (headText; right-aligned meta in
+  white 82 %). Taller: titleH 26 → 32 (LIST_GEO, FIELD_GEO, DAYH, colcard,
+  schedule, prop/gear list, call sheet, sub-board, scene info), AVS 30 → 34;
+  title font 12.5 px. The table's column header keeps its light tint.
+- Outlines: hairline THEME.line 1 px instead of line2 1.5 px; --r-card 12.
+- Sticky notes: pastel paper (34 % colour on warm white), radius 8, no
+  folded corner, floating shadow; darker text.
+- Photos: rounded corners + shadow (underlays stay square and flat).
+- Script cards with a title get a solid header (headH + 32, editor too).
+- Canvas text is Geist everywhere (fonts loaded, then a repaint in 17-ui2).
+- textInk(): dark free-text colours turn light in dark mode.
+- Library: Sticky note and Image tiles use their gradient glyphs; the landing
+  sprite (landing/img/ui-icons.png) was re-captured.
+- Haver example: script card and prop list no longer overlap their neighbours.
+
 ## v1.0-rc10 — library drags on iPad land first time
 Library tiles are touch-action: pan-y so the library scrolls; iOS took any
 slightly vertical drag for a scroll and fired pointercancel, so a tile often

@@ -671,7 +671,7 @@ async function doPNGExport(cropBounds){
     new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
   // script footer (wrapped, capped)
   const scratch = document.createElement('canvas').getContext('2d');
-  scratch.font = '13px -apple-system,Segoe UI,sans-serif';
+  scratch.font = '13px Geist,-apple-system,Segoe UI,sans-serif';
   let scriptLines = [];
   const script = (shot.script || '').trim();
   if(script){
@@ -687,10 +687,10 @@ async function doPNGExport(cropBounds){
   const oc = out.getContext('2d');
   oc.fillStyle = THEME.card; oc.fillRect(0,0,out.width,out.height);
   oc.fillStyle = THEME.ink;
-  oc.font = '600 19px -apple-system,Segoe UI,sans-serif';
+  oc.font = '600 19px Geist,-apple-system,Segoe UI,sans-serif';
   oc.fillText((project.shootName ? project.shootName + ' — ' : '') + shot.name, 18, 26);
   oc.fillStyle = THEME.ink2;
-  oc.font = '12px -apple-system,Segoe UI,sans-serif';
+  oc.font = '12px Geist,-apple-system,Segoe UI,sans-serif';
   oc.fillText(meta, 18, 43);
   oc.drawImage(plan, 0, hStrip);
   if(script){
@@ -698,10 +698,10 @@ async function doPNGExport(cropBounds){
     oc.strokeStyle = THEME.line;
     oc.beginPath(); oc.moveTo(18, fy + 6); oc.lineTo(out.width - 18, fy + 6); oc.stroke();
     oc.fillStyle = THEME.ink2;
-    oc.font = '700 10px -apple-system,Segoe UI,sans-serif';
+    oc.font = '700 10px Geist,-apple-system,Segoe UI,sans-serif';
     oc.fillText('S C R I P T', 18, fy + 24);
     oc.fillStyle = THEME.ink;
-    oc.font = '13px -apple-system,Segoe UI,sans-serif';
+    oc.font = '13px Geist,-apple-system,Segoe UI,sans-serif';
     scriptLines.forEach((l, i)=> oc.fillText(l, 18, fy + 44 + i*18));
   }
   const a = document.createElement('a');
@@ -1226,7 +1226,7 @@ function saveBanner(mode){
     chip = document.createElement('span');
     chip.id = 'conflictChip';
     chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;white-space:nowrap;' +
-      'font:600 11px -apple-system,Segoe UI,sans-serif;color:#8A5A00;' +
+      'font:600 11px Geist,-apple-system,Segoe UI,sans-serif;color:#8A5A00;' +
       'background:rgba(199,129,10,.13);border:1px solid rgba(199,129,10,.4);' +
       'border-radius:20px;padding:2px 3px 2px 10px;margin-right:6px;';
     chip.title = 'Someone saved a newer version of this production';
@@ -1235,7 +1235,7 @@ function saveBanner(mode){
       const b = document.createElement('button');
       b.textContent = lab; b.title = tip;
       b.style.cssText = 'border:none;border-radius:14px;padding:3px 9px;cursor:pointer;' +
-        'font:600 10.5px -apple-system,Segoe UI,sans-serif;background:#C7810A;color:var(--panel);';
+        'font:600 10.5px Geist,-apple-system,Segoe UI,sans-serif;background:#C7810A;color:var(--panel);';
       b.addEventListener('click', fn);
       chip.appendChild(b);
     };
@@ -1259,7 +1259,7 @@ function saveBanner(mode){
   el.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:400;' +
     'display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;' +
     'max-width:min(92vw,660px);padding:10px 16px;border-radius:11px;color:var(--panel);' +
-    'font:600 12.5px -apple-system,Segoe UI,sans-serif;box-shadow:0 10px 34px rgba(0,0,0,.28);' +
+    'font:600 12.5px Geist,-apple-system,Segoe UI,sans-serif;box-shadow:0 10px 34px rgba(0,0,0,.28);' +
     'background:#D14B3A;';
   el.innerHTML = '';
   el.appendChild(document.createTextNode(
@@ -1267,7 +1267,7 @@ function saveBanner(mode){
   const b = document.createElement('button');
   b.textContent = 'Retry now';
   b.style.cssText = 'border:none;border-radius:7px;padding:6px 11px;cursor:pointer;' +
-    'font:600 12px -apple-system,Segoe UI,sans-serif;background:rgba(255,255,255,.94);color:var(--ink);';
+    'font:600 12px Geist,-apple-system,Segoe UI,sans-serif;background:rgba(255,255,255,.94);color:var(--ink);';
   b.addEventListener('click', ()=>{ saveBanner(null); dirty = true; saveProject(); });
   el.appendChild(b);
 }

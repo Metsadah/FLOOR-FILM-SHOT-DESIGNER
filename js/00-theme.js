@@ -27,7 +27,7 @@ const THEME_LIGHT = {bg:'#F7F7F8', panel:'#FFFFFF', card:'#FFFFFF', hover:'#F5F5
   chip:'rgba(255,255,255,.92)', toast:'#1D1D1F', toastInk:'#FFFFFF', accent:'#0A7CFF',
   accentInk:'#096BDB', accentSoft:'#E2EFFF', accent08:'rgba(10,124,255,.08)', danger:'#E5484D',
   dangerSoft:'#FDECEC', warn:'#E69F00', warnSoft:'#FDF4E1', ok:'#1FA855', okSoft:'#E4F6EA',
-  onAccent:'#FFFFFF', rCard:10, dark:false};
+  onAccent:'#FFFFFF', rCard:12, dark:false};
 Object.assign(THEME, THEME_LIGHT);
 // run fn with the light palette active (exports must look the same in dark mode)
 function withLightTheme(fn){

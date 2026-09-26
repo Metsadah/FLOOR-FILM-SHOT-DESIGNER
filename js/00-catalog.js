@@ -88,7 +88,7 @@ function videoThumbUrl(u){
 }
 function noteFont(o, base){
   const fs = o.fontSize || base || 13;
-  return `${o.italic?'italic ':''}${o.bold?'700':'400'} ${fs}px -apple-system,Segoe UI,sans-serif`;
+  return `${o.italic?'italic ':''}${o.bold?'700':'400'} ${fs}px Geist,-apple-system,Segoe UI,sans-serif`;
 }
 // sensors: [key, name, width mm]. Field of view follows the sensor a camera
 // shoots on — a 35 mm on Super 35 is a 50 mm look on full frame.
@@ -1203,23 +1203,20 @@ function drawActorIcon(ctx,w,h,c,kind){
 }
 function drawNoteShape(ctx,o,editing){
   const w=o.w, h=o.h;
-  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,4);
+  // UI 2.0: pastel paper, no outline — the shadow (drawn by the board) lifts it
+  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,8);
   ctx.fillStyle='#FFFDF2'; ctx.fill();
-  ctx.fillStyle=o.color; ctx.globalAlpha=.16; ctx.fill(); ctx.globalAlpha=1;
-  ctx.strokeStyle=o.color; ctx.globalAlpha=.55; ctx.lineWidth=1.5; ctx.stroke(); ctx.globalAlpha=1;
-  // folded corner
-  const f=Math.min(16,w*.2,h*.2);
-  ctx.beginPath(); ctx.moveTo(w/2-f,h/2); ctx.lineTo(w/2,h/2-f); ctx.lineTo(w/2,h/2); ctx.closePath();
-  ctx.fillStyle=o.color; ctx.globalAlpha=.25; ctx.fill(); ctx.globalAlpha=1;
+  ctx.fillStyle=o.color; ctx.globalAlpha=.34; ctx.fill(); ctx.globalAlpha=1;
+  ctx.strokeStyle=o.color; ctx.globalAlpha=.18; ctx.lineWidth=1; ctx.stroke(); ctx.globalAlpha=1;
   if(!editing){
-    const fs = o.fontSize || 13, lh = fs*1.32, pad = 11, maxW = w - pad*2;
+    const fs = o.fontSize || 13, lh = fs*1.36, pad = 14, maxW = w - pad*2;
     ctx.textBaseline='top';
     ctx.save();
     ctx.beginPath(); ctx.rect(-w/2+3,-h/2+3,w-6,h-6); ctx.clip();
     let y = -h/2 + pad;
     if(o.label){
-      ctx.font = `700 ${fs+1}px -apple-system,Segoe UI,sans-serif`;
-      ctx.fillStyle = '#3E3A2C';
+      ctx.font = `700 ${fs+1}px Geist,-apple-system,Segoe UI,sans-serif`;
+      ctx.fillStyle = '#1D1D1F';
       ctx.fillText(o.label, -w/2+pad, y);
       y += lh + 4;
       ctx.strokeStyle = o.color; ctx.globalAlpha = .3; ctx.lineWidth = 1;
@@ -1228,7 +1225,7 @@ function drawNoteShape(ctx,o,editing){
       y += 2;
     }
     ctx.font = noteFont(o);
-    ctx.fillStyle = '#4A4636';
+    ctx.fillStyle = '#2A2A2E';
     const lines = wrapCanvasText(ctx, o.text||'', maxW);
     for(const l of lines){
       if(y >= h/2 - 6) break;
@@ -1246,23 +1243,24 @@ function drawNoteShape(ctx,o,editing){
 // live scene-info card drawn on the canvas (contents come from the Scene info panel)
 function drawInfoCard(ctx, o){
   const s = (typeof drawShot !== 'undefined' && drawShot) ? drawShot : activeShot();
-  const w=o.w, h=o.h, pad=14, titleH=26;
+  const w=o.w, h=o.h, pad=14, titleH=32;
   // shared smart-card chrome: white shell + tinted title strip
-  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,3);
-  ctx.fillStyle='#fff'; ctx.fill();
-  ctx.strokeStyle='#D8D5CF'; ctx.lineWidth=1.5; ctx.stroke();
+  const rc = (typeof THEME !== 'undefined' && THEME.rCard) || 12;
+  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,rc);
+  ctx.fillStyle='#fff';
+  if(typeof cardShadowOn === 'function' && ctx === window.__boardCtx){ cardShadowOn(); ctx.fill(); cardShadowOff(); } else ctx.fill();
+  ctx.strokeStyle='#E8E8EC'; ctx.lineWidth=1; ctx.stroke();
   ctx.save();
-  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,3); ctx.clip();
-  ctx.fillStyle=o.color; ctx.globalAlpha=.14;
+  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,rc); ctx.clip();
+  ctx.fillStyle = typeof headFill === 'function' ? headFill(o.color) : o.color;
   ctx.fillRect(-w/2,-h/2,w,titleH);
-  ctx.globalAlpha=1;
   ctx.textBaseline='middle';
-  ctx.font='700 11px -apple-system,Segoe UI,sans-serif';
-  ctx.fillStyle='#33322E';
+  ctx.font='700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
+  ctx.fillStyle='#FFFFFF';
   ctx.fillText('SCENE INFO', -w/2+10, -h/2+titleH/2+.5);
   ctx.textBaseline='top';
   let y=-h/2+titleH+10;
-  ctx.font='700 14px -apple-system,Segoe UI,sans-serif';
+  ctx.font='700 14px Geist,-apple-system,Segoe UI,sans-serif';
   ctx.fillStyle='#33322E';
   ctx.fillText(trimText(ctx, s.name||'', w-pad*2), -w/2+pad, y); y+=22;
   const wrapT = (typeof addMinutes==='function') ? addMinutes(s.time, s.duration) : '';
@@ -1274,10 +1272,10 @@ function drawInfoCard(ctx, o){
   ].filter(r=>r[1]);
   for(const [k,v] of rows){
     if(y>h/2-16) break;
-    ctx.font='700 9.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font='700 9.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle='#8A877F';
     ctx.fillText(k, -w/2+pad, y); y+=13;
-    ctx.font='12.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font='12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle='#33322E';
     for(const l of wrapCanvasText(ctx, v, w-pad*2).slice(0,2)){
       if(y>h/2-12) break;
@@ -1288,10 +1286,10 @@ function drawInfoCard(ctx, o){
   // the scene's script (the panel's script box) — as much as fits; the card
   // resizes, so pull it taller to read more
   if(s.script && y < h/2-30){
-    ctx.font='700 9.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font='700 9.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle='#8A877F';
     ctx.fillText('SCRIPT', -w/2+pad, y); y+=13;
-    ctx.font='11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font='11.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle='#4A4636';
     const lines = wrapCanvasText(ctx, s.script, w-pad*2);
     for(let li=0; li<lines.length; li++){
@@ -1304,7 +1302,7 @@ function drawInfoCard(ctx, o){
     }
   }
   if(!rows.length && !s.script){
-    ctx.font='12px -apple-system,Segoe UI,sans-serif';
+    ctx.font='12px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle='#8A877F';
     ctx.fillText('Fill in the Scene info panel →', -w/2+pad, y);
   }
@@ -1464,7 +1462,7 @@ const LIST_CARDS = {
   ]},
 };
 // shared card geometry (renderer, hit-testing and the cell editor all agree)
-const LIST_GEO = {titleH:26, headH:22, rowH:26, grip:14};
+const LIST_GEO = {titleH:32, headH:22, rowH:26, grip:14};
 
 // ---------------------------------------------------------------- field cards
 // label:value cards. prodinfo reads/writes project.production (+ shootName);
@@ -1506,13 +1504,13 @@ function minToHHMM(m){
   m = ((m % 1440) + 1440) % 1440;
   return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m % 60).padStart(2,'0');
 }
-const FIELD_GEO = {titleH:26, rowH:26};
+const FIELD_GEO = {titleH:32, rowH:26};
 
 // ---------------------------------------------------------------- AV script card
 // Row-based AV script: TIME | AUDIO (what you hear) | VIDEO (what you see),
 // with optional scene-number, still and director-notes columns. The classic
 // free-text two-column AV block grown into the smart-card system.
-const AVS = {titleH:30, headH:24, rowPad:7, lineH:17, minRowH:36, grip:14, stillH:140,
+const AVS = {titleH:34, headH:24, rowPad:7, lineH:17, minRowH:36, grip:14, stillH:140,
   fontPx:13.5, custW:150, w:{no:44, time:58, dur:52, still:96, audio:215, video:255, notes:170, shot:64, cam:180}};
 // which keys are single-line? everything else (incl. custom columns) wraps
 function avSingle(key){ return key === 'no' || key === 'time' || key === 'dur' || key === 'shot'; }
@@ -1579,7 +1577,7 @@ function avCols(o){
 
 // ---------------------------------------------------------------- day header
 // geometry of the call-time block (renderer + hit zones + editor agree)
-const DAYH = {w:320, titleH:26, bigH:58, rowH:30};
+const DAYH = {w:320, titleH:32, bigH:58, rowH:30};
 // NOAA-style sunrise/sunset, ±2 min — local time via the browser's timezone.
 function sunTimes(dateStr, lat, lon){
   const d = new Date(dateStr + 'T12:00:00');

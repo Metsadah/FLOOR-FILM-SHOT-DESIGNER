@@ -194,7 +194,7 @@ function drawSelection(shot){
       if(!o.locked){
         ctx.beginPath(); ctx.moveTo(0,-o.h/2-6/s); ctx.lineTo(0,-o.h/2-26/s); ctx.globalAlpha=.5; ctx.stroke(); ctx.globalAlpha=1;
       } else {
-        ctx.font = `${13/s}px -apple-system,Segoe UI,sans-serif`;
+        ctx.font = `${13/s}px Geist,-apple-system,Segoe UI,sans-serif`;
         ctx.fillStyle = THEME.ink2;
         ctx.fillText('\ud83d\udd12', -o.w/2-4/s, -o.h/2-10/s);
       }
@@ -214,7 +214,7 @@ function drawSelection(shot){
       const L = Math.round(geom.L);
       const txt = L >= 100 ? (L/100).toFixed(2).replace(/\.?0+$/,'') + ' m' : L + ' cm';
       const ox = -Math.sin(pc.ang) * 16/s, oy = Math.cos(pc.ang) * 16/s;
-      ctx.font = `600 ${11/Math.max(s,.35)}px -apple-system,Segoe UI,sans-serif`;
+      ctx.font = `600 ${11/Math.max(s,.35)}px Geist,-apple-system,Segoe UI,sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = THEME.accent;
       ctx.fillText(txt, pc.x + ox, pc.y + oy);
@@ -259,7 +259,7 @@ function drawToolPreview(){
     ctx.beginPath(); ctx.moveTo(drag.x1, drag.y1); ctx.lineTo(drag.x2, drag.y2); ctx.stroke();
     ctx.globalAlpha=1;
     const L = Math.round(dist(drag.x1,drag.y1,drag.x2,drag.y2));
-    ctx.font = `${12/s}px -apple-system,sans-serif`;
+    ctx.font = `${12/s}px Geist,-apple-system,sans-serif`;
     ctx.fillStyle = THEME.ink;
     ctx.fillText((L>=100 ? (L/100).toFixed(2).replace(/\.?0+$/,'')+' m' : L+' cm'), (drag.x1+drag.x2)/2 + 10/s, (drag.y1+drag.y2)/2 - 10/s);
     ctx.restore();

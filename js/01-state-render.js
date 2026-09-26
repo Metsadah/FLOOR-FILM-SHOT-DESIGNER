@@ -52,6 +52,7 @@ let inkWeight = 3, inkColor = THEME.danger;
 
 const cv = document.getElementById('cv');
 let ctx = cv.getContext('2d'); // reassigned temporarily during exports
+window.__boardCtx = ctx; // shadows only on the live board, never in exports
 const wrap = document.getElementById('canvasWrap');
 
 const WEATHERS = ['Any','Sunny','Partly cloudy','Overcast','Golden hour','Blue hour','Rain','Fog','Snow','Night'];
@@ -470,7 +471,7 @@ function updateCrumb(){
   }
   el.style.cssText = 'position:absolute;top:12px;left:12px;z-index:60;display:flex;gap:6px;' +
     'align-items:center;background:#fff;border:1px solid #E5E3DE;border-radius:20px;' +
-    'padding:5px 13px 5px 10px;font:600 12px -apple-system,Segoe UI,sans-serif;color:#33322E;' +
+    'padding:5px 13px 5px 10px;font:600 12px Geist,-apple-system,Segoe UI,sans-serif;color:#33322E;' +
     'box-shadow:0 6px 20px rgba(40,38,32,.14);cursor:pointer;max-width:60%;overflow:hidden;' +
     'white-space:nowrap;text-overflow:ellipsis;';
   el.title = 'Inside a sub-board — click to go back up';
@@ -778,7 +779,7 @@ function railGlyph(cx, cy, glyph, danger){
   ctx.beginPath(); ctx.arc(cx, cy, 8, 0, 7);
   ctx.fillStyle = danger ? THEME.dangerSoft : THEME.soft; ctx.fill();
   ctx.fillStyle = danger ? THEME.danger : THEME.ink2;
-  ctx.font = '700 ' + (glyph === '+' ? 13 : 12) + 'px -apple-system,Segoe UI,sans-serif';
+  ctx.font = '700 ' + (glyph === '+' ? 13 : 12) + 'px Geist,-apple-system,Segoe UI,sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(glyph, cx, cy + (glyph === '+' ? .5 : 1));
   ctx.textAlign = 'left';
@@ -806,7 +807,7 @@ function drawRail(o, items){
 // the "+ Add row" pill under the card → world-space rect zone
 function drawAddPill(o, label, side){
   ctx.save();
-  ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
+  ctx.font = '600 11px Geist,-apple-system,Segoe UI,sans-serif';
   const w = Math.ceil(ctx.measureText(label).width) + 28, h = RAIL.pillH;
   const cx = side === 'right' ? o.w/2 + RAIL.x + 13 + w/2 - 13 : 0;
   const cy = side === 'right' ? 0 : o.h/2 + 8 + h/2;
@@ -824,6 +825,27 @@ function zoneHit(z, wx, wy){
   return wx >= z.x && wx <= z.x + z.w && wy >= z.y && wy <= z.y + z.h;
 }
 
+// ---- UI 2.0 card chrome: soft floating shadow, vivid solid header, white titles
+function cardShadowOn(){
+  if(ctx !== window.__boardCtx) return; // exports stay flat
+  const k = dpr * clamp(view.scale, .35, 1.6);
+  ctx.shadowColor = THEME.dark ? 'rgba(0,0,0,.5)' : 'rgba(20,20,40,.11)';
+  ctx.shadowBlur = 20*k; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 7*k;
+}
+function cardShadowOff(){ ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; }
+function headFill(c){ return typeof tileVivid === 'function' ? tileVivid(c || '#7A8194')[1] : (c || '#7A8194'); }
+// free text on the board: the default slate and any near-black follow the
+// theme, so a dark title stays readable on the dark canvas
+function textInk(c){
+  if(!c || c === '#5B6472') return THEME.ink;
+  const m = /^#([0-9a-f]{6})$/i.exec(c);
+  if(m && THEME.dark){
+    const n = parseInt(m[1], 16), l = (0.299*(n >> 16) + 0.587*(n >> 8 & 255) + 0.114*(n & 255)) / 255;
+    if(l < .4) return THEME.ink;
+  }
+  return c;
+}
+function headText(t, x, y){ ctx.fillStyle = x > 0 ? 'rgba(255,255,255,.82)' : '#FFFFFF'; ctx.fillText(t, x, y); }
 function render(){
   if(!project) return;
   const shot = activeShot();
@@ -882,7 +904,7 @@ function drawRuler(W, H){
   ctx.moveTo(x0+px, y-5); ctx.lineTo(x0+px, y+5);
   ctx.moveTo(x0+px/2, y-3); ctx.lineTo(x0+px/2, y+3);
   ctx.stroke();
-  ctx.font = '10.5px -apple-system,Segoe UI,sans-serif';
+  ctx.font = '10.5px Geist,-apple-system,Segoe UI,sans-serif';
   ctx.fillStyle = 'rgba(90,87,80,.85)';
   ctx.textAlign = 'center';
   ctx.fillText(L >= 100 ? (L/100)+' m' : L+' cm', x0+px/2, y-9);
@@ -1062,7 +1084,7 @@ function drawSun(shot){
     ctx.lineTo(s.x+Math.cos(a)*31, s.y+Math.sin(a)*31); ctx.stroke(); }
   // hour label
   const fs = 12/Math.max(view.scale,.35);
-  ctx.font = `600 ${fs}px -apple-system,Segoe UI,sans-serif`;
+  ctx.font = `600 ${fs}px Geist,-apple-system,Segoe UI,sans-serif`;
   ctx.textAlign='center';
   ctx.fillStyle = '#8a6612';
   ctx.fillText(formatHour(s.hour), s.x, s.y + 34 + fs);
@@ -1075,7 +1097,7 @@ function drawSun(shot){
   ctx.beginPath(); ctx.moveTo(-8,-4); ctx.lineTo(0,0); ctx.lineTo(-8,4); ctx.stroke();
   ctx.restore();
   ctx.fillStyle=THEME.ink2;
-  ctx.font = `${fs*.85}px -apple-system,Segoe UI,sans-serif`;
+  ctx.font = `${fs*.85}px Geist,-apple-system,Segoe UI,sans-serif`;
   ctx.fillText('N', s.x+nx*72, s.y+ny*72+fs*.3);
   ctx.globalAlpha = 1;
   ctx.textAlign='left';
@@ -1088,6 +1110,10 @@ function drawObjectShape(o, ghost){
     ctx.save();
     ctx.translate(o.x, o.y); ctx.rotate(o.rot);
     if(ghost) ctx.globalAlpha = .32;
+    else { // the paper floats: shadow first, then the note draws on top
+      ctx.save(); cardShadowOn(); ctx.beginPath(); ctx.roundRect(-o.w/2, -o.h/2, o.w, o.h, 8);
+      ctx.fillStyle = '#FFFDF2'; ctx.fill(); ctx.restore();
+    }
     drawNoteShape(ctx, o, noteEditor && noteEditor.id === o.id);
     ctx.restore();
     return;
@@ -1116,7 +1142,7 @@ function drawObjectShape(o, ghost){
     const fs = o.fontSize || 18, lh = fs*1.32;
     ctx.font = noteFont(o, 18);
     ctx.textBaseline = 'top';
-    ctx.fillStyle = (o.color === '#5B6472') ? THEME.ink : o.color;
+    ctx.fillStyle = textInk(o.color);
     const lines = wrapCanvasText(ctx, o.text||'', Math.max(40, o.w-4));
     o.h = Math.max(fs*1.4, lines.length*lh);
     if(!(noteEditor && noteEditor.id === o.id)){
@@ -1165,7 +1191,7 @@ function drawObjectShape(o, ghost){
       const L = Math.round(dist(o.p1.x, o.p1.y, o.p2.x, o.p2.y));
       const txt = L >= 100 ? (L/100).toFixed(2).replace(/\.?0+$/,'') + ' m' : L + ' cm';
       const mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
-      ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '600 11px Geist,-apple-system,Segoe UI,sans-serif';
       const tw = ctx.measureText(txt).width;
       ctx.save(); ctx.translate(mx, my);
       let ta = ang;
@@ -1189,7 +1215,7 @@ function drawObjectShape(o, ghost){
     o.h = o.w + stripH; // preview stays square
     const sq = o.w;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
     const thumb = o.imgId ? imgCache[o.imgId] : null;
@@ -1212,7 +1238,7 @@ function drawObjectShape(o, ghost){
       ctx.fillRect(-o.w/2, -o.h/2, o.w, sq);
       ctx.globalAlpha = 1;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = '800 ' + Math.round(sq*.34) + 'px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '800 ' + Math.round(sq*.34) + 'px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = o.color; ctx.globalAlpha = .35;
       ctx.fillText((domain[0] || '?').toUpperCase(), 0, -o.h/2 + sq/2 - 4);
       ctx.globalAlpha = 1;
@@ -1228,17 +1254,17 @@ function drawObjectShape(o, ghost){
     ctx.strokeStyle = THEME.soft; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(-o.w/2, o.h/2 - stripH); ctx.lineTo(o.w/2, o.h/2 - stripH); ctx.stroke();
     ctx.textBaseline = 'middle';
-    ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 11.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
     ctx.fillText(trimText(ctx, disp + '  \u2197', o.w - 16), -o.w/2 + 8, o.h/2 - stripH + 13);
     if(domain && domain !== disp){
-      ctx.font = '10px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '10px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
       ctx.fillText(trimText(ctx, domain, o.w - 16), -o.w/2 + 8, o.h/2 - 11);
     }
     ctx.restore();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = THEME.line; ctx.lineWidth = 1; ctx.stroke();
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'ink'){
     const pts=o.pts||[];
@@ -1259,8 +1285,8 @@ function drawObjectShape(o, ghost){
     drawInfoCard(ctx, o);
   } else if(o.cat === 'audio'){
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
-    ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
+    ctx.strokeStyle = THEME.line; ctx.lineWidth = 1; ctx.stroke();
     const playing = (typeof audioPlayingId !== 'undefined') && audioPlayingId === o.id;
     // play / pause disc
     const px = -o.w/2 + 30;
@@ -1275,10 +1301,10 @@ function drawObjectShape(o, ghost){
     }
     o._playZone = {x1:o.x+px-18, x2:o.x+px+18};
     ctx.textBaseline = 'middle';
-    ctx.font = '600 12.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
     ctx.fillText(trimText(ctx, o.name||'Audio', o.w-140), -o.w/2+56, -8);
-    ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '11px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink2;
     ctx.fillText((o.size ? Math.round(o.size/1024/102.4)/10 + ' MB \u00b7 ' : '') + (playing ? 'playing\u2026 tap to stop' : 'tap \u25b8 to play'), -o.w/2+56, 10);
     // little waveform
@@ -1298,27 +1324,27 @@ function drawObjectShape(o, ghost){
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2+2,-o.h/2+2,o.w-4,o.h-4,2); ctx.clip();
     ctx.textBaseline='top';
-    ctx.font='700 10px -apple-system,Segoe UI,sans-serif';
+    ctx.font='700 10px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle=THEME.ink2;
     ctx.fillText('W E A T H E R', -o.w/2+13, -o.h/2+14);
-    ctx.font='700 13.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font='700 13.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle=THEME.ink;
     ctx.fillText(trimText(ctx, o.place || 'Set place & date \u2192', o.w-26), -o.w/2+13, -o.h/2+29);
-    ctx.font='11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font='11.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle=THEME.ink2;
     if(o.date) ctx.fillText(o.date, -o.w/2+13, -o.h/2+48);
     let y = -o.h/2 + 70;
     for(const [k,v] of (o.data||[])){
-      ctx.font='700 9.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font='700 9.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle=THEME.ink2;
       ctx.fillText(k.toUpperCase(), -o.w/2+13, y);
-      ctx.font='12px -apple-system,Segoe UI,sans-serif';
+      ctx.font='12px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle=THEME.ink;
       ctx.fillText(trimText(ctx, String(v), o.w-26), -o.w/2+13, y+12);
       y += 31;
     }
     if(!(o.data||[]).length && o.place){
-      ctx.font='11.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font='11.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle=THEME.ink3;
       ctx.fillText('Select \u2192 Fetch forecast', -o.w/2+13, -o.h/2+70);
     }
@@ -1327,17 +1353,17 @@ function drawObjectShape(o, ghost){
   } else if(o.cat === 'colorcard'){
     const strip = 34;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
     ctx.fillStyle = o.hex || THEME.danger;
     ctx.fillRect(-o.w/2, -o.h/2, o.w, o.h - strip);
     ctx.fillStyle = THEME.ink;
-    ctx.font = '700 12px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 12px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.textBaseline = 'middle';
     ctx.fillText((o.hex||'').toUpperCase(), -o.w/2+10, o.h/2 - strip/2);
     if(o.label){
-      ctx.font = '400 11.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '400 11.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
       ctx.textAlign = 'right';
       ctx.fillText(trimText(ctx, o.label, o.w/2 - 14), o.w/2-10, o.h/2 - strip/2);
@@ -1352,19 +1378,18 @@ function drawObjectShape(o, ghost){
     const rowH = 32, pad = 10, top = o.label ? 36 : 8;
     o.h = Math.max(56, top + o.items.length*rowH + 8);
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
-    ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
+    ctx.strokeStyle = THEME.line; ctx.lineWidth = 1; ctx.stroke();
     ctx.textBaseline = 'middle';
     if(o.label && !(noteEditor && noteEditor.id===o.id && noteEditor.field==='todo')){
       // shared card chrome: tinted title strip like the other smart cards
       ctx.save();
       ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-      ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+      ctx.fillStyle = headFill(o.color);
       ctx.fillRect(-o.w/2, -o.h/2, o.w, 28);
-      ctx.globalAlpha = 1;
       ctx.restore();
-      ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
-      ctx.fillStyle = THEME.ink;
+      ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
+      ctx.fillStyle = '#FFFFFF';
       ctx.fillText(trimText(ctx, o.label.toUpperCase(), o.w-20), -o.w/2+pad, -o.h/2 + 15);
     }
     const bulkEditing = noteEditor && noteEditor.id===o.id && noteEditor.field==='todo';
@@ -1388,7 +1413,7 @@ function drawObjectShape(o, ghost){
       } else ctx.stroke();
       // text (skip the row being edited inline)
       if(noteEditor && noteEditor.id===o.id && noteEditor.field==='item:'+i2) return;
-      ctx.font = '12.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '12.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = it.done ? THEME.ink3 : THEME.ink;
       const tx = trimText(ctx, it.t || '', o.w - pad*2 - 28);
       ctx.fillText(tx, -o.w/2+pad+26, y+.5);
@@ -1399,7 +1424,7 @@ function drawObjectShape(o, ghost){
       }
     });
     if(!o.items.length && !bulkEditing){
-      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '12px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ph40;
       ctx.fillText('Double-click to add an item\u2026', -o.w/2+pad, 0);
     }
@@ -1414,7 +1439,7 @@ function drawObjectShape(o, ghost){
     for(let c=0;c<nC;c++){
       let mw = 90*S;
       for(let r=0;r<nR;r++){
-        ctx.font = (r===0 ? '700 ' : '') + (12*S) + 'px -apple-system,Segoe UI,sans-serif';
+        ctx.font = (r===0 ? '700 ' : '') + (12*S) + 'px Geist,-apple-system,Segoe UI,sans-serif';
         mw = Math.max(mw, ctx.measureText(o.cells[r][c]||'').width + 20*S);
       }
       ws.push(Math.min(280*S, mw));
@@ -1423,7 +1448,7 @@ function drawObjectShape(o, ghost){
     o.w = ws.reduce((a,b)=>a+b, 0);
     o.h = headH + (nR-1)*rowH;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
     ctx.fillStyle = o.color; ctx.globalAlpha = .14;
@@ -1444,7 +1469,7 @@ function drawObjectShape(o, ghost){
       let x0 = -o.w/2;
       for(let c=0;c<nC;c++){
         if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='cell:'+r+':'+c)){
-          ctx.font = (r===0 ? '700 ' : '') + (12*S) + 'px -apple-system,Segoe UI,sans-serif';
+          ctx.font = (r===0 ? '700 ' : '') + (12*S) + 'px Geist,-apple-system,Segoe UI,sans-serif';
           ctx.fillStyle = r===0 ? THEME.ink : THEME.body;
           const cy = r===0 ? -o.h/2 + headH/2 : -o.h/2 + headH + (r-1)*rowH + rowH/2;
           ctx.fillText(trimText(ctx, o.cells[r][c]||'', ws[c]-16), x0 + 8, cy);
@@ -1468,9 +1493,9 @@ function drawObjectShape(o, ghost){
     const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
     // typed columns size themselves to content
     const ws = spec.cols.map(col=>{
-      ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '700 9.5px Geist,-apple-system,Segoe UI,sans-serif';
       let mw = Math.max(col.min, ctx.measureText(col.label.toUpperCase()).width + 18);
-      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '12px Geist,-apple-system,Segoe UI,sans-serif';
       for(const p of rows) mw = Math.max(mw, ctx.measureText(p[col.key]||'').width + 18);
       return Math.min(240, mw);
     });
@@ -1478,25 +1503,24 @@ function drawObjectShape(o, ghost){
     o.w = G.grip + ws.reduce((a,b)=>a+b, 0);
     o.h = G.titleH + G.headH + Math.max(1, rows.length)*G.rowH;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-    ctx.fillStyle = o.color || spec.color; ctx.globalAlpha = .14;
+    ctx.fillStyle = headFill(o.color || spec.color);
     ctx.fillRect(-o.w/2, -o.h/2, o.w, G.titleH);
-    ctx.globalAlpha = 1;
     ctx.textBaseline = 'middle';
-    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
-    ctx.fillText(spec.title, -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    headText(spec.title, -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
     if(rows.length){
       ctx.textAlign = 'right';
-      ctx.font = '10.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '10.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
-      ctx.fillText(String(rows.length), o.w/2 - 8, -o.h/2 + G.titleH/2 + .5);
+      headText(String(rows.length), o.w/2 - 8, -o.h/2 + G.titleH/2 + .5);
       ctx.textAlign = 'left';
     }
     // column header row
-    ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 9.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink2;
     let hx0 = -o.w/2 + G.grip;
     for(let c=0;c<spec.cols.length;c++){
@@ -1529,7 +1553,7 @@ function drawObjectShape(o, ghost){
       for(const dy of [-4, 0, 4]) for(const dx of [-2, 2]){
         ctx.beginPath(); ctx.arc(-o.w/2 + G.grip/2 + dx, yTop + G.rowH/2 + dy, 1.1, 0, 7); ctx.fill();
       }
-      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '12px Geist,-apple-system,Segoe UI,sans-serif';
       let x0 = -o.w/2 + G.grip;
       for(let c=0;c<spec.cols.length;c++){
         if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='person:'+p.id+':'+spec.cols[c].key)){
@@ -1541,7 +1565,7 @@ function drawObjectShape(o, ghost){
       o._rowRects.push({personId:p.id, x:o.x - o.w/2, y:o.y + yTop, w:G.grip, h:G.rowH});
     });
     if(!rows.length){
-      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '12px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ph40;
       ctx.fillText('No ' + spec.tag + ' yet — tap + to add', -o.w/2 + G.grip + 8,
         -o.h/2 + G.titleH + G.headH + G.rowH/2);
@@ -1559,11 +1583,11 @@ function drawObjectShape(o, ghost){
     const spec = FIELD_CARDS[o.kind] || FIELD_CARDS.prodinfo;
     const G = FIELD_GEO;
     // label column + self-sizing value column
-    ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 9.5px Geist,-apple-system,Segoe UI,sans-serif';
     let labW = 0;
     for(const r of spec.rows) labW = Math.max(labW, ctx.measureText(r.label.toUpperCase()).width);
     labW += 20;
-    ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '12px Geist,-apple-system,Segoe UI,sans-serif';
     let valW = 170;
     for(const r of spec.rows)
       valW = Math.max(valW, ctx.measureText(fieldGet(o, r.key) || r.ph).width + 18);
@@ -1572,28 +1596,27 @@ function drawObjectShape(o, ghost){
     o.w = labW + valW;
     o.h = G.titleH + spec.rows.length*G.rowH;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-    ctx.fillStyle = spec.color; ctx.globalAlpha = .14;
+    ctx.fillStyle = headFill(spec.color);
     ctx.fillRect(-o.w/2, -o.h/2, o.w, G.titleH);
-    ctx.globalAlpha = 1;
     ctx.textBaseline = 'middle';
-    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
-    ctx.fillText(spec.title, -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    headText(spec.title, -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
     ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(-o.w/2, -o.h/2 + G.titleH); ctx.lineTo(o.w/2, -o.h/2 + G.titleH); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-o.w/2 + labW, -o.h/2 + G.titleH); ctx.lineTo(-o.w/2 + labW, o.h/2); ctx.stroke();
     spec.rows.forEach((r, i)=>{
       const yTop = -o.h/2 + G.titleH + i*G.rowH;
       if(i){ ctx.beginPath(); ctx.moveTo(-o.w/2, yTop); ctx.lineTo(o.w/2, yTop); ctx.stroke(); }
-      ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '700 9.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
       ctx.fillText(r.label.toUpperCase(), -o.w/2 + 10, yTop + G.rowH/2 + .5);
       if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='fval:'+i)){
         const v = fieldGet(o, r.key);
-        ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+        ctx.font = '12px Geist,-apple-system,Segoe UI,sans-serif';
         ctx.fillStyle = v ? THEME.body : THEME.ph35;
         ctx.fillText(trimText(ctx, v || r.ph, valW - 16), -o.w/2 + labW + 8, yTop + G.rowH/2 + .5);
       }
@@ -1625,7 +1648,7 @@ function drawObjectShape(o, ghost){
     o._avCols = cols;
     o.w = G.grip + cols.reduce((a,c)=>a+c[2], 0);
     const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
-    ctx.font = (G.fontPx*S) + 'px -apple-system,Segoe UI,sans-serif';
+    ctx.font = (G.fontPx*S) + 'px Geist,-apple-system,Segoe UI,sans-serif';
     const rowHs = o.rows.map(r=>{
       let lines = 1;
       for(const [key,,wd] of cols)
@@ -1638,25 +1661,24 @@ function drawObjectShape(o, ghost){
     o._rowHs = rowHs;
     o.h = G.titleH + G.headH + rowHs.reduce((a,b)=>a+b, 0);
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillStyle = headFill(o.color);
     ctx.fillRect(-o.w/2, -o.h/2, o.w, G.titleH);
-    ctx.globalAlpha = 1;
     ctx.textBaseline = 'middle';
     // title + column headers read a step LARGER than the body text, and scale along
-    ctx.font = '700 ' + (16*S) + 'px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 ' + (16*S) + 'px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
-    ctx.fillText(o.mode === 'shotlist' ? (o.label || slCardTitle(o)) : (o.label || 'AV SCRIPT'), -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    headText(o.mode === 'shotlist' ? (o.label || slCardTitle(o)) : (o.label || 'AV SCRIPT'), -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
     if(o.mode === 'shotlist' && o._wrap){ // shots · wrap, right in the title strip
       const nSh = o.rows.filter(r=>!r.block && (r.key || r.shot || r.video)).length;
-      ctx.textAlign = 'right'; ctx.font = '600 ' + (12*S) + 'px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.ink2;
+      ctx.textAlign = 'right'; ctx.font = '600 ' + (12*S) + 'px Geist,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.85)';
       ctx.fillText(nSh + ' shot' + (nSh === 1 ? '' : 's') + '  ·  wrap ' + o._wrap, o.w/2 - 10, -o.h/2 + G.titleH/2 + .5);
       ctx.textAlign = 'left';
     }
     // column headers + separators
-    ctx.font = '700 ' + (14*S) + 'px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 ' + (14*S) + 'px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink2;
     o._colDels = selMe ? [] : null;
     let hx = -o.w/2 + G.grip;
@@ -1670,10 +1692,10 @@ function drawObjectShape(o, ghost){
         ctx.fillStyle = THEME.chip; ctx.fill();
         ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1; ctx.stroke();
         ctx.fillStyle = THEME.ink2; ctx.textAlign = 'center';
-        ctx.font = '700 9px -apple-system,Segoe UI,sans-serif';
+        ctx.font = '700 9px Geist,-apple-system,Segoe UI,sans-serif';
         ctx.fillText('×', hx + wd - 11, headMid);
         ctx.textAlign = 'left';
-        ctx.font = '700 ' + (14*S) + 'px -apple-system,Segoe UI,sans-serif';
+        ctx.font = '700 ' + (14*S) + 'px Geist,-apple-system,Segoe UI,sans-serif';
         o._colDels.push({colId:key, x:o.x + hx + wd - 11, y:o.y + headMid, r:8});
       }
       hx += wd;
@@ -1736,7 +1758,7 @@ function drawObjectShape(o, ghost){
               ctx.fillStyle = THEME.chip; ctx.fill();
               ctx.strokeStyle = THEME.ink3; ctx.lineWidth = 1; ctx.stroke();
               ctx.fillStyle = THEME.ink2; ctx.textAlign = 'center';
-              ctx.font = '700 9px -apple-system,Segoe UI,sans-serif';
+              ctx.font = '700 9px Geist,-apple-system,Segoe UI,sans-serif';
               ctx.fillText('×', ix + slot - 7, iy + 7.5);
               ctx.textAlign = 'left';
               o._stillDels.push({rowId:r.id, idx:ii, x:o.x + ix + slot - 7, y:o.y + iy + 7, r:9});
@@ -1748,7 +1770,7 @@ function drawObjectShape(o, ghost){
           ctx.strokeStyle = THEME.line2; ctx.setLineDash([4,3]);
           ctx.beginPath(); ctx.roundRect(ix, iy, pw, ih, 2); ctx.stroke();
           ctx.setLineDash([]);
-          ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+          ctx.font = '11px Geist,-apple-system,Segoe UI,sans-serif';
           ctx.fillStyle = THEME.ph40;
           ctx.textAlign = 'center';
           ctx.fillText((r.imgs && r.imgs.length) ? '+' : '+ still', ix + pw/2, iy + ih/2);
@@ -1756,7 +1778,7 @@ function drawObjectShape(o, ghost){
           o._stillRects.push({rowId:r.id, idx:'add', x:o.x + ix, y:o.y + iy, w:pw, h:ih});
         } else if(!editing){
           const multi = !avSingle(key);
-          ctx.font = (G.fontPx*S) + 'px -apple-system,Segoe UI,sans-serif';
+          ctx.font = (G.fontPx*S) + 'px Geist,-apple-system,Segoe UI,sans-serif';
           const v = r[key] || '';
           if(multi){
             ctx.fillStyle = v ? (key==='audio' ? shade(o.color, .75) : THEME.body) : THEME.ph30;
@@ -1769,10 +1791,10 @@ function drawObjectShape(o, ghost){
             ctx.textBaseline = 'middle';
           } else {
             ctx.fillStyle = (v && !(key === 'time')) ? THEME.ink : (key === 'time' ? THEME.ink2 : THEME.ph30);
-            ctx.font = '600 ' + (G.fontPx*S) + 'px -apple-system,Segoe UI,sans-serif';
+            ctx.font = '600 ' + (G.fontPx*S) + 'px Geist,-apple-system,Segoe UI,sans-serif';
             const sph = o.mode === 'shotlist' ? (key==='time' ? '—' : key==='dur' ? 'min' : key==='shot' ? (r.block ? '' : '1A') : (r.block ? '' : 'SC')) : (key==='time' ? '0:00' : key==='dur' ? 's' : '#');
             if(r.block && key === 'no'){ // block rows carry their kind where the SC would be
-              ctx.font = '700 ' + (10*S) + 'px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = r.block === 'break' ? THEME.warn : r.block === 'move' ? THEME.accent : THEME.ink2;
+              ctx.font = '700 ' + (10*S) + 'px Geist,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = r.block === 'break' ? THEME.warn : r.block === 'move' ? THEME.accent : THEME.ink2;
               ctx.fillText(trimText(ctx, (SL_BLOCKS[r.block] || ['·'])[0].toUpperCase().split(' ')[0], wd - 6), x0 + 6, yTop + rh/2 + .5);
             } else ctx.fillText(trimText(ctx, v || sph, wd - 12), x0 + 8, yTop + rh/2 + .5);
           }
@@ -1802,27 +1824,26 @@ function drawObjectShape(o, ghost){
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'colcard'){
     // column card: title strip + free text, in the shared card chrome
-    const titleH = 26, pad = 10, lineH = 16;
-    ctx.font = '12.5px -apple-system,Segoe UI,sans-serif';
+    const titleH = 32, pad = 10, lineH = 16;
+    ctx.font = '12.5px Geist,-apple-system,Segoe UI,sans-serif';
     const lines = wrapCanvasText(ctx, o.text || '', o.w - pad*2);
     o.h = Math.max(110, titleH + pad*2 + lines.length*lineH);
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillStyle = headFill(o.color);
     ctx.fillRect(-o.w/2, -o.h/2, o.w, titleH);
-    ctx.globalAlpha = 1;
     ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(-o.w/2, -o.h/2 + titleH); ctx.lineTo(o.w/2, -o.h/2 + titleH); ctx.stroke();
     ctx.textBaseline = 'middle';
     if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='cc:title')){
-      ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = o.title ? THEME.ink : THEME.ph35;
-      ctx.fillText(trimText(ctx, (o.title || 'TITLE…').toUpperCase(), o.w - 20), -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+      headText(trimText(ctx, (o.title || 'TITLE…').toUpperCase(), o.w - 20), -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
     }
     if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='cc:text')){
-      ctx.font = '12.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '12.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = o.text ? THEME.body : THEME.ph35;
       ctx.textBaseline = 'alphabetic';
       const ls = o.text ? lines : ['Click to write…'];
@@ -1837,16 +1858,16 @@ function drawObjectShape(o, ghost){
     // the flexible day strip: scene rows + break/move/prep blocks, draggable
     // order, checkboxes, pinnable times, renamable rows. computeSchedule
     // owns the chaining; this draws it and lays out the edit zones.
-    const titleH = 26, rowH = 24, pad = 10, grip = 14;
+    const titleH = 32, rowH = 24, pad = 10, grip = 14;
     const day = dayFor(o); // bound shoot day (first one when unbound)
     const {rows, wrap} = computeSchedule(o, day);
     const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
     // width: longest row label (and the calls line) sets it; the right-edge
     // handle lets the user widen further (o.userW)
-    ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '11.5px Geist,-apple-system,Segoe UI,sans-serif';
     let labMax = 130;
     for(const r of rows) labMax = Math.max(labMax, ctx.measureText(r.label).width);
-    ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 11.5px Geist,-apple-system,Segoe UI,sans-serif';
     const callsW = ctx.measureText(day
       ? 'General call ' + (day.call || '–') + '   ·   shooting call ' + (day.shootCall || '–')
       : 'Drop a Day header for the call times…').width;
@@ -1854,27 +1875,25 @@ function drawObjectShape(o, ghost){
     o.w = clamp(Math.max(needW, o.userW || 344), 344, 900);
     o.h = titleH + pad + 20 + 6 + rows.length*rowH + 26 + pad;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillStyle = headFill(o.color);
     ctx.fillRect(-o.w/2, -o.h/2, o.w, titleH);
-    ctx.globalAlpha = 1;
     ctx.textBaseline = 'middle';
-    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
-    ctx.fillText('DAY SCHEDULE', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+    headText('DAY SCHEDULE', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
     if(day && day.date){
       const d = new Date(day.date + 'T12:00:00');
       ctx.textAlign = 'right';
-      ctx.font = '600 10.5px -apple-system,Segoe UI,sans-serif';
-      ctx.fillText(isNaN(d) ? day.date :
-        d.toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short'}),
-        o.w/2 - 8, -o.h/2 + titleH/2 + .5);
+      ctx.font = '600 10.5px Geist,-apple-system,Segoe UI,sans-serif';
+      headText(isNaN(d) ? day.date :
+        d.toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short'}), o.w/2 - 8, -o.h/2 + titleH/2 + .5);
       ctx.textAlign = 'left';
     }
     let y = -o.h/2 + titleH + pad + 9;
-    ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 11.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = day ? THEME.ink : THEME.ph35;
     ctx.fillText(day
       ? 'General call ' + (day.call || '–') + '   ·   shooting call ' + (day.shootCall || '–')
@@ -1911,21 +1930,21 @@ function drawObjectShape(o, ghost){
       o._checkRects.push({itemId:it.id, x:o.x + cbX - 4, y:o.y + cy - 12, w:24, h:24});
       // time (click to pin; pinned times show in the card color)
       if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='sch:'+it.id+':time')){
-        ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+        ctx.font = '600 11.5px Geist,-apple-system,Segoe UI,sans-serif';
         ctx.fillStyle = !on ? THEME.ph30 : (toMinutes(it.time) != null ? shade(o.color,.75) : THEME.ink);
         ctx.fillText(on && r.start != null ? minToHHMM(r.start) : '—', tX, cy);
       }
       o._timeRects.push({itemId:it.id, x:o.x + tX - 4, y:o.y + cy - 11, w:46, h:22});
       // label (click to rename — scenes keep their board name, this is display-only)
       if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='sch:'+it.id+':label')){
-        ctx.font = (it.type === 'scene' ? '' : 'italic ') + '11.5px -apple-system,Segoe UI,sans-serif';
+        ctx.font = (it.type === 'scene' ? '' : 'italic ') + '11.5px Geist,-apple-system,Segoe UI,sans-serif';
         ctx.fillStyle = on ? THEME.body : THEME.ph30;
         ctx.fillText(trimText(ctx, r.label, dX - lX - 8), lX, cy);
       }
       o._labelRects.push({itemId:it.id, x:o.x + lX - 4, y:o.y + cy - 11, w:dX - lX, h:22});
       // duration — always editable; scene overrides show in the card color
       if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='sch:'+it.id+':dur')){
-        ctx.font = '10.5px -apple-system,Segoe UI,sans-serif';
+        ctx.font = '10.5px Geist,-apple-system,Segoe UI,sans-serif';
         const overridden = it.type === 'scene' && it.dur != null;
         ctx.fillStyle = !on ? 'rgba(74,70,54,.25)' : (overridden ? shade(o.color,.75) : THEME.ink2);
         ctx.textAlign = 'right';
@@ -1938,7 +1957,7 @@ function drawObjectShape(o, ghost){
     // wrap line
     ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(-o.w/2 + pad, y - 4); ctx.lineTo(o.w/2 - pad, y - 4); ctx.stroke();
-    ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 11.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
     ctx.fillText('Est. wrap ' + ((day && day.wrap) || wrap), -o.w/2 + pad, y + 9);
     ctx.restore();
@@ -1959,14 +1978,14 @@ function drawObjectShape(o, ghost){
   } else if(o.cat === 'proplist' || o.cat === 'gearlist'){
     // the prop master's / gaffer's list — auto-filled per scene, tick boxes,
     // dismissable auto rows, free manual rows. Same card, two detectors.
-    const titleH = 26, rowH = 21, headH = 22, addH = 17, pad = 10;
+    const titleH = 32, rowH = 21, headH = 22, addH = 17, pad = 10;
     const groups = (o.cat === 'gearlist' ? gearListGroups : propListGroups)(o);
     const selMe = sel && sel.type==='object' && sel.id===o.id && !ghost;
     // width: longest scene header / prop name sets it; the right-edge handle widens
     let labMax = 120;
-    ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 10px Geist,-apple-system,Segoe UI,sans-serif';
     for(const g of groups) labMax = Math.max(labMax, ctx.measureText(plSceneHead(g.s)).width - 22);
-    ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '11.5px Geist,-apple-system,Segoe UI,sans-serif';
     for(const g of groups) for(const r of g.rows)
       labMax = Math.max(labMax, ctx.measureText(r.name + (r.count > 1 ? '  ×' + r.count : '')).width);
     o.w = clamp(Math.max(pad*2 + 22 + labMax + 40, o.userW || 280), 280, 900); // +40: room for the × column
@@ -1974,29 +1993,28 @@ function drawObjectShape(o, ghost){
     for(const g of groups) need += headH + g.rows.length*rowH + addH;
     o.h = need + pad - 2;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillStyle = headFill(o.color);
     ctx.fillRect(-o.w/2, -o.h/2, o.w, titleH);
-    ctx.globalAlpha = 1;
     ctx.textBaseline = 'middle';
-    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
-    ctx.fillText(o.cat === 'gearlist' ? 'GEAR LIST' : 'PROP LIST', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+    headText(o.cat === 'gearlist' ? 'GEAR LIST' : 'PROP LIST', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
     const total = groups.reduce((n,g)=>n + g.rows.length, 0);
     const got = groups.reduce((n,g)=>n + g.rows.filter(r=>r.done).length, 0);
     ctx.textAlign = 'right';
-    ctx.font = '600 10.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 10.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink2;
-    ctx.fillText(total ? got + ' / ' + total : '', o.w/2 - 8, -o.h/2 + titleH/2 + .5);
+    headText(total ? got + ' / ' + total : '', o.w/2 - 8, -o.h/2 + titleH/2 + .5);
     ctx.textAlign = 'left';
     o._plChecks = []; o._plNames = []; o._plAdds = []; o._plDels = [];
     const cbX = -o.w/2 + pad, nX = cbX + 22;
     let y = -o.h/2 + titleH + 8;
     for(const g of groups){
       // scene header
-      ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '700 10px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
       ctx.fillText(trimText(ctx, plSceneHead(g.s), o.w - pad*2), cbX, y + headH/2 + 2);
       y += headH;
@@ -2016,7 +2034,7 @@ function drawObjectShape(o, ghost){
           x:o.x + cbX - 4, y:o.y + cy - 11, w:22, h:22});
         // name — script mentions in italic, ticked rows struck through
         if(!(noteEditor && noteEditor.id===o.id && r.rowId && noteEditor.field==='pl:'+r.sceneId+':'+r.rowId)){
-          ctx.font = (r.script ? 'italic ' : '') + '11.5px -apple-system,Segoe UI,sans-serif';
+          ctx.font = (r.script ? 'italic ' : '') + '11.5px Geist,-apple-system,Segoe UI,sans-serif';
           ctx.fillStyle = r.done ? THEME.ph40 : THEME.body;
           const txt = r.name + (r.count > 1 ? '  ×' + r.count : '');
           ctx.fillText(trimText(ctx, txt, o.w/2 - pad - nX - 26), nX, cy);
@@ -2032,7 +2050,7 @@ function drawObjectShape(o, ghost){
         y += rowH;
       }
       // + prop
-      ctx.font = '600 10.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '600 10.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = shade(o.color, .75);
       ctx.fillText('+ prop', nX, y + addH/2);
       o._plAdds.push({sceneId:g.s.id, x:o.x + cbX, y:o.y + y - 2, w:90, h:addH + 4});
@@ -2043,7 +2061,7 @@ function drawObjectShape(o, ghost){
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.stroke();
     // × chips: manual rows are removed, auto rows dismissed (they'd re-detect)
     { // × on EVERY row, inside the card — removing must never be a hunt
-      ctx.textAlign = 'center'; ctx.font = '700 12px -apple-system,Segoe UI,sans-serif';
+      ctx.textAlign = 'center'; ctx.font = '700 12px Geist,-apple-system,Segoe UI,sans-serif';
       let y2 = -o.h/2 + titleH + 8;
       for(const g of groups){
         y2 += headH;
@@ -2078,7 +2096,7 @@ function drawObjectShape(o, ghost){
     const dayList = multi ? allD : [day];
     const wea = b && b.objects.find(x=>x.cat==='weather' && x.data && x.data.length);
     const ppl = t => peopleReg().filter(p=>p.tag===t);
-    const titleH = 26, rowH = 17, secHead = 16, gap = 8, pad = 10;
+    const titleH = 32, rowH = 17, secHead = 16, gap = 8, pad = 10;
     // width resolves AFTER the lines are built (auto-fit + manual handle)
     // build sections as [header, [lines, …]] — a line is [kind, text, segs?]
     // where segs mark LINKED substrings ({s,e,u}) → blue + underline on the
@@ -2227,10 +2245,10 @@ function drawObjectShape(o, ghost){
       if(calls) head.push(['b', calls]);
     } else head.push(['p', 'drop a Day header card for date & calls…']);
     // width: fit the longest line, or the user's own width — whichever wins
-    const fontFor = k => k === 't' ? '800 13px -apple-system,Segoe UI,sans-serif'
-      : k === 'b' ? '600 11.5px -apple-system,Segoe UI,sans-serif'
-      : k === 'p' ? 'italic 11px -apple-system,Segoe UI,sans-serif'
-      : '11.5px -apple-system,Segoe UI,sans-serif';
+    const fontFor = k => k === 't' ? '800 13px Geist,-apple-system,Segoe UI,sans-serif'
+      : k === 'b' ? '600 11.5px Geist,-apple-system,Segoe UI,sans-serif'
+      : k === 'p' ? 'italic 11px Geist,-apple-system,Segoe UI,sans-serif'
+      : '11.5px Geist,-apple-system,Segoe UI,sans-serif';
     let needW = 380 - pad*2;
     for(const [k, txt] of head.concat(...secs.map(s2=>s2[1]))){
       ctx.font = fontFor(k);
@@ -2242,28 +2260,27 @@ function drawObjectShape(o, ghost){
       secs.reduce((a, s)=>a + secHead + s[1].length*rowH + gap, 0) + pad - gap + 6;
     // draw
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillStyle = headFill(o.color);
     ctx.fillRect(-o.w/2, -o.h/2, o.w, titleH);
-    ctx.globalAlpha = 1;
     ctx.textBaseline = 'middle';
-    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
-    ctx.fillText('CALL SHEET', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
-    ctx.font = '10px -apple-system,Segoe UI,sans-serif';
+    headText('CALL SHEET', -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+    ctx.font = '10px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink2;
     ctx.textAlign = 'right';
-    ctx.fillText('live — edits happen on the source cards', o.w/2 - 8, -o.h/2 + titleH/2 + .5);
+    headText('live — edits happen on the source cards', o.w/2 - 8, -o.h/2 + titleH/2 + .5);
     ctx.textAlign = 'left';
     let y = -o.h/2 + titleH + pad + rowH/2;
     o._csLinks = []; // card-local link rects — the PDF export turns these into annotations
     const drawLine = (kind, txt, segs)=>{
-      if(kind === 't'){ ctx.font = '800 13px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.ink; }
-      else if(kind === 'b'){ ctx.font = '600 11.5px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.ink; }
-      else if(kind === 'p'){ ctx.font = 'italic 11px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.ph40; }
-      else { ctx.font = '11.5px -apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.body; }
+      if(kind === 't'){ ctx.font = '800 13px Geist,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.ink; }
+      else if(kind === 'b'){ ctx.font = '600 11.5px Geist,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.ink; }
+      else if(kind === 'p'){ ctx.font = 'italic 11px Geist,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.ph40; }
+      else { ctx.font = '11.5px Geist,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = THEME.body; }
       const shown = trimText(ctx, txt, o.w - pad*2);
       ctx.fillText(shown, -o.w/2 + pad, y);
       if(segs) for(const sg of segs){
@@ -2298,7 +2315,7 @@ function drawObjectShape(o, ghost){
     for(const [name, lines] of secs){
       ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(-o.w/2 + pad, y - rowH/2 - 2); ctx.lineTo(o.w/2 - pad, y - rowH/2 - 2); ctx.stroke();
-      ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '700 9.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = shade(o.color, .8);
       ctx.fillText(name, -o.w/2 + pad, y + 2);
       y += secHead;
@@ -2311,29 +2328,26 @@ function drawObjectShape(o, ghost){
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'subboard'){
     // a board inside the board: named card + live thumbnail of its contents
-    const titleH = 26;
+    const titleH = 32;
     o.w = Math.max(o.w || 260, 160);
     o.h = Math.max(o.h || 180, 120);
     const nObj = (o.board && o.board.objects || []).length;
     const nWall = (o.board && o.board.walls || []).length;
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-    ctx.fillStyle = o.color; ctx.globalAlpha = .14;
+    ctx.fillStyle = headFill(o.color);
     ctx.fillRect(-o.w/2, -o.h/2, o.w, titleH);
-    ctx.globalAlpha = 1;
     ctx.textBaseline = 'middle';
-    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
-    ctx.fillText('▣ ' + trimText(ctx, (o.label || 'SUB-BOARD').toUpperCase(), o.w - 70),
-      -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
+    headText('▣ ' + trimText(ctx, (o.label || 'SUB-BOARD').toUpperCase(), o.w - 70), -o.w/2 + 10, -o.h/2 + titleH/2 + .5);
     if(nObj + nWall){
       ctx.textAlign = 'right';
-      ctx.font = '600 10px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '600 10px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
-      ctx.fillText((nObj + nWall) + ' item' + (nObj + nWall === 1 ? '' : 's'),
-        o.w/2 - 8, -o.h/2 + titleH/2 + .5);
+      headText((nObj + nWall) + ' item' + (nObj + nWall === 1 ? '' : 's'), o.w/2 - 8, -o.h/2 + titleH/2 + .5);
       ctx.textAlign = 'left';
     }
     const pv = o._pv;
@@ -2346,7 +2360,7 @@ function drawObjectShape(o, ghost){
       ctx.drawImage(pv, -dw/2, -o.h/2 + titleH + 6 + (bh - dh)/2, dw, dh);
       ctx.globalAlpha = 1;
     } else {
-      ctx.font = 'italic 11px -apple-system,Segoe UI,sans-serif';
+      ctx.font = 'italic 11px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ph40;
       ctx.textAlign = 'center';
       ctx.fillText(nObj + nWall ? 'rendering preview…' : 'empty — double-click to open',
@@ -2373,38 +2387,36 @@ function drawObjectShape(o, ghost){
     o.w = G.w;
     o.h = G.titleH + G.bigH + G.rowH*2 + (dLocs.length ? G.rowH : 0);
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
-    ctx.fillStyle = o.color || THEME.danger; ctx.globalAlpha = .14;
+    ctx.fillStyle = headFill(o.color || THEME.danger);
     ctx.fillRect(-o.w/2, -o.h/2, o.w, G.titleH);
-    ctx.globalAlpha = 1;
     ctx.textBaseline = 'middle';
-    ctx.font = '700 11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
-    ctx.fillText('SHOOT DAY ' + dayNumber(o), -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
+    headText('SHOOT DAY ' + dayNumber(o), -o.w/2 + 10, -o.h/2 + G.titleH/2 + .5);
     // date, right-aligned in the strip (Dutch long form)
     ctx.textAlign = 'right';
-    ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 11px Geist,-apple-system,Segoe UI,sans-serif';
     if(o.date){
       const d = new Date(o.date + 'T12:00:00');
       ctx.fillStyle = THEME.ink;
-      ctx.fillText(isNaN(d) ? o.date :
-        d.toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'long', year:'numeric'}),
-        o.w/2 - 8, -o.h/2 + G.titleH/2 + .5);
+      headText(isNaN(d) ? o.date :
+        d.toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'long', year:'numeric'}), o.w/2 - 8, -o.h/2 + G.titleH/2 + .5);
     } else {
       ctx.fillStyle = THEME.ph35;
-      ctx.fillText('pick a date (selection bar)', o.w/2 - 8, -o.h/2 + G.titleH/2 + .5);
+      headText('pick a date (selection bar)', o.w/2 - 8, -o.h/2 + G.titleH/2 + .5);
     }
     ctx.textAlign = 'left';
     // big general call
     const bigY = -o.h/2 + G.titleH + G.bigH/2;
     if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='dh:call')){
       ctx.textAlign = 'center';
-      ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '700 10px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
       ctx.fillText('GENERAL CALL', 0, bigY - 16);
-      ctx.font = '800 26px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '800 26px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = o.call ? THEME.ink : THEME.ph30;
       ctx.fillText(o.call || '07:00', 0, bigY + 8);
       ctx.textAlign = 'left';
@@ -2414,11 +2426,11 @@ function drawObjectShape(o, ghost){
     ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(-o.w/2, r1); ctx.lineTo(o.w/2, r1); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, r1); ctx.lineTo(0, r1 + G.rowH); ctx.stroke();
-    ctx.font = '700 9.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 9.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink2;
     ctx.fillText('SHOOTING CALL', -o.w/2 + 10, r1 + G.rowH/2 + .5);
     ctx.fillText('EST. WRAP', 10, r1 + G.rowH/2 + .5);
-    ctx.font = '600 13px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 13px Geist,-apple-system,Segoe UI,sans-serif';
     if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='dh:shootCall')){
       ctx.fillStyle = o.shootCall ? THEME.ink : THEME.ph30;
       ctx.textAlign = 'right';
@@ -2436,20 +2448,20 @@ function drawObjectShape(o, ghost){
     ctx.beginPath(); ctx.moveTo(-o.w/2, r2); ctx.lineTo(o.w/2, r2); ctx.stroke();
     const sun = (o.date && o.lat !== undefined && o.lat !== null)
       ? sunTimes(o.date, o.lat, o.lon) : null;
-    ctx.font = '600 12px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 12px Geist,-apple-system,Segoe UI,sans-serif';
     if(sun && sun.rise){
       ctx.fillStyle = '#C98A17';
       ctx.fillText('☀↑ ' + sun.rise + '   ☀↓ ' + sun.set, -o.w/2 + 10, r2 + G.rowH/2 + .5);
       if(o.place){
         ctx.textAlign = 'right';
-        ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+        ctx.font = '11px Geist,-apple-system,Segoe UI,sans-serif';
         ctx.fillStyle = THEME.ink2;
         ctx.fillText(trimText(ctx, o.place, o.w/2 - 90), o.w/2 - 8, r2 + G.rowH/2 + .5);
         ctx.textAlign = 'left';
       }
     } else {
       ctx.fillStyle = THEME.ph35;
-      ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '11px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillText('☀ sunrise/sunset — "Sun from location ↻" in the selection bar',
         -o.w/2 + 10, r2 + G.rowH/2 + .5);
     }
@@ -2458,7 +2470,7 @@ function drawObjectShape(o, ghost){
       const r3 = r2 + G.rowH;
       ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(-o.w/2, r3); ctx.lineTo(o.w/2, r3); ctx.stroke();
-      ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '600 11px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.body;
       const chain = dLocs.map((l, i)=>(dLocs.length > 1 ? (i+1) + ' ' : '') +
         (l.name || l.town || 'location')).join('  →  ');
@@ -2485,7 +2497,7 @@ function drawObjectShape(o, ghost){
       ctx.fillRect(-o.w/2, o.h/2-stripH, o.w, stripH);
       ctx.strokeStyle = THEME.soft; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(-o.w/2, o.h/2-stripH); ctx.lineTo(o.w/2, o.h/2-stripH); ctx.stroke();
-      ctx.font = '600 11px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '600 11px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillStyle = THEME.ink;
       ctx.fillText(trimText(ctx, o.name||'File', o.w-16), 0, o.h/2 - stripH/2 + 1);
@@ -2497,8 +2509,8 @@ function drawObjectShape(o, ghost){
       return;        // leaked the transform and broke every draw after it
     }
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
-    ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
+    ctx.strokeStyle = THEME.line; ctx.lineWidth = 1; ctx.stroke();
     // doc icon with folded corner
     const ix = -o.w/2 + 14, iy = -14, iw2 = 26, ih2 = 32;
     ctx.beginPath();
@@ -2508,41 +2520,50 @@ function drawObjectShape(o, ghost){
     ctx.strokeStyle = o.color; ctx.lineWidth = 1.6; ctx.stroke();
     ctx.beginPath(); ctx.moveTo(ix+iw2-9, iy); ctx.lineTo(ix+iw2-9, iy+9); ctx.lineTo(ix+iw2, iy+9); ctx.stroke();
     const ext = ((o.name||'').split('.').pop()||'').slice(0,4).toUpperCase();
-    ctx.font = '700 8px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '700 8px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = shade(o.color,.7);
     ctx.textAlign = 'center';
     ctx.fillText(ext, ix+iw2/2, iy+ih2-8);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = '600 12.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '600 12.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink;
     ctx.fillText(trimText(ctx, o.name||'File', o.w - 70), ix + iw2 + 12, -8);
-    ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '11px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink2;
     ctx.fillText((o.size ? Math.round(o.size/1024) + ' KB \u00b7 ' : '') + 'select \u2192 Download', ix + iw2 + 12, 10);
     ctx.textBaseline = 'alphabetic';
   } else if(o.cat === 'script'){
-    const fs = o.fontSize || 12.5, lh = fs*1.5, pad = 18, headH = o.mode==='av' ? 30 : 12;
+    const tb = o.title ? 32 : 0; // UI 2.0: a titled script gets a solid header like the other cards
+    const fs = o.fontSize || 12.5, lh = fs*1.5, pad = 18, headH = (o.mode==='av' ? 30 : 12) + tb;
     ctx.font = fs + 'px ui-monospace,Menlo,monospace';
     const colW = o.mode==='av' ? o.w/2 - pad*1.5 : o.w - pad*2;
     const linesL = wrapCanvasText(ctx, o.text || '', colW);
     const linesR = o.mode==='av' ? wrapCanvasText(ctx, o.textR || '', colW) : [];
     o.h = Math.max(220, headH + Math.max(linesL.length, linesR.length)*lh + pad*2);
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
-    ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
+    ctx.strokeStyle = THEME.line; ctx.lineWidth = 1; ctx.stroke();
+    if(tb){
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
+      ctx.fillStyle = headFill(o.color || '#A98BE0'); ctx.fillRect(-o.w/2, -o.h/2, o.w, tb);
+      ctx.textBaseline = 'middle'; ctx.font = '700 12.5px Geist,-apple-system,Segoe UI,sans-serif';
+      headText(trimText(ctx, o.title, o.w - 24), -o.w/2 + 12, -o.h/2 + tb/2 + .5);
+      ctx.restore();
+    }
     ctx.save();
-    ctx.beginPath(); ctx.roundRect(-o.w/2+2,-o.h/2+2,o.w-4,o.h-4,9); ctx.clip();
+    ctx.beginPath(); ctx.roundRect(-o.w/2+2,-o.h/2+2+tb,o.w-4,o.h-4-tb,9); ctx.clip();
     ctx.textBaseline = 'top';
     const editL = noteEditor && noteEditor.id===o.id && noteEditor.field==='text';
     const editR = noteEditor && noteEditor.id===o.id && noteEditor.field==='textR';
     if(o.mode === 'av'){
       ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(0, -o.h/2+headH-4); ctx.lineTo(0, o.h/2); ctx.stroke();
-      ctx.font = '700 10px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '700 10px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
-      ctx.fillText('V I D E O', -o.w/2+pad, -o.h/2+10);
-      ctx.fillText('A U D I O', pad/2, -o.h/2+10);
+      ctx.fillText('V I D E O', -o.w/2+pad, -o.h/2+10+tb);
+      ctx.fillText('A U D I O', pad/2, -o.h/2+10+tb);
     }
     ctx.font = fs + 'px ui-monospace,Menlo,monospace';
     ctx.fillStyle = THEME.ink;
@@ -2557,8 +2578,8 @@ function drawObjectShape(o, ghost){
   } else if(o.cat === 'sbrow'){
     const z1 = o.w*.28, z2 = o.w*.30; // title | image | shot description
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard);
-    ctx.fillStyle = THEME.card; ctx.fill();
-    ctx.strokeStyle = THEME.line2; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = THEME.card; cardShadowOn(); ctx.fill(); cardShadowOff();
+    ctx.strokeStyle = THEME.line; ctx.lineWidth = 1; ctx.stroke();
     ctx.save();
     ctx.beginPath(); ctx.roundRect(-o.w/2,-o.h/2,o.w,o.h, THEME.rCard); ctx.clip();
     ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
@@ -2571,13 +2592,13 @@ function drawObjectShape(o, ghost){
     ctx.textBaseline = 'top';
     // title zone
     if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='title')){
-      ctx.font = '700 13px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '700 13px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink;
       wrapCanvasText(ctx, o.title || 'Scene', z1-24).slice(0,2)
         .forEach((l,i)=> ctx.fillText(l, -o.w/2+14, -o.h/2+12 + i*17));
     }
     const sc0 = o.sceneId && project.scenes.find(x=>x.id===o.sceneId);
-    ctx.font = '10.5px -apple-system,Segoe UI,sans-serif';
+    ctx.font = '10.5px Geist,-apple-system,Segoe UI,sans-serif';
     ctx.fillStyle = THEME.ink2;
     ctx.fillText(sc0 ? '\u2192 board linked' : 'no board yet', -o.w/2+14, o.h/2-20);
     // image zone
@@ -2595,7 +2616,7 @@ function drawObjectShape(o, ghost){
       ctx.strokeStyle = THEME.line2; ctx.setLineDash([4,4]);
       ctx.strokeRect(imx+8, -o.h/2+8, imw-16, o.h-16);
       ctx.setLineDash([]);
-      ctx.font = '11px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '11px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink3;
       ctx.textAlign = 'center';
       ctx.fillText('+ reference', imx + imw/2, -6);
@@ -2604,7 +2625,7 @@ function drawObjectShape(o, ghost){
     o._sbImgZone = {x1:imx, x2:imx+imw};
     // shot description zone
     if(!(noteEditor && noteEditor.id===o.id && noteEditor.field==='desc')){
-      ctx.font = '12px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '12px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = o.desc ? THEME.body : THEME.ph40;
       const dx = -o.w/2 + z1 + z2 + 12;
       wrapCanvasText(ctx, o.desc || 'Double-click for shot description\u2026', o.w - z1 - z2 - 24)
@@ -2628,7 +2649,7 @@ function drawObjectShape(o, ghost){
       ctx.restore();
     }
     if(o.caption && !o.underlay){
-      ctx.font = '11.5px -apple-system,Segoe UI,sans-serif';
+      ctx.font = '11.5px Geist,-apple-system,Segoe UI,sans-serif';
       ctx.fillStyle = THEME.ink2;
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
       wrapCanvasText(ctx, o.caption, o.w - 8).slice(0,2)
@@ -2636,16 +2657,22 @@ function drawObjectShape(o, ghost){
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     }
     if(im && im.complete && im.naturalWidth){
-      ctx.drawImage(im, -o.w/2, -o.h/2, o.w, o.h);
-      ctx.strokeStyle = 'rgba(40,38,32,.18)'; ctx.lineWidth = 1.5/Math.max(view.scale,.3);
-      ctx.strokeRect(-o.w/2, -o.h/2, o.w, o.h);
+      if(o.underlay){
+        ctx.drawImage(im, -o.w/2, -o.h/2, o.w, o.h);
+      } else { // a print on the board: rounded, floating
+        const rr = Math.min(10, o.w*.04, o.h*.04);
+        if(!ghost){ ctx.save(); cardShadowOn(); ctx.beginPath(); ctx.roundRect(-o.w/2, -o.h/2, o.w, o.h, rr); ctx.fillStyle = THEME.card; ctx.fill(); ctx.restore(); }
+        ctx.save(); ctx.beginPath(); ctx.roundRect(-o.w/2, -o.h/2, o.w, o.h, rr); ctx.clip();
+        ctx.drawImage(im, -o.w/2, -o.h/2, o.w, o.h);
+        ctx.restore();
+      }
     } else if(o.videoId){ // video without a poster: dark slate
       ctx.fillStyle = '#2A2926'; ctx.fillRect(-o.w/2, -o.h/2, o.w, o.h);
     } else {
       ctx.fillStyle = '#E8E6E1';
       ctx.fillRect(-o.w/2, -o.h/2, o.w, o.h);
       ctx.fillStyle = THEME.ink2;
-      ctx.font = '13px -apple-system,Segoe UI,sans-serif'; ctx.textAlign='center';
+      ctx.font = '13px Geist,-apple-system,Segoe UI,sans-serif'; ctx.textAlign='center';
       ctx.fillText('loading…', 0, 4);
       ctx.textAlign='left';
       // only kick off a load when nothing is cached yet — a cached-but-broken
@@ -2769,7 +2796,7 @@ function drawObjectShape(o, ghost){
   if(chipText){
     ctx.save();
     const fsc = Math.max(view.scale,.35);
-    ctx.font = `600 ${12/fsc}px -apple-system,Segoe UI,sans-serif`;
+    ctx.font = `600 ${12/fsc}px Geist,-apple-system,Segoe UI,sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     const baseOff = (o.cat==='line')
       ? (o.h/2 + 12/view.scale)
@@ -2825,7 +2852,7 @@ function drawObjectShape(o, ghost){
   }
   if(!ghost && o.cat==='camera' && sel && sel.type==='object' && sel.id===o.id){
     ctx.save();
-    ctx.font = `600 ${11/Math.max(view.scale,.35)}px -apple-system,Segoe UI,sans-serif`;
+    ctx.font = `600 ${11/Math.max(view.scale,.35)}px Geist,-apple-system,Segoe UI,sans-serif`;
     ctx.textAlign='center';
     ctx.fillStyle = shade(o.color,.75);
     const tag = (o.lens ? o.lens+'mm · ' : '') + Math.round(o.fov) + '°';
@@ -2941,7 +2968,7 @@ function drawAim(o){
     ctx.beginPath(); ctx.moveTo(o.x + Math.cos(a)*base, o.y + Math.sin(a)*base); ctx.lineTo(o.x + Math.cos(a)*(R - 9/s), o.y + Math.sin(a)*(R - 9/s)); ctx.stroke();
     if(!selMe){
       ctx.globalAlpha = .9; ctx.beginPath(); ctx.arc(o.x + Math.cos(a)*R, o.y + Math.sin(a)*R, 8/s, 0, 7); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = '700 ' + (10/s) + 'px -apple-system,Segoe UI,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff'; ctx.font = '700 ' + (10/s) + 'px Geist,-apple-system,Segoe UI,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(String(i + 1), o.x + Math.cos(a)*R, o.y + Math.sin(a)*R + .5/s); ctx.fillStyle = col;
     }
     if(selMe){

@@ -455,7 +455,7 @@ function setPresenceChip(names){
     else return;
   }
   el.style.cssText = 'display:inline-flex;align-items:center;gap:6px;white-space:nowrap;' +
-    'font:600 11px -apple-system,Segoe UI,sans-serif;color:#256B3E;' +
+    'font:600 11px Geist,-apple-system,Segoe UI,sans-serif;color:#256B3E;' +
     'background:rgba(46,158,91,.12);border:1px solid rgba(46,158,91,.35);' +
     'border-radius:20px;padding:2px 10px;margin-right:6px;';
   el.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:#2E9E5B;display:inline-block"></span>' +
@@ -724,7 +724,7 @@ async function __floorViewerBoot(token){
     console.error('viewer boot failed', e);
     document.body.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:center;height:100vh;' +
-      'font-family:-apple-system,Segoe UI,sans-serif;color:#33322E;text-align:center;padding:20px">' +
+      'font-family:Geist,-apple-system,Segoe UI,sans-serif;color:#33322E;text-align:center;padding:20px">' +
       '<div><div style="font-size:18px;font-weight:600">This share link is not available</div>' +
       '<div style="color:#8A877F;margin-top:8px;font-size:13px">It may have been revoked, or the link is incomplete.<br>' +
       'Ask the sender for a fresh Floorboard link.</div></div></div>';
@@ -793,7 +793,7 @@ function drawCommentPins(){
     ctx.beginPath(); ctx.arc(c.x, c.y, 11/s, 0, 7);
     ctx.fillStyle = '#E8934C'; ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2/s; ctx.stroke();
-    ctx.font = `700 ${12/s}px -apple-system,Segoe UI,sans-serif`;
+    ctx.font = `700 ${12/s}px Geist,-apple-system,Segoe UI,sans-serif`;
     ctx.fillStyle = '#fff';
     ctx.fillText('"', c.x, c.y + 2/s);
   }

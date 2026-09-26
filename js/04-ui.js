@@ -1554,9 +1554,9 @@ function colCellAt(o, wx, wy){
 }
 function openColCell(o, key){
   if(key === 'title')
-    openNoteEditor(o, 'cc:title', {x:-o.w/2+4, y:-o.h/2+2, w:o.w-8, h:22}, 11);
+    openNoteEditor(o, 'cc:title', {x:-o.w/2+4, y:-o.h/2+3, w:o.w-8, h:26}, 12.5);
   else
-    openNoteEditor(o, 'cc:text', {x:-o.w/2+4, y:-o.h/2+30, w:o.w-8, h:o.h-36}, 12.5);
+    openNoteEditor(o, 'cc:text', {x:-o.w/2+4, y:-o.h/2+36, w:o.w-8, h:o.h-42}, 12.5);
 }
 
 // ---- day schedule (the flexible strip) ----
@@ -1964,7 +1964,7 @@ function buildLibraryInner(){
   noteTile.className='lib-item';
   noteTile.appendChild(tileCanvas((tc,w,h)=>{
     drawNoteShape(tc, {w, h, color:'#E2A93B', text:''}, true);
-  }, 120, 110, '#E2A93B'));
+  }, 120, 110, '#E2A93B', null, null, 'note')); // gradient tile like the rest (TILE_GLYPH.note)
   noteTile.insertAdjacentHTML('beforeend','<span>Sticky note</span>');
   noteTile.addEventListener('pointerdown', e => startLibDrag(e, {cat:'note', kind:'note', w:170, h:150, color:'#E2A93B'}));
   bg.appendChild(noteTile);
@@ -1975,7 +1975,7 @@ function buildLibraryInner(){
     tc.fillStyle=c; tc.globalAlpha=.18; tc.fill(); tc.globalAlpha=1; tc.strokeStyle=c; tc.stroke();
     tc.beginPath(); tc.arc(-w*.2,-h*.15,6,0,7); tc.fillStyle=c; tc.globalAlpha=.6; tc.fill(); tc.globalAlpha=1;
     tc.beginPath(); tc.moveTo(-w/2+6,h/2-8); tc.lineTo(-w*.05,-h*.05); tc.lineTo(w*.2,h*.2); tc.lineTo(w*.38,0); tc.lineTo(w/2-6,h/2-8); tc.stroke();
-  }, 110, 80, '#5B6472'));
+  }, 110, 80, '#5B6472', null, null, 'image'));
   imgTile.insertAdjacentHTML('beforeend','<span>Image…</span>');
   imgTile.addEventListener('click', ()=>document.getElementById('boardImgInput').click());
   bg.appendChild(imgTile);
@@ -1990,7 +1990,7 @@ function buildLibraryInner(){
     bg.appendChild(el);
   };
   boardTile('Text', (tc,w2,h2,c)=>{
-    tc.font='700 '+(h2*.9)+'px -apple-system,Segoe UI,sans-serif';
+    tc.font='700 '+(h2*.9)+'px Geist,-apple-system,Segoe UI,sans-serif';
     tc.textAlign='center'; tc.textBaseline='middle';
     tc.fillStyle=c; tc.fillText('T', 0, 2);
     tc.textAlign='left'; tc.textBaseline='alphabetic';
@@ -2195,7 +2195,7 @@ function startLibDrag(e, spec, fromTouch){
   else if(spec.cat==='actor') drawFn = (tc,w2,h2,col)=>drawActorIcon(tc, w2, h2, col, spec.kind);
   else if(spec.cat==='note') drawFn = (tc,w,h)=>drawNoteShape(tc,{w,h,color:spec.color,text:''},true);
   else if(spec.cat==='text') drawFn = (tc,w2,h2,col)=>{
-    tc.font='700 '+(Math.min(w2,h2)*.9)+'px -apple-system,Segoe UI,sans-serif';
+    tc.font='700 '+(Math.min(w2,h2)*.9)+'px Geist,-apple-system,Segoe UI,sans-serif';
     tc.textAlign='center'; tc.textBaseline='middle';
     tc.fillStyle=col; tc.fillText('T',0,2);
     tc.textAlign='left'; tc.textBaseline='alphabetic';

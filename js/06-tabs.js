@@ -337,7 +337,7 @@ function buildProdLibSection(lib){
       tc.strokeStyle = THEME.danger; tc.lineWidth=2.5; tc.stroke();
       tc.fillStyle = THEME.danger; tc.globalAlpha=.28;
       tc.fillRect(-w2/2, -h2*.4, w2, h2*.16); tc.globalAlpha=1;
-      tc.font='800 '+(h2*.3)+'px -apple-system,Segoe UI,sans-serif';
+      tc.font='800 '+(h2*.3)+'px Geist,-apple-system,Segoe UI,sans-serif';
       tc.textAlign='center'; tc.textBaseline='middle';
       tc.fillStyle = THEME.ink; tc.fillText('07:00', 0, h2*.02);
       tc.textAlign='left'; tc.textBaseline='alphabetic';
@@ -1827,7 +1827,7 @@ async function mergeFloorproj(f){
 function avPasteOverlay(o){
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;inset:0;z-index:210;background:rgba(40,38,32,.35);' +
-    'display:flex;align-items:center;justify-content:center;font-family:-apple-system,Segoe UI,sans-serif;';
+    'display:flex;align-items:center;justify-content:center;font-family:Geist,-apple-system,Segoe UI,sans-serif;';
   el.innerHTML = `
     <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px 28px;
                 width:520px;max-width:92vw;box-shadow:0 18px 60px rgba(40,38,32,.2)">
@@ -2224,7 +2224,7 @@ setTimeout(syncProjBtn, 400);
 function loadScriptOverlay(){
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;inset:0;z-index:210;background:rgba(40,38,32,.35);' +
-    'display:flex;align-items:center;justify-content:center;font-family:-apple-system,Segoe UI,sans-serif;';
+    'display:flex;align-items:center;justify-content:center;font-family:Geist,-apple-system,Segoe UI,sans-serif;';
   el.innerHTML = `
     <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px 28px;
                 width:560px;max-width:94vw;max-height:90vh;overflow:auto;box-shadow:0 18px 60px rgba(40,38,32,.2)">

@@ -56,7 +56,7 @@
   --on-accent:#FFFFFF;
   /* shape */
   --r-xs:7px; --r-sm:10px; --r-md:14px; --r-lg:18px; --r-panel:22px; --r-pill:999px;
-  --r-card:10;           /* canvas roundRect radius, unitless */
+  --r-card:12;           /* canvas roundRect radius, unitless */
   /* size & type */
   --tap:34px;            /* minimum control height with a mouse; touch bumps to 44 */
   --fs:13.5px;

@@ -35,7 +35,7 @@ function tplProdBoard(p, opts){
   if(opts.cast) b.objects.push({id:uid(),cat:'listcard',kind:'cast',x:60,y:20,rot:0,w:560,h:150,color:'#E8934C',label:'',path:[]});
   if(opts.client) b.objects.push({id:uid(),cat:'listcard',kind:'client',x:60,y:opts.cast ? 200 : 20,rot:0,w:560,h:150,color:'#3E9B6E',label:'',path:[]});
   b.objects.push({id:uid(),cat:'fieldcard',kind:'location',x:-420,y:20,rot:0,w:280,h:130,color:PAL.olive,locId:null,label:'',path:[]});
-  b.objects.push({id:uid(),cat:'proplist',kind:'proplist',x:-420,y:250,rot:0,w:280,h:160,color:'#7FA05A',props:{},hide:{},done:{},label:'',path:[]});
+  b.objects.push({id:uid(),cat:'proplist',kind:'proplist',x:-420,y:440,rot:0,w:280,h:160,color:'#7FA05A',props:{},hide:{},done:{},label:'',path:[]});
   b.objects.push({id:uid(),cat:'callsheet',kind:'callsheet',x:760,y:-60,rot:0,w:380,h:300,color:PAL.sky,dayId:dh.id,label:'',path:[]});
   p.prodboard = b;
 }
@@ -172,7 +172,7 @@ async function buildExampleProject(){
     {no:'2',video:'Kitchen, sun. Oat milk pours into the glass — slow, thick, the hero shot.',audio:'Pour. Radio, barely.',dur:'4',notes:'2A gimbal move; 2B top shot for the pour'},
     {no:'3',video:'Front door. Sam sits on the stoop with the glass; the street wakes.',audio:'City ambience up.',dur:'4',notes:'3A steadicam, one take'},
     {no:'3',video:'Pack shot on the step. HAVER — slow mornings.',audio:'VO: "Haver. Take the morning."',dur:'2',notes:'Locked off, product in focus'}], true));
-  sb.objects.push({id:uid(),cat:'script',kind:'script',x:-560,y:0,rot:0,w:460,h:420,title:'Haver — director’s notes',text:'One character, one glass, one morning.\n\nWe never see the product before the pour. The pour is the only slow-motion shot (100 fps). Everything else is calm, real time, natural light plus a soft key.\n\nCasting: Sam is 28–35, not a model. Wardrobe: worn linen, no logos.',mode:'film',label:'',path:[]});
+  sb.objects.push({id:uid(),cat:'script',kind:'script',x:-800,y:0,rot:0,w:460,h:420,title:'Haver — director’s notes',text:'One character, one glass, one morning.\n\nWe never see the product before the pour. The pour is the only slow-motion shot (100 fps). Everything else is calm, real time, natural light plus a soft key.\n\nCasting: Sam is 28–35, not a model. Wardrobe: worn linen, no logos.',mode:'film',label:'',path:[]});
   p.scriptboard = sb;
   // mood
   tplMood(p, 'Haver — slow mornings', [['Natural light, one soft key, no fill above 20%', PAL.sand],['Palette: oat, linen, morning blue', PAL.sky],['Sound: rooms first, music late', PAL.teal]]);

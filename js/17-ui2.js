@@ -27,6 +27,11 @@ function fitFloors(){
   const tight = tb.scrollWidth > tb.clientWidth + 1 || (pb && pb.scrollWidth > pb.clientWidth + 1 && pb.clientWidth < 220);
   if(tight) tb.classList.add('floors-compact');
 }
+// the board draws its text in Geist too — repaint once the faces are in
+if(document.fonts && document.fonts.load){
+  Promise.all(['400 13px Geist', '600 13px Geist', '700 13px Geist', '800 13px Geist'].map(f=>document.fonts.load(f).catch(()=>null)))
+    .then(()=>{ if(typeof render === 'function') render(); });
+}
 (function(){
   let t = 0;
   const later = ()=>{ clearTimeout(t); t = setTimeout(fitFloors, 60); };

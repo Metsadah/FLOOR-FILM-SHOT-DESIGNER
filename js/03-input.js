@@ -1668,7 +1668,7 @@ cv.addEventListener('dblclick', e => {
       return;
     }
     if(o.cat === 'script'){
-      const pad = 18, headH = o.mode==='av' ? 30 : 12;
+      const pad = 18, headH = (o.mode==='av' ? 30 : 12) + (o.title ? 32 : 0);
       const lx = wx - o.x; // local (rot=0 for these blocks)
       if(o.mode === 'av'){
         const half = o.w/2 - pad*1.5;
