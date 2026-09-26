@@ -844,7 +844,10 @@ function render(){
   ctx.setTransform(dpr*view.scale, 0, 0, dpr*view.scale, -view.x*view.scale*dpr, -view.y*view.scale*dpr);
   for(const o of shot.objects) if(o.cat==='image' && o.underlay) drawObject(o); // map / recce underlays first
   drawWalls(shot);
+  if(typeof syncMounts === 'function') syncMounts(shot); // riders follow their dolly / slider / car
   for(const o of shot.objects) if(o.path && o.path.length && o.kind!=='track') drawPath(o);
+  if(!(typeof anim !== 'undefined' && anim.playing))
+    for(const o of shot.objects) if(o.aim && o.aim.length) drawAim(o);
   framePoses = {};
   const animT = (typeof anim !== 'undefined' && anim.playing) ? animProgress() : 0;
   // cast & cameras draw LAST — they must never disappear under set pieces
@@ -2659,7 +2662,7 @@ function drawObjectShape(o, ghost){
     // lights throw a beam / glow (under the icon); Beam toggle in selBar,
     // amber handles adjust spread + throw (stored as o.beamSpread/o.beamRange)
     let beam = (!def && o.beam !== false) ? LIGHT_BEAMS[o.kind] : null;
-    if(beam && o.kind === 'cstand') beam = cstandBeam(o); // wattage + lantern/dome
+    if(beam) beam = lightBeamOf(o) || beam; // wattage, modifiers, spot / fresnel attachments
     if(beam && !ghost){
       const selMe = sel && sel.type==='object' && sel.id===o.id;
       ctx.save();
@@ -2680,13 +2683,30 @@ function drawObjectShape(o, ghost){
         const sp = (o.beamSpread || beam.spread) * (df ? df.sp : 1);
         const rg = o.beamRange || beam.range;
         const a = rad(sp/2);
+        // cutters (shutters on a spot attachment) trim one or both edges
+        let a1 = -a, a2 = a;
+        if(beam.cut && beam.cut.includes('l')) a1 = -a*.3;
+        if(beam.cut && beam.cut.includes('r')) a2 = a*.3;
+        const base = beam.gobo ? a0*.4 : a0;
         const g = ctx.createRadialGradient(0,0,8, 0,0,rg);
-        g.addColorStop(0, 'rgba('+tint+','+a0+')');
+        g.addColorStop(0, 'rgba('+tint+','+base+')');
+        if(beam.hard) g.addColorStop(.85, 'rgba('+tint+','+(base*.8)+')'); // a hard, even spot
         g.addColorStop(1, 'rgba('+tint+',0)');
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.moveTo(0,0);
-        ctx.arc(0,0,rg,-a,a);
+        ctx.arc(0,0,rg,a1,a2);
         ctx.closePath(); ctx.fill();
+        if(beam.gobo){ // the projected pattern, clipped to the beam
+          ctx.save();
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,rg,a1,a2); ctx.closePath(); ctx.clip();
+          drawGobo(beam.gobo, rg, a, tint, a0*1.25, o.id);
+          ctx.restore();
+        }
+        if(beam.hard){ // crisp edges
+          ctx.strokeStyle = 'rgba('+tint+','+(a0*1.6)+')'; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a1)*rg, Math.sin(a1)*rg);
+          ctx.moveTo(0,0); ctx.lineTo(Math.cos(a2)*rg, Math.sin(a2)*rg); ctx.stroke();
+        }
         if(selMe){ // show the adjustable edges while selected
           ctx.strokeStyle = 'rgba(226,169,59,.6)'; ctx.lineWidth = 1.2; ctx.setLineDash([5,5]);
           ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(-a)*rg, Math.sin(-a)*rg);
@@ -2705,14 +2725,27 @@ function drawObjectShape(o, ghost){
     } else
     (def ? PROPS.custom.draw : (PROPS[o.kind]||PROPS.custom).draw)(ctx, o.w, o.h, o.color, def);
     if(o.kind === 'cstand' && o.lmod && !def){
-      // the modifier shows on the icon: paper lantern ball or softbox dome
+      // the modifier shows on the icon: paper lantern ball, softbox dome,
+      // a spotlight lens tube or a fresnel lens in front of the COB
       ctx.save();
       ctx.strokeStyle = o.color; ctx.fillStyle = o.color;
-      if(o.lmod === 'lantern'){
+      const r0 = o.w/2 - 3;
+      if(o.lmod === 'spot'){
+        ctx.globalAlpha = .3; ctx.beginPath(); ctx.roundRect(r0, -7, 34, 14, 3); ctx.fill();
+        ctx.globalAlpha = 1; ctx.lineWidth = 1.6; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(r0 + 34, -9); ctx.lineTo(r0 + 34, 9); ctx.lineWidth = 2.6; ctx.stroke(); // lens
+        if(o.gobo){ ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(r0 + 14, -10); ctx.lineTo(r0 + 14, 10); ctx.stroke(); } // gobo slot
+        if(o.cutter){ ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(r0 + 20, -11); ctx.lineTo(r0 + 26, -5); ctx.moveTo(r0 + 20, 11); ctx.lineTo(r0 + 26, 5); ctx.stroke(); } // shutters
+      } else if(o.lmod === 'fresnel'){
+        ctx.globalAlpha = .3; ctx.beginPath(); ctx.roundRect(r0, -12, 12, 24, 3); ctx.fill();
+        ctx.globalAlpha = 1; ctx.lineWidth = 1.6; ctx.stroke();
+        ctx.lineWidth = 1.2;
+        for(const k of [0, 3, 6]){ ctx.beginPath(); ctx.arc(r0 + 6 - k, 0, 10 - k*.6, -1, 1); ctx.stroke(); } // stepped lens
+      } else if(o.lmod === 'lantern'){
         ctx.globalAlpha = .22; ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7); ctx.fill();
         ctx.globalAlpha = .9; ctx.lineWidth = 1.4;
         ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7); ctx.stroke();
-      } else {
+      } else if(o.lmod === 'dome100' || o.lmod === 'dome150'){
         const r = o.lmod === 'dome150' ? 75 : 50; // 150 / 100 cm dome
         ctx.globalAlpha = .1; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
         ctx.globalAlpha = .5; ctx.lineWidth = 1.2; ctx.setLineDash([6, 5]);
@@ -2854,6 +2887,77 @@ function drawPath(o){
     }
     drawObjectShape(g, true);
   }
+}
+// projected gobo patterns, in beam space (x along the throw); drawn clipped
+function drawGobo(kind, rg, a, tint, al, seed){
+  let h = 7; for(const ch of String(seed || '')) h = (h*31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = ()=>{ h = (h*1664525 + 1013904223) >>> 0; return h / 4294967296; };
+  const x0 = rg*.4, x1 = rg*.98, tn = Math.tan(Math.min(a, 1.3));
+  ctx.fillStyle = 'rgba('+tint+','+Math.min(.7, al)+')';
+  if(kind === 'window'){ // four panes and a cross of mullions
+    const xc = rg*.7, hw = tn*xc*.8, hl = (x1 - x0)*.4, gp = Math.max(3, hw*.1);
+    for(const sx of [-1, 1]) for(const sy of [-1, 1])
+      ctx.fillRect(sx < 0 ? xc - hl : xc + gp/2, sy < 0 ? -hw : gp/2, hl - gp/2, hw - gp/2);
+  } else if(kind === 'blinds'){ // bars of light across the throw
+    const n = 8, step = (x1 - x0)/n;
+    for(let i = 0; i < n; i++){ const x = x0 + i*step; ctx.fillRect(x, -tn*x1, step*.5, 2*tn*x1); }
+  } else if(kind === 'dots'){
+    const step = Math.max(18, rg*.07);
+    for(let x = x0; x < x1; x += step) for(let y = -tn*x; y < tn*x; y += step){ ctx.beginPath(); ctx.arc(x, y, step*.26, 0, 7); ctx.fill(); }
+  } else { // leaves / breakup: dappled light
+    const n = kind === 'leaves' ? 34 : 26;
+    for(let i = 0; i < n; i++){
+      const x = x0 + (x1 - x0)*rnd(), y = (rnd()*2 - 1)*tn*x, r = rg*(.02 + .045*rnd());
+      ctx.beginPath();
+      if(kind === 'leaves') ctx.ellipse(x, y, r*1.6, r*.8, rnd()*Math.PI, 0, 7); else ctx.arc(x, y, r, 0, 7);
+      ctx.fill();
+    }
+  }
+}
+// direction keys: a numbered ray per key and a sweep arc from key to key;
+// selected, each key also shows its ghost (FOV / beam edges)
+function drawAim(o){
+  const s = Math.max(view.scale, .35), ax = typeof aimAxis === 'function' ? aimAxis(o) : 0;
+  const keys = [o.rot, ...o.aim.map(k=>k.rot)];
+  const base = Math.max(o.w, o.h)/2;
+  const selMe = sel && sel.type === 'object' && sel.id === o.id;
+  const col = o.cat === 'camera' ? (THEME.accent || '#0A7CFF') : '#E2A93B';
+  ctx.save();
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.6/s;
+  // sweep arcs
+  const R0 = base + 30/s;
+  ctx.globalAlpha = .55; ctx.setLineDash([5/s, 4/s]);
+  for(let i = 1; i < keys.length; i++){
+    const aA = keys[i-1] + ax, aB = aA + norm(keys[i] - keys[i-1]);
+    const r = R0 + (i-1)*6/s;
+    ctx.beginPath(); ctx.arc(o.x, o.y, r, Math.min(aA, aB), Math.max(aA, aB)); ctx.stroke();
+    drawArrowHead(o.x + Math.cos(aB)*r, o.y + Math.sin(aB)*r, aB + (aB > aA ? Math.PI/2 : -Math.PI/2), col);
+  }
+  ctx.setLineDash([]);
+  // numbered rays to each key
+  o.aim.forEach((k, i)=>{
+    const a = k.rot + ax, R = base + (48 + 20*i)/s;
+    ctx.globalAlpha = .7;
+    ctx.beginPath(); ctx.moveTo(o.x + Math.cos(a)*base, o.y + Math.sin(a)*base); ctx.lineTo(o.x + Math.cos(a)*(R - 9/s), o.y + Math.sin(a)*(R - 9/s)); ctx.stroke();
+    if(!selMe){
+      ctx.globalAlpha = .9; ctx.beginPath(); ctx.arc(o.x + Math.cos(a)*R, o.y + Math.sin(a)*R, 8/s, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '700 ' + (10/s) + 'px -apple-system,Segoe UI,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(i + 1), o.x + Math.cos(a)*R, o.y + Math.sin(a)*R + .5/s); ctx.fillStyle = col;
+    }
+    if(selMe){
+      if(o.cat === 'camera') drawObjectShape({...o, rot:k.rot, fov:k.fov ?? o.fov, range:k.range ?? o.range, aim:null, path:[]}, true);
+      else {
+        const b = lightBeamOf(o);
+        if(b && !b.omni){
+          const sp = rad((o.beamSpread || b.spread)/2), rgl = o.beamRange || b.range;
+          ctx.globalAlpha = .45; ctx.setLineDash([6/s, 5/s]);
+          ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + Math.cos(a - sp)*rgl, o.y + Math.sin(a - sp)*rgl);
+          ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + Math.cos(a + sp)*rgl, o.y + Math.sin(a + sp)*rgl); ctx.stroke(); ctx.setLineDash([]);
+        }
+      }
+    }
+  });
+  ctx.restore();
 }
 function drawArrowHead(x,y,ang,c){
   const s = 8/Math.max(view.scale,.4);

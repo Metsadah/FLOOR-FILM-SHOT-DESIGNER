@@ -190,7 +190,7 @@
   // ================================================================ SHOT DESIGNER
   const D = {
     period:17,
-    lay:sideLayout([['CAMERAS', '#6FA3E8', ['Camera', 'Steadicam', 'Gimbal', 'GoPro / crash', 'Drone']], ['CAST', C.coral, ['Actor', 'Actor 2', 'Extra', 'Child', 'Dog', 'Cat']], ['GRIP & LIGHT', C.sand, ['LED light', 'Kino Flo', 'LED panel', 'Fresnel', 'HMI', 'Dolly track']]]),
+    lay:sideLayout([['CAMERAS', '#6FA3E8', ['Camera', 'Steadicam', 'Gimbal', 'GoPro / crash', 'Drone']], ['CAST', C.coral, ['Actor', 'Actor 2', 'Extra', 'Child', 'Dog', 'Cat']], ['LIGHT', C.sand, ['LED light', 'Kino Flo', 'LED panel', 'Fresnel', 'HMI', 'Astera tube']]]),
     cam:{x:520, y:420}, actor:{x:870, y:560}, led:{x:1010, y:430},
   };
   const LENSES = [[24, 55], [32, 43], [40, 35], [50, 28], [65, 22], [75, 19]];

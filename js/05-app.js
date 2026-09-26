@@ -1152,8 +1152,10 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleHelp(fa
   });
   await initSharedProductions();
   const joinCode = new URLSearchParams(location.search).get('join');
-  if(joinCode) await redeemJoinCode(joinCode);
-  else if(typeof claimEmailInvites === 'function') await claimEmailInvites();
+  const canJoin = typeof hostedEdition !== 'function' || hostedEdition(); // invites: hosted edition only
+  if(joinCode && canJoin) await redeemJoinCode(joinCode);
+  else if(joinCode) toast('Invites work on the hosted Floorboard — this install is self-hosted');
+  else if(canJoin && typeof claimEmailInvites === 'function') await claimEmailInvites();
   await loadProject();
   if(typeof applyReadOnlyRole === 'function') applyReadOnlyRole();
   // the app opens on the ground floor: mood first, plans later

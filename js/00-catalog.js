@@ -47,7 +47,7 @@ const TYPE_COLOR = {camera:PAL.sky, actor:PAL.coral, light:PAL.sand, prop:PAL.sl
   callsheet:PAL.sky, avscript:PAL.lilac, sbrow:PAL.lilac, audio:PAL.lilac, schedule:PAL.teal,
   proplist:PAL.olive, gearlist:PAL.sand, image:PAL.slate, file:PAL.slate};
 // library category → tile tint (the soft square behind each icon)
-const CAT_TINT = {'Cameras':PAL.sky, 'Cast':PAL.coral, 'Grip & light':PAL.sand, 'Practicals':PAL.sand,
+const CAT_TINT = {'Cameras':PAL.sky, 'Cast':PAL.coral, 'Grip & light':PAL.sand, 'Light':PAL.sand, 'Grip':PAL.teal, 'Practicals':PAL.sand,
   'Furniture':PAL.slate, 'Bathroom':PAL.teal, 'Vehicles':PAL.lilac, 'Outdoor':PAL.olive,
   'Set dressing':PAL.olive, 'Tech':PAL.slate};
 const WALL_COLOR = '#3B3A36';
@@ -985,6 +985,28 @@ const PROPS = {
     ctx.beginPath(); ctx.moveTo(-w/2+6,0); ctx.lineTo(w/2-6,0); ctx.stroke();
     ctx.globalAlpha=1;
   }},
+  // slider: a short rail with a carriage — a camera dropped on it glides
+  // from slide.a to slide.b (fractions of the rail) while the scene plays
+  slider:{w:120,h:24,name:'Slider',draw(ctx,w,h,c){
+    ctx.strokeStyle=c; ctx.fillStyle=c;
+    ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(-w/2+4,-h*.2); ctx.lineTo(w/2-4,-h*.2); ctx.moveTo(-w/2+4,h*.2); ctx.lineTo(w/2-4,h*.2); ctx.stroke();
+    ctx.lineWidth=2;
+    for(const sx of [-1,1]){ ctx.beginPath(); ctx.roundRect(sx*(w/2)-5, -h/2, 10, h, 3); ctx.globalAlpha=.35; ctx.fill(); ctx.globalAlpha=1; ctx.stroke(); }
+    ctx.beginPath(); ctx.roundRect(-11,-h/2+2,22,h-4,4); ctx.globalAlpha=.5; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+  }},
+  // car mount: suction cups + a plate — snaps to the front, back, sides,
+  // hood or roof of a vehicle and rides along with it
+  carmount:{w:44,h:44,name:'Car mount',round:1,draw(ctx,w,h,c){
+    ctx.strokeStyle=c; ctx.fillStyle=c;
+    for(const [x,y] of [[-w*.3,-h*.26],[w*.3,-h*.26],[0,h*.32]]){
+      ctx.beginPath(); ctx.arc(x,y,w*.17,0,7); ctx.globalAlpha=.28; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+    }
+    ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(-w*.3,-h*.26); ctx.lineTo(0,0); ctx.lineTo(w*.3,-h*.26); ctx.moveTo(0,0); ctx.lineTo(0,h*.32); ctx.stroke();
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.roundRect(-w*.14,-h*.14,w*.28,h*.28,3); ctx.fill();
+  }},
   hazer:{w:46,h:34,name:'Hazer',draw(ctx,w,h,c){
     baseRect(ctx,w,h,c,5);
     ctx.strokeStyle=c;
@@ -1312,8 +1334,11 @@ const CATS = [
   {name:'Cast', open:true, items:[
     'actor','actor_ant','actor_extra','actor_child','animal_dog','animal_cat','animal_horse','animal_custom'
   ].map(k=>({cat:'actor', kind:k}))},
-  {name:'Grip & light', open:true, items:[
-    'cstand','kino','ledpanel','fresnel','hmi','tube','astera','bounce','negfill','flag','reflector','track','dollycart','jib','technocrane','truss','monitor','camcart','hazer'
+  {name:'Light', open:true, items:[
+    'cstand','ledpanel','kino','fresnel','hmi','tube','astera','hazer'
+  ].map(k=>({cat:'prop', kind:k}))},
+  {name:'Grip', open:true, items:[
+    'track','dollycart','slider','carmount','jib','technocrane','bounce','negfill','flag','reflector','truss','camcart','monitor'
   ].map(k=>({cat:'prop', kind:k}))},
   {name:'Practicals', open:false, items:['floorlamp','tablelamp','pendant','ceilinglight','tl','neon'].map(k=>({cat:'prop', kind:k}))},
   {name:'Furniture', open:true, items:['chair','armchair','relaxchair','pouf','bench','table','smalltable','desk','sofa','bed','bed_single','bed_hospital','wheelchair','closet','closet_builtin','tvunit','cabinet','bookcase','painting','painting_large','radiator','kitchen','fridge','rug','stairs'].map(k=>({cat:'prop', kind:k}))},
@@ -1359,8 +1384,29 @@ function cstandBeam(o){
     return {spread:58, range:Math.round(280*wf), axis:0, tint:BEAM_TINT, soft:.75};
   if(o.lmod === 'dome150')
     return {spread:66, range:Math.round(260*wf), axis:0, tint:BEAM_TINT, soft:.65};
+  if(o.lmod === 'spot') // projection attachment: hard, long, shaped
+    return {spread:o.spotAngle || 26, range:Math.round(560*wf), axis:0, tint:BEAM_TINT, hard:true, gobo:o.gobo || '', cut:o.cutter || ''};
+  if(o.lmod === 'fresnel') // fresnel lens on the LED: spot ⟷ flood
+    return fresnelBeam(o, wf);
   return {spread:40, range:Math.round(320*wf), axis:0, tint:BEAM_TINT};
 }
+// the beam an object actually throws: LED modifiers + attachments, the
+// fresnel spot ⟷ flood — one place for the renderer AND the beam handles
+function lightBeamOf(o){
+  let b = LIGHT_BEAMS[o.kind];
+  if(!b) return null;
+  if(o.kind === 'cstand') b = cstandBeam(o);
+  if(o.kind === 'fresnel' && o.flood != null) b = fresnelBeam(o, 1);
+  return b;
+}
+function fresnelBeam(o, wf){
+  const f = clamp(o.flood ?? .5, 0, 1); // 0 = full spot, 1 = full flood
+  return {spread:Math.round(14 + 48*f), range:Math.round((470 - 190*f)*wf), axis:0, tint:BEAM_TINT, soft:.9 + .1*(1-f)};
+}
+// spotlight (projection) attachment: lens tube angle, a gobo or cutters
+const SPOT_ANGLES = [10, 19, 26, 36, 50];
+const GOBOS = [['', 'No gobo'], ['window', 'Gobo: window'], ['blinds', 'Gobo: blinds'], ['leaves', 'Gobo: leaves'], ['breakup', 'Gobo: breakup'], ['dots', 'Gobo: dots']];
+const CUTTERS = [['', 'No cutter'], ['l', 'Cutter: left'], ['r', 'Cutter: right'], ['lr', 'Cutters: both sides']];
 // '#rrggbb' → 'r,g,b' (the beam gradients want raw components)
 function hexRgb(h){
   const n = parseInt(String(h).replace('#',''), 16);

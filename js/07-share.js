@@ -166,6 +166,15 @@ async function buildSharePop(){
 }
 const ROLE_LABEL = {owner:'owner', editor:'co-edit', viewer:'read-only'};
 function floorsLabel(f){ return Array.isArray(f) ? (f.length ? f.map(k=>(FLOOR_NAMES.find(x=>x[0] === k) || [k, k])[1]).join(' ') : 'no floors') : 'all floors'; }
+// Inviting people (co-editing, per-floor access) is part of the hosted
+// Floorboard. A self-hosted install — your own Supabase project — syncs your
+// own devices and makes read-only share links, but does not invite people.
+// Licensed under the Elastic License 2.0: do not remove or circumvent this.
+const HOSTED_PROJECT = 'jcasjylzosgtitaxbrjo';
+function hostedEdition(){
+  const u = (window.FLOOR_CONFIG && FLOOR_CONFIG.supabaseUrl) || '';
+  return u.indexOf('//' + HOSTED_PROJECT + '.supabase.co') >= 0;
+}
 function inviteUrl(code){ return location.origin + location.pathname + '?join=' + code; }
 function inviteMailto(i){
   const url = inviteUrl(i.code), prod = (project && project.shootName) || 'a production';
@@ -176,6 +185,13 @@ function inviteMailto(i){
 async function buildCoEditorSection(pop){
   const sb = shareClient();
   pop.insertAdjacentHTML('beforeend', '<div class="xp-title" style="margin-top:12px">People on this production</div>');
+  if(!hostedEdition()){
+    const n = document.createElement('div');
+    n.style.cssText = 'font-size:10.5px;color:var(--ink2);margin-top:2px;line-height:1.5;';
+    n.innerHTML = 'Inviting people to co-edit is part of the hosted Floorboard (5 collaborators included). This self-hosted install syncs your own devices and makes read-only links. <a href="landing.html#plans" target="_blank" rel="noopener">Plans →</a>';
+    pop.appendChild(n);
+    return;
+  }
   const isShared = window.FLOOR_SHARED && FLOOR_SHARED.has(currentProjectId);
   const note = document.createElement('div');
   note.style.cssText = 'font-size:10px;color:var(--ink2);margin-top:2px;line-height:1.5;';
@@ -512,6 +528,7 @@ function forceOverwriteSave(){
   saveProject();
 }
 async function convertToShared(){
+  if(!hostedEdition()){ toast('Co-editing is part of the hosted Floorboard'); return false; }
   const sb = shareClient();
   if(!window.FLOOR_USER || !sb){ toast('Co-editing needs the cloud version — sign in first'); return false; }
   if(window.FLOOR_BILLING && !window.FLOOR_BILLING.gate('coedit')) return false; // Pro feature on the hosted plan

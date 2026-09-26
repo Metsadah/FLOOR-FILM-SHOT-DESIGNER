@@ -303,6 +303,45 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc9 — rigs, direction keys, LED attachments · self-host without invites
+- **Direction keys** (o.aim = [{rot, fov?, range?}]): a camera or a
+  directional light stays put and turns — start at o.rot, then through each
+  key, evenly (smoothstep) over the take. Selection bar: ↻ Animate direction
+  / + Direction key / – Key / Clear turn (hidden when the object has a path;
+  path points already carry their own facing). Teal handles 'ak#' at
+  base + 48 + 20·i px; aimAxis() is 0 for cameras, the beam axis for lights.
+  drawAim() shows numbered rays + sweep arcs (and ghost FOV / beam edges
+  when selected). poseOf: aimAt(o, t).
+- **Rigs** — one system in 03-input.js (RIG_TYPES): o.mount = {type, id,
+  relRot, lx, ly, spot}. jib (camera on a jib head), cart (dolly cart),
+  slider (camera glides slide.a → slide.b on the rail), carmount, car (car
+  mount / jib / technocrane on a vehicle, VEHICLE_KINDS, vehicleSpots():
+  front, hood, roof, back, left, right). syncMounts(shot) now runs every
+  render (carrier first, chains car → mount → camera) and places riders from
+  their carrier; poseOf asks the carrier's animated pose (rigAnchor) and
+  adds the carrier's turn to the rider's own aim, so a camera on a dolly /
+  car pans on top of the move. Picking a rigged thing up releases it
+  (releaseRig), dropping it back re-attaches; rotate updates relRot. Drop
+  order for cameras: jib head → cart / slider / car mount → track end.
+  Selection bar: "Rides …", a spot picker for car-mounted things, Step off.
+  Vehicles (and slider, car mount) are now in MOVE_KINDS, so cars drive.
+- **Library**: Grip & light split into Light (LED, panel, Kino, fresnel,
+  HMI, tube, Astera, hazer) and Grip (track, dolly cart, slider, car mount,
+  jib, technocrane, bounce, neg fill, flag, reflector, truss, camera cart,
+  monitor). New props slider + carmount with tile glyphs.
+- **LED attachments** (cstand lmod): 'spot' — spotlight / projection
+  attachment: lens angle (SPOT_ANGLES), gobo (window, blinds, leaves,
+  breakup, dots — drawGobo, clipped to the beam) or cutters (trim the left,
+  right or both edges); hard, even beam. 'fresnel' — fresnel lens with a
+  spot ⟷ flood slider (o.flood); the tungsten Fresnel gets the same slider.
+  lightBeamOf(o) is the one place for the effective beam (renderer + beam
+  handles). Changing the modifier clears beamSpread/beamRange overrides.
+- **Self-hosted = no invites.** hostedEdition() (07-share.js) is true only
+  for the Floorboard Supabase project; elsewhere the People section explains
+  that co-editing is hosted-only, convertToShared refuses and ?join= links /
+  email invites are not redeemed (05-app.js). Landing, selfhost.html and
+  SELFHOST.md say so; hero line now "first month free, no card needed".
+
 ## v1.0-rc8 — UI 2.0
 The design canvas "UI 2.0" built into the app. Everything new lives in
 ui2.css (loads after styles.css and wins the cascade) and js/17-ui2.js;

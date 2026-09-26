@@ -49,6 +49,8 @@ const TILE_GLYPH = (()=>{
   g.reflector = tc=>{ prep(tc,2.4); circ(tc,0,0,11); tc.stroke(); poly(tc,[[-6,6],[6,-6]]); tc.stroke(); poly(tc,[[-1,8],[8,-1]]); tc.stroke(); };
   g.track = tc=>{ prep(tc,2.4); poly(tc,[[-13,-5],[13,-5]]); tc.stroke(); poly(tc,[[-13,5],[13,5]]); tc.stroke(); for(const x of [-8,0,8]){ poly(tc,[[x,-9],[x,9]]); tc.stroke(); } };
   g.dollycart = tc=>{ prep(tc); rr(tc,-11,-8,22,11,2); tc.fill(); circ(tc,-6,8,3.2); tc.fill(); circ(tc,6,8,3.2); tc.fill(); };
+  g.slider = tc=>{ prep(tc,2.4); poly(tc,[[-14,-3],[14,-3]]); tc.stroke(); poly(tc,[[-14,3],[14,3]]); tc.stroke(); rr(tc,-16,-7,4,14,1.5); tc.fill(); rr(tc,12,-7,4,14,1.5); tc.fill(); rr(tc,-5,-8,10,16,3); tc.fill(); };
+  g.carmount = tc=>{ prep(tc,2.4); circ(tc,-8,-6,4.6); tc.fill(); circ(tc,8,-6,4.6); tc.fill(); circ(tc,0,9,4.6); tc.fill(); poly(tc,[[-8,-6],[0,1],[8,-6]]); tc.stroke(); poly(tc,[[0,1],[0,9]]); tc.stroke(); };
   g.jib = tc=>{ prep(tc,3); poly(tc,[[-11,10],[9,-8]]); tc.stroke(); rr(tc,-15,9,10,4,2); tc.fill(); rr(tc,7,-13,8,6,1.5); tc.fill(); };
   g.technocrane = tc=>{ prep(tc,3); poly(tc,[[-13,11],[-2,2],[11,-9]]); tc.stroke(); rr(tc,-16,10,9,4,2); tc.fill(); rr(tc,9,-14,7,5,1.5); tc.fill(); };
   g.truss = tc=>{ prep(tc,2); rr(tc,-14,-6,28,12,1); tc.stroke(); poly(tc,[[-14,-6],[-7,6],[0,-6],[7,6],[14,-6]]); tc.stroke(); };

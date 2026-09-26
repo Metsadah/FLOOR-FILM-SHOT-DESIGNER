@@ -1,6 +1,13 @@
 [
  {
   "date": "2026-09-26",
+  "title": "Rigs, turning lights and a spotlight with gobos",
+  "text": "Cameras and lights can now turn in place: add direction keys and a camera pans, a light swings. A camera on a dolly, a slider or a car mount rides along and still makes its own pan. Car mounts snap to the front, hood, roof, back or sides of a car, and a jib can go on a car too. Grip and Light are separate in the library, and the LED light takes a spotlight attachment with gobos or cutters, or a fresnel lens with spot to flood.",
+  "link": "index.html",
+  "tag": "New"
+ },
+ {
+  "date": "2026-09-26",
   "title": "A new look: one colour per floor",
   "text": "Floorboard got a redesign. The floors sit in one switcher at the top, each with its own colour. The library floats beside the plan with a search field and category chips, and a camera now has its own inspector: body, lens set, focal lengths as chips, squeeze and the field of view at a glance. New typeface, a calmer canvas and a refined dark mode.",
   "link": "index.html",

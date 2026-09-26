@@ -142,16 +142,118 @@ function jibHeadPos(o){
   const lx = o.w/2 - o.h*.22, c = Math.cos(o.rot), s = Math.sin(o.rot);
   return {x:o.x + lx*c, y:o.y + lx*s};
 }
-function syncMounts(shot){
-  for(const cam of shot.objects){
-    if(cam.cat !== 'camera' || !cam.mount) continue;
-    const jib = shot.objects.find(j => j.id === cam.mount.id && isCrane(j));
-    if(!jib){ cam.mount = null; continue; }
-    const hp = jibHeadPos(jib);
-    cam.x = hp.x; cam.y = hp.y;
-    // camera keeps its aim relative to the arm, so swinging the arm pans the shot
-    cam.rot = norm(jib.rot + (cam.mount.relRot || 0));
+// ---------------------------------------------------------------- rigging
+// Things ride other things. o.mount = {type, id, relRot, …}:
+//   jib      camera on a jib / technocrane head (follows the arm)
+//   cart     camera on a dolly cart
+//   slider   camera on a slider carriage (glides slide.a → slide.b while playing)
+//   carmount camera on a car mount
+//   car      car mount, jib or technocrane on a vehicle (lx/ly = local offset)
+// Static positions follow the carrier in the editor (syncMounts, every
+// render); while playing, poseOf asks the carrier's pose. A mounted object
+// keeps its own aim: relRot, or its direction keys (o.aim) on top of
+// whatever turn the carrier makes.
+const RIG_TYPES = new Set(['jib', 'cart', 'slider', 'carmount', 'car']);
+const VEHICLE_KINDS = new Set(['car_small', 'car', 'car_suv', 'car_police', 'minivan', 'bus', 'tractor', 'train']);
+// where a car mount (or a jib) can sit on a vehicle — vehicle faces +x
+function vehicleSpots(v){
+  const w = v.w, h = v.h, m = 16;
+  return [
+    {key:'front', name:'Front', lx:w/2 + m, ly:0, rot:0},
+    {key:'hood', name:'Hood', lx:w*.3, ly:0, rot:0},
+    {key:'roof', name:'Roof', lx:-w*.06, ly:0, rot:0},
+    {key:'back', name:'Back', lx:-w/2 - m, ly:0, rot:Math.PI},
+    {key:'left', name:'Left side', lx:0, ly:-h/2 - m, rot:-Math.PI/2},
+    {key:'right', name:'Right side', lx:0, ly:h/2 + m, rot:Math.PI/2},
+  ];
+}
+function nearestVehicleSpot(shot, x, y, maxD){
+  let best = null;
+  for(const v of shot.objects){
+    if(!VEHICLE_KINDS.has(v.kind)) continue;
+    const c = Math.cos(v.rot), sn = Math.sin(v.rot);
+    for(const sp of vehicleSpots(v)){
+      const px = v.x + sp.lx*c - sp.ly*sn, py = v.y + sp.lx*sn + sp.ly*c;
+      const d = dist(x, y, px, py);
+      if(d < maxD && (!best || d < best.d)) best = {v, sp, d, x:px, y:py};
+    }
   }
+  return best;
+}
+function sliderAt(sl, f){ // world point on the slider rail at fraction f (0 = left end)
+  const L = sl.w - 24, lx = -L/2 + L*clamp(f, 0, 1), c = Math.cos(sl.rot), sn = Math.sin(sl.rot);
+  return {x:sl.x + lx*c, y:sl.y + lx*sn};
+}
+function slideOf(sl){ return sl.slide || {a:.12, b:.88}; }
+// the anchor an object hangs from: point + the carrier's rotation. p = the
+// carrier's (static or animated) pose; t = null in the editor.
+function rigAnchor(o, p, t){
+  const m = o.mount;
+  if(m.type === 'car'){
+    const c = Math.cos(p.rot), sn = Math.sin(p.rot);
+    return {x:p.x + m.lx*c - m.ly*sn, y:p.y + m.lx*sn + m.ly*c, rot:p.rot};
+  }
+  if(m.type === 'slider'){
+    const sd = slideOf(p);
+    const pt = sliderAt(p, t == null ? sd.a : lerp(sd.a, sd.b, ease01(t)));
+    return {x:pt.x, y:pt.y, rot:p.rot};
+  }
+  if(m.type === 'jib'){ const hp = jibHeadPos(p); return {x:hp.x, y:hp.y, rot:p.rot}; }
+  return {x:p.x, y:p.y, rot:p.rot}; // cart, carmount
+}
+function ease01(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
+function carrierOf(o, shot){
+  if(!o.mount || !RIG_TYPES.has(o.mount.type)) return null;
+  const c = shot.objects.find(x=>x.id === o.mount.id);
+  if(!c) return null;
+  if(o.mount.type === 'jib' && !isCrane(c)) return null;
+  return c;
+}
+// jibs hang by their BASE: place the icon so the base sits on (x, y)
+function placeCraneBase(j, x, y){
+  const lx = -j.w/2 + j.h*.5;
+  j.x = x - lx*Math.cos(j.rot); j.y = y - lx*Math.sin(j.rot);
+}
+function syncMounts(shot){
+  const done = new Set();
+  const visit = (o, depth)=>{
+    if(done.has(o.id) || depth > 6) return;
+    done.add(o.id);
+    const c = carrierOf(o, shot);
+    if(!c){ if(o.mount && RIG_TYPES.has(o.mount.type)) o.mount = null; return; }
+    visit(c, depth + 1); // the carrier first (chains: car → mount → camera)
+    const an = rigAnchor(o, c, null);
+    if(o.mount.relRot == null) o.mount.relRot = norm(o.rot - an.rot);
+    o.rot = norm(an.rot + o.mount.relRot);
+    if(isCrane(o)) placeCraneBase(o, an.x, an.y);
+    else { o.x = an.x; o.y = an.y; }
+  };
+  for(const o of shot.objects) if(o.mount && RIG_TYPES.has(o.mount.type)) visit(o, 0);
+}
+function releaseRig(o){ if(o && o.mount && RIG_TYPES.has(o.mount.type)) o.mount = null; }
+
+// ---------------------------------------------------------------- direction keys
+// o.aim = [{rot, fov?, range?}] — the object stays put and turns: start at
+// o.rot, then through each key, evenly over the take. Lights and cameras.
+function canAim(o){
+  if(o.cat === 'camera') return true;
+  const b = o.cat === 'prop' && typeof lightBeamOf === 'function' ? lightBeamOf(o) : null;
+  return !!(b && !b.omni && !b.haze);
+}
+function aimAxis(o){ // the object's facing relative to o.rot
+  if(o.cat === 'camera') return 0;
+  const b = lightBeamOf(o);
+  return (b && b.axis) || 0;
+}
+function aimAt(o, t){
+  const keys = [{rot:o.rot, fov:o.fov, range:o.range}, ...o.aim];
+  const n = keys.length - 1;
+  const f = clamp(t*n, 0, n - 1e-6);
+  const i = Math.floor(f), lt = ease01(f - i);
+  const a = keys[i], b = keys[i+1];
+  const out = {rot:lerpAng(a.rot, b.rot, lt)};
+  if(o.cat === 'camera'){ out.fov = lerp(a.fov ?? o.fov, b.fov ?? o.fov, lt); out.range = lerp(a.range ?? o.range, b.range ?? o.range, lt); }
+  return out;
 }
 
 // ---------------------------------------------------------------- hit testing
@@ -482,6 +584,7 @@ cv.addEventListener('pointerdown', e => {
       else if(h.id.startsWith('pf')) drag = {kind:'ptfov', o, i:+h.id.slice(3)};
       else if(h.id.startsWith('pr')) drag = {kind:'ptrot', o, i:+h.id.slice(2)};
       else if(h.id.startsWith('pt')) drag = {kind:'point', o, i:+h.id.slice(2)};
+      else if(h.id.startsWith('ak')) drag = {kind:'aimKey', o, i:+h.id.slice(2)};
     } else if(sel.type === 'wall'){
       const w = shot.walls.find(x=>x.id===sel.id);
       drag = h.id === 'wm' ? {kind:'wallMid', w} : {kind:'wallEnd', w, end:h.id};
@@ -649,7 +752,8 @@ cv.addEventListener('pointerdown', e => {
   if(obj){
     sel = {type:'object', id:obj.id};
     if(obj.locked){ drag = null; refreshSelBar(); render(); return; }
-    if(obj.cat === 'camera') obj.mount = null; // picking a camera up releases it from a jib
+    // picking a rigged thing up takes it off its carrier (drop it back on to re-attach)
+    if(obj.cat === 'camera' || obj.kind === 'carmount' || obj.kind === 'slider' || isCrane(obj)) releaseRig(obj);
     // seated / bedded actors stay attached — dragging moves the pair; the
     // selection bar's "Out of the chair/bed" button is the way out
     drag = {kind:'move', o:obj, ox:obj.x-wx, oy:obj.y-wy};
@@ -982,9 +1086,9 @@ cv.addEventListener('pointermove', e => {
         drag.o.x = drag.craneBase.x - lx*Math.cos(drag.o.rot);
         drag.o.y = drag.craneBase.y - lx*Math.sin(drag.o.rot);
       }
-      if(drag.o.cat === 'camera' && drag.o.mount){
-        const j = shot.objects.find(x=>x.id===drag.o.mount.id);
-        if(j) drag.o.mount.relRot = norm(drag.o.rot - j.rot);
+      if(drag.o.mount && RIG_TYPES.has(drag.o.mount.type)){
+        const cr = carrierOf(drag.o, shot);
+        if(cr) drag.o.mount.relRot = norm(drag.o.rot - rigAnchor(drag.o, cr, null).rot);
       }
       if(isCrane(drag.o) && drag.o.rail) updateJibRail(drag.o, shot); // pivot stays on the rails
       markDirty();
@@ -1054,6 +1158,13 @@ cv.addEventListener('pointermove', e => {
     case 'point':
       drag.o.path[drag.i].x = wx; drag.o.path[drag.i].y = wy; markDirty();
       break;
+    case 'aimKey': {
+      const o = drag.o, k = o.aim[drag.i];
+      let a = Math.atan2(wy - o.y, wx - o.x) - aimAxis(o);
+      if(!e.shiftKey){ const q = Math.round(a/rad(15))*rad(15); if(Math.abs(norm(a-q)) < rad(4)) a = q; }
+      k.rot = norm(a); markDirty();
+      break;
+    }
     case 'craneKey': {
       const o = drag.o, p = o.path[drag.i];
       const maxL = o.kind === 'technocrane' ? 1600 : 900;
@@ -1467,7 +1578,29 @@ cv.addEventListener('pointerup', e => {
   // camera dropped near a dolly track end → snap on and inherit its path
   if(!mounted && drag.kind === 'move' && drag.o.cat === 'camera'){
     const cam = drag.o;
-    outer:
+    // dropped ON a dolly cart, a slider or a car mount → it rides it
+    if(!cam.mount && !(cam.path && cam.path.length)){
+      for(const r of shot.objects){
+        let type = null, near = 0;
+        if(r.kind === 'dollycart'){ type = 'cart'; near = dist(cam.x, cam.y, r.x, r.y); }
+        else if(r.kind === 'carmount'){ type = 'carmount'; near = dist(cam.x, cam.y, r.x, r.y); }
+        else if(r.kind === 'slider'){ type = 'slider'; const q = sliderAt(r, .5); near = Math.max(0, dist(cam.x, cam.y, q.x, q.y) - r.w*.35); }
+        else continue;
+        if(near < 55){
+          cam.mount = {type, id:r.id};
+          const an = rigAnchor(cam, r, null);
+          cam.mount.relRot = norm(cam.rot - an.rot);
+          cam.x = an.x; cam.y = an.y;
+          toast(type === 'cart' ? 'Camera on the dolly cart — animate the cart and the camera goes along; give the camera direction keys to pan on the way'
+            : type === 'slider' ? 'Camera on the slider — it glides along the rail when you press play; direction keys pan it on the way'
+            : 'Camera on the car mount — it goes where the car goes; direction keys pan it on the way');
+          markDirty(); refreshSelBar();
+          break;
+        }
+      }
+    }
+    // …or near a dolly track end → snap on and inherit its path
+    if(!cam.mount){ outer:
     for(const t of shot.objects){
       if(t.kind !== 'track' || !t.pts || t.pts.length < 2) continue;
       const ends = [
@@ -1485,18 +1618,23 @@ cv.addEventListener('pointerup', e => {
         }
       }
     }
-    // …or dropped ON a dolly cart → it rides the cart (like the jib head)
-    if(!cam.mount && !(cam.path && cam.path.length)){
-      for(const cart of shot.objects){
-        if(cart.kind !== 'dollycart') continue;
-        if(dist(cam.x, cam.y, cart.x, cart.y) < 55){
-          cam.mount = {type:'cart', id:cart.id};
-          cam.x = cart.x; cam.y = cart.y;
-          toast('Camera on the dolly cart — moving or animating the cart takes it along; pick the camera up to step off');
-          markDirty(); refreshSelBar();
-          break;
-        }
-      }
+    }
+  }
+  // a car mount, jib or technocrane dropped on a vehicle → it snaps to the
+  // nearest spot (front, hood, roof, back, sides) and rides the vehicle
+  if(drag.kind === 'move' && (drag.o.kind === 'carmount' || (isCrane(drag.o) && !drag.o.rail)) && !drag.o.mount){
+    const o = drag.o;
+    const probe = isCrane(o) ? jibBasePos(o) : {x:o.x, y:o.y};
+    const hit = nearestVehicleSpot(shot, probe.x, probe.y, isCrane(o) ? 90 : 80);
+    if(hit){
+      o.mount = {type:'car', id:hit.v.id, spot:hit.sp.key, lx:hit.sp.lx, ly:hit.sp.ly};
+      if(o.kind === 'carmount') o.rot = norm(hit.v.rot + hit.sp.rot);
+      o.mount.relRot = norm(o.rot - hit.v.rot);
+      if(isCrane(o)){ o.path = []; placeCraneBase(o, hit.x, hit.y); } else { o.x = hit.x; o.y = hit.y; }
+      syncMounts(shot);
+      toast((o.kind === 'carmount' ? 'Car mount' : o.kind === 'technocrane' ? 'Technocrane' : 'Jib') + ' on the ' + hit.sp.name.toLowerCase() +
+        ' of the ' + (PROPS[hit.v.kind] ? PROPS[hit.v.kind].name.toLowerCase() : 'vehicle') + ' — it rides along; pick it up to take it off');
+      markDirty(); refreshSelBar();
     }
   }
   cv.classList.remove('panning');
@@ -2016,20 +2154,23 @@ let framePoses = {};
 function poseOf(o, shot, t){
   if(framePoses[o.id]) return framePoses[o.id];
   let g = o;
-  if(o.cat === 'camera' && o.mount && o.mount.type === 'cart'){
-    // riding the dolly cart: the cart's move IS the camera move (pan stays free)
-    const cart = shot.objects.find(x=>x.id === o.mount.id);
-    if(cart){
-      const pc = poseOf(cart, shot, t);
-      g = {...o, x:pc.x, y:pc.y};
-    }
-  } else if(o.cat === 'camera' && o.mount){
-    const j = shot.objects.find(x=>x.id===o.mount.id && isCrane(x));
-    if(j){
-      const pj = poseOf(j, shot, t);
-      const hp = jibHeadPos(pj);
-      g = {...o, x:hp.x, y:hp.y, rot:norm(pj.rot + (o.mount.relRot||0))};
-    }
+  const rig = carrierOf(o, shot);
+  if(rig){
+    // riding a dolly, slider, car mount, jib or vehicle: the carrier's move
+    // is ours; our own aim (relRot or direction keys) rides on top of its turn
+    const an = rigAnchor(o, poseOf(rig, shot, t), t);
+    const an0 = rigAnchor(o, rig, null);
+    const turn = norm(an.rot - an0.rot);
+    const own = (o.aim && o.aim.length) ? aimAt(o, t) : {rot:o.rot};
+    g = {...o, rot:norm(own.rot + turn), path:[]};
+    if(own.fov != null){ g.fov = own.fov; g.range = own.range; }
+    if(isCrane(o)){ const lx = -o.w/2 + o.h*.5; g.x = an.x - lx*Math.cos(g.rot); g.y = an.y - lx*Math.sin(g.rot); }
+    else { g.x = an.x; g.y = an.y; }
+  } else if(o.aim && o.aim.length && !(o.path && o.path.length)){
+    // standing still, turning: pan a camera, swing a light
+    const a = aimAt(o, t);
+    g = {...o, rot:a.rot};
+    if(a.fov != null){ g.fov = a.fov; g.range = a.range; }
   } else if(o.cat === 'actor' && o.mount && (o.mount.type === 'seat' || o.mount.type === 'bed') &&
             !(o.path && o.path.length)){
     // riding: the chair / bed animates, the actor stays in it

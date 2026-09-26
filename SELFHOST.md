@@ -6,9 +6,11 @@ folder behind a web server. Ten minutes for the local version, half an hour
 with accounts and sync.
 
 > **License.** Floorboard is source-available under the
-> [Elastic License 2.0](LICENSE). Running it for yourself, your crew or your
-> company — paid productions included — is allowed and encouraged. Offering
-> Floorboard itself as a hosted or managed service to others is not.
+> [Elastic License 2.0](LICENSE). Running it for yourself — paid productions
+> included — is allowed and encouraged. Inviting people to co-edit is part of
+> the hosted Floorboard and is not in the self-hosted edition; removing or
+> circumventing that limit, or offering Floorboard itself as a hosted or
+> managed service to others, is not allowed.
 
 ## Which version do you want?
 
@@ -16,7 +18,8 @@ with accounts and sync.
 |---|---|---|
 | Accounts / sign-in | none | e-mail + password, magic link |
 | Where work is saved | in the browser that made it (IndexedDB) | your own Supabase database, synced across devices |
-| Co-editing, share links, Floor Scanner sync | no | yes |
+| Sync across your devices, read-only share links, Floor Scanner sync | no | yes |
+| Inviting people to co-edit (per floor, read-only) | no | no — hosted Floorboard only |
 | Backups | Production ▾ → Export .floorproj | automatic (Supabase), plus .floorproj |
 | Setup | copy the folder, done | copy the folder + a free Supabase project |
 
@@ -102,7 +105,10 @@ each statement is written so running it twice is harmless.
 
 ## 4 · People and access
 
-**Inviting.** Share → *People on this production*: name, email, co-edit or
+**Inviting (hosted Floorboard only).** A self-hosted install is for you on
+your own devices: it syncs, shares read-only links and takes Floor Scanner
+rooms, but it does not invite people — the Share panel says so, and `?join=`
+links are ignored. On the hosted Floorboard: Share → *People on this production*: name, email, co-edit or
 read-only, and a tick per floor. With an email the person is joined the
 moment they sign in with that address; the link is a shortcut. Read-only
 people browse and export, the database refuses their writes. Requires
@@ -110,7 +116,7 @@ people browse and export, the database refuses their writes. Requires
 
 - **One account per person.** Everyone signs in with their own e-mail;
   productions belong to the account that created them.
-- **Co-editing.** The owner enables it per production (Share → Co-editors)
+- **Co-editing** (hosted Floorboard). The owner enables it per production (Share → Co-editors)
   and hands out invite links. Two kinds: *all floors*, or *crew* — mood,
   script, plans and shot list, but not Budget and Production. Per member
   the owner can switch any floor on or off afterwards with the chips next

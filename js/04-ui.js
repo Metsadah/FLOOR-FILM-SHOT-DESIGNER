@@ -8,7 +8,8 @@ const CAM_TYPES = [['cam_std','Standard'],['cam_steadi','Steadicam'],['cam_gimba
 // things that plausibly move during a shot: vehicles + grip & stage lights (not furniture, tech, set dressing, outdoor)
 const MOVE_KINDS = new Set(['bicycle','motorcycle','car','car_small','car_suv','car_police','minivan','bus',
   'cstand','light','kino','ledpanel','fresnel','hmi','tube','bounce','negfill','flag','reflector','dolly','jib','technocrane','monitor','camcart',
-  'wheelchair','bed_hospital','dollycart']);
+  'wheelchair','bed_hospital','dollycart','slider','carmount','astera','hazer',
+  'bicycle','motorcycle','car_small','car','car_suv','car_police','minivan','bus','train','tractor']);
 function canMove(o){
   return o.cat === 'camera' || o.cat === 'actor' || (o.cat === 'prop' && MOVE_KINDS.has(o.kind));
 }
@@ -413,12 +414,44 @@ function refreshSelBar(){
         ms.style.cssText = selCss2;
         ms.title = 'Modifier — a lantern throws all around, a dome softens & widens';
         for(const [v, n] of [['', 'Direct (bare)'], ['lantern', 'Lantern'],
-                             ['dome100', 'Dome 100 cm'], ['dome150', 'Dome 150 cm']])
+                             ['dome100', 'Dome 100 cm'], ['dome150', 'Dome 150 cm'],
+                             ['spot', 'Spotlight attachment'], ['fresnel', 'Fresnel lens']])
           ms.insertAdjacentHTML('beforeend',
             `<option value="${v}"${(o.lmod || '') === v ? ' selected' : ''}>${n}</option>`);
-        ms.addEventListener('change', ()=>{ o.lmod = ms.value || null; markDirty(); render(); refreshSelBar(); });
+        ms.addEventListener('change', ()=>{
+          o.lmod = ms.value || null;
+          o.beamSpread = null; o.beamRange = null; // the attachment decides the beam again
+          markDirty(); render(); refreshSelBar();
+        });
         ms.addEventListener('pointerdown', e=>e.stopPropagation());
         selBar.appendChild(ms);
+        if(o.lmod === 'spot'){
+          const mk = (title, opts, val, set)=>{
+            const el = document.createElement('select');
+            el.style.cssText = selCss2; el.title = title;
+            for(const [v, n] of opts) el.insertAdjacentHTML('beforeend', `<option value="${v}"${String(val) === String(v) ? ' selected' : ''}>${n}</option>`);
+            el.addEventListener('change', ()=>{ set(el.value); o.beamSpread = null; markDirty(); render(); refreshSelBar(); });
+            el.addEventListener('pointerdown', e=>e.stopPropagation());
+            selBar.appendChild(el);
+          };
+          mk('Lens tube — the beam angle of the spotlight attachment', SPOT_ANGLES.map(a=>[a, a + '° lens']), o.spotAngle || 26, v=>{ o.spotAngle = +v; });
+          mk('Gobo — a pattern projected by the spot', GOBOS, o.gobo || '', v=>{ o.gobo = v || null; });
+          mk('Cutters (shutters) — trim the edge of the beam', CUTTERS, o.cutter || '', v=>{ o.cutter = v || null; });
+        }
+      }
+      if(o.lmod === 'fresnel' && o.kind === 'cstand' || o.kind === 'fresnel'){
+        // fresnel: spot ⟷ flood
+        const wrapF = document.createElement('span');
+        wrapF.style.cssText = 'display:inline-flex;gap:5px;align-items:center;padding:0 5px;font-size:11px;color:var(--ink2);';
+        wrapF.innerHTML = '<span>Spot</span>';
+        const fr = document.createElement('input');
+        fr.type = 'range'; fr.min = 0; fr.max = 1; fr.step = .05; fr.value = o.flood ?? .5;
+        fr.style.width = '80px'; fr.title = 'Fresnel lens: spot (narrow, long throw) ⟷ flood (wide, soft)';
+        fr.addEventListener('input', ()=>{ o.flood = +fr.value; o.beamSpread = null; o.beamRange = null; markDirty(); render(); });
+        fr.addEventListener('pointerdown', e=>e.stopPropagation());
+        wrapF.appendChild(fr);
+        wrapF.insertAdjacentHTML('beforeend', '<span>Flood</span>');
+        selBar.appendChild(wrapF);
       }
       sbtn(o.beam === false ? (LIGHT_BEAMS[o.kind].haze ? 'Haze: off' : 'Beam: off')
                             : (LIGHT_BEAMS[o.kind].haze ? 'Haze: on' : 'Beam: on'), ()=>{
@@ -1016,7 +1049,75 @@ function refreshSelBar(){
       sbtn('Edit text', ()=>openNoteEditor(o));
     }
 
-    if(canMove(o)){
+    // riding a dolly / slider / car mount / vehicle / jib: say so, offer the way off
+    const rigC = typeof carrierOf === 'function' ? carrierOf(o, shot) : null;
+    if(rigC){
+      vsep();
+      const RIG_NAME = {cart:'the dolly', slider:'the slider', carmount:'the car mount', jib:'the ' + (rigC.kind === 'technocrane' ? 'technocrane' : 'jib'),
+        car:'the ' + ((PROPS[rigC.kind] && PROPS[rigC.kind].name) || 'vehicle').toLowerCase()};
+      const lab = document.createElement('span');
+      lab.style.cssText = 'font-size:11px;color:var(--ink2);padding:0 4px;';
+      lab.textContent = 'Rides ' + RIG_NAME[o.mount.type] + ' — its move is ' + (o.cat === 'camera' ? 'the camera’s' : 'yours');
+      selBar.appendChild(lab);
+      if(o.mount.type === 'car'){
+        // move the mount to another spot on the vehicle
+        const ss = document.createElement('select');
+        ss.title = 'Where on the vehicle';
+        for(const sp of vehicleSpots(rigC)) ss.insertAdjacentHTML('beforeend', `<option value="${sp.key}"${o.mount.spot === sp.key ? ' selected' : ''}>${sp.name}</option>`);
+        ss.addEventListener('change', ()=>{
+          const sp = vehicleSpots(rigC).find(x=>x.key === ss.value); if(!sp) return;
+          Object.assign(o.mount, {spot:sp.key, lx:sp.lx, ly:sp.ly});
+          if(o.kind === 'carmount') o.mount.relRot = sp.rot;
+          syncMounts(shot); markDirty(); render(); refreshSelBar();
+        });
+        ss.addEventListener('pointerdown', e=>e.stopPropagation());
+        selBar.appendChild(ss);
+      }
+      sbtn('Step off', ()=>{
+        o.mount = null;
+        const c = Math.cos(o.rot), sn = Math.sin(o.rot);
+        o.x += -sn*40; o.y += c*40; // step aside so it is clearly free
+        markDirty(); render(); refreshSelBar();
+        toast('Off the rig — it stands on its own now');
+      }).title = 'Take it off its carrier';
+    }
+    if(o.kind === 'slider'){
+      vsep();
+      const sd = slideOf(o);
+      sbtn(sd.a <= sd.b ? 'Slide: ← → ' : 'Slide: → ←', ()=>{
+        o.slide = {a:sd.b, b:sd.a}; syncMounts(shot); markDirty(); render(); refreshSelBar();
+      }).title = 'Which way the carriage travels when you press play';
+      const sr = document.createElement('select');
+      sr.title = 'How far the carriage travels';
+      const span = Math.abs(sd.b - sd.a);
+      for(const [v, n] of [[.3, 'Short push'], [.55, 'Half'], [.76, 'Full rail']])
+        sr.insertAdjacentHTML('beforeend', `<option value="${v}"${Math.abs(span - v) < .05 ? ' selected' : ''}>${n}</option>`);
+      sr.addEventListener('change', ()=>{
+        const v = +sr.value, dir = sd.b >= sd.a ? 1 : -1, mid = .5;
+        o.slide = {a:mid - dir*v/2, b:mid + dir*v/2}; syncMounts(shot); markDirty(); render(); refreshSelBar();
+      });
+      sr.addEventListener('pointerdown', e=>e.stopPropagation());
+      selBar.appendChild(sr);
+    }
+    // direction keys: turn in place (pan a camera, swing a light) — also on a rig
+    if(typeof canAim === 'function' && canAim(o) && !(o.path && o.path.length)){
+      vsep();
+      const n = (o.aim || []).length;
+      sbtn(n ? '+ Direction key' : '↻ Animate direction', ()=>{
+        o.aim = o.aim || [];
+        const last = o.aim.length ? o.aim[o.aim.length-1].rot : o.rot;
+        const k = {rot:norm(last + rad(35))};
+        if(o.cat === 'camera'){ k.fov = o.fov; k.range = o.range; }
+        o.aim.push(k);
+        markDirty(); render(); refreshSelBar();
+        if(!n) toast('Direction key added — drag the teal dot to aim it; press play to see it turn');
+      }).title = 'Stay in place and turn: each key is a direction, played in order';
+      if(n){
+        sbtn('– Key', ()=>{ o.aim.pop(); if(!o.aim.length) delete o.aim; markDirty(); render(); refreshSelBar(); });
+        sbtn('Clear turn', ()=>{ delete o.aim; markDirty(); render(); refreshSelBar(); });
+      }
+    }
+    if(canMove(o) && !rigC && !(o.aim && o.aim.length && canAim(o))){
       vsep();
       if(isCrane(o) && o.rail){
         sbtn('Release from track', ()=>{

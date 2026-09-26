@@ -69,7 +69,7 @@
   <p class="kicker">Run it yourself</p>
   <h1>Your server, your data,<br>the <em>whole</em> app.</h1>
   <p class="lead">Floorboard is a folder of static files: HTML, CSS and JavaScript, no build step and no server code of its own. Hosting it yourself means putting that folder behind a web server. Ten minutes for the local version, half an hour with accounts and sync.</p>
-  <div class="license"><b>License.</b> Floorboard is source-available under the <a href="LICENSE">Elastic License 2.0</a>. Running it for yourself, your crew or your company — paid productions included — is allowed and encouraged. Offering Floorboard itself as a hosted or managed service to others is not.</div>
+  <div class="license"><b>License.</b> Floorboard is source-available under the <a href="LICENSE">Elastic License 2.0</a>. Running it for yourself — paid productions included — is allowed and encouraged. Inviting people to co-edit is part of the hosted Floorboard, not of the self-hosted edition; removing or circumventing that limit, or offering Floorboard itself as a hosted or managed service to others, is not allowed.</div>
 </div></div>
 
 <section id="which"><div class="wrap">
@@ -79,7 +79,8 @@
     <tr><th></th><th>Local</th><th>Cloud</th></tr>
     <tr><td>Accounts, sign-in</td><td>none</td><td>e-mail + password, magic link</td></tr>
     <tr><td>Where work is saved</td><td>in the browser that made it (IndexedDB)</td><td>your own Supabase database, synced across devices</td></tr>
-    <tr><td>Co-editing, share links, Floor Scanner sync</td><td>no</td><td>yes</td></tr>
+    <tr><td>Sync across your devices, read-only share links, Floor Scanner sync</td><td>no</td><td>yes</td></tr>
+    <tr><td>Inviting people to co-edit</td><td>no</td><td>no — hosted Floorboard only</td></tr>
     <tr><td>Backups</td><td>Production ▾ → Export .floorproj</td><td>automatic (Supabase), plus .floorproj</td></tr>
     <tr><td>Setup</td><td>copy the folder, done</td><td>copy the folder + a free Supabase project</td></tr>
   </table>
@@ -157,10 +158,11 @@ server {
 
 <section id="people"><div class="wrap">
   <h2>4 · People and access</h2>
-  <p><b>Inviting.</b> Share → <i>People on this production</i>: name, email, co-edit or read-only, and a tick per floor. With an email the person is joined the moment they sign in with that address; the link is a shortcut. Read-only people browse and export, the database refuses their writes. Needs <code>setup/invites-v2.sql</code> (part of <code>schema.sql</code> §7 for fresh installs).</p>
+  <p><b>Self-hosted is for you on your own devices.</b> It syncs, shares read-only links and takes Floor Scanner rooms, but it does not invite people: the Share panel says so and <code>?join=</code> links are ignored. Working together with your crew is what the <a href="landing.html#plans">hosted Floorboard</a> is for.</p>
+  <p><b>Inviting (hosted).</b> Share → <i>People on this production</i>: name, email, co-edit or read-only, and a tick per floor. With an email the person is joined the moment they sign in with that address; the link is a shortcut. Read-only people browse and export, the database refuses their writes. Needs <code>setup/invites-v2.sql</code> (part of <code>schema.sql</code> §7 for fresh installs).</p>
   <div class="grid3">
     <div class="card"><h4>One account per person</h4><p>Everyone signs in with their own e-mail; productions belong to the account that created them.</p></div>
-    <div class="card"><h4>Co-editing with floor access</h4><p>The owner enables it per production (Share → Co-editors) and hands out invite links: <i>all floors</i>, or <i>crew</i> — mood, script, plans and shot list, but not Budget and Production. Per member, the owner switches floors on or off with the chips next to their name.</p></div>
+    <div class="card"><h4>Co-editing with floor access (hosted)</h4><p>The owner enables it per production (Share → Co-editors) and hands out invite links: <i>all floors</i>, or <i>crew</i> — mood, script, plans and shot list, but not Budget and Production. Per member, the owner switches floors on or off with the chips next to their name.</p></div>
     <div class="card"><h4>Read-only links &amp; Floor Scanner</h4><p>Share links show a frozen copy to anyone with the link; viewers can drop comment pins, nothing else. Floor Scanner on iPhone signs in with the same account; scanned rooms and location photos appear in the room library.</p></div>
   </div>
 </div></section>

@@ -76,14 +76,23 @@ function handleList(){
       }
     }
     // directional lights: amber handles on the beam edges (drag = spread + throw)
-    if(o.cat === 'prop' && LIGHT_BEAMS[o.kind] && !LIGHT_BEAMS[o.kind].omni && o.beam !== false){
-      const b = LIGHT_BEAMS[o.kind];
+    const lb = o.cat === 'prop' && LIGHT_BEAMS[o.kind] ? lightBeamOf(o) : null;
+    if(lb && !lb.omni && !lb.haze && o.beam !== false){
+      const b = lb;
       const ax = o.rot + (b.axis || 0);
       const sp = o.beamSpread || b.spread, rg = o.beamRange || b.range;
       for(const sgn of [-1,1]){
         const a = ax + sgn*rad(sp/2);
         hs.push({id:'beam'+(sgn<0?'A':'B'), x:o.x+Math.cos(a)*rg, y:o.y+Math.sin(a)*rg});
       }
+    }
+    // direction keys: drag a numbered dot to set where the camera / light faces
+    if(o.aim && o.aim.length){
+      const ax = aimAxis(o), base = Math.max(o.w, o.h)/2;
+      o.aim.forEach((k, i)=>{
+        const a = k.rot + ax, R = base + (48 + 20*i)/s;
+        hs.push({id:'ak'+i, x:o.x + Math.cos(a)*R, y:o.y + Math.sin(a)*R});
+      });
     }
     if(isCrane(o)){
       const hp = jibHeadPos(o);
@@ -126,6 +135,7 @@ function handleColor(id){
   if(id === 'rotate' || id.startsWith('pr') || id === 'sunH' || id === 'sunN') return '#E2A93B';
   if(id.startsWith('fov') || id.startsWith('pf') || id === 'jibHead' || id.startsWith('ch')) return '#8B5CF6';
   if(id === 'ksink' || id === 'khob') return '#4CA6E8';
+  if(id.startsWith('ak')) return '#14A8C2';
   return THEME.accent;
 }
 function drawSelection(shot){
