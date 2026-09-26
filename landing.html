@@ -7,7 +7,7 @@
 <meta name="description" content="Plan your film on the real floor: moodboard, script breakdown, shot designer with lenses and light, shot list, budget and call sheets — one browser app, also on iPad. Free to self-host, hosted for €9 a month.">
 <meta property="og:title" content="Floorboard — the floor is yours">
 <meta property="og:description" content="Pre-production in six floors: mood, script, shot designer, shot list, budget, production.">
-<meta property="og:image" content="landing/img/shot-designer.jpg">
+<meta property="og:image" content="landing/img/hero-ui2.jpg">
 <link rel="icon" href="icons/icon-32.png" sizes="32x32">
 <link rel="stylesheet" href="./tokens.css">
 <style>
@@ -239,6 +239,16 @@
   .stepsl li > b{display:flex}
   .stepsl li.scan{display:block;padding:12px 14px;border-radius:var(--r-md);box-shadow:none}
   .phone .rows i{color:var(--accent);background:var(--accent-soft)}
+  /* hero: the real app, large — headline centred above it */
+  .hero{padding:64px 0 10px}
+  .hero .wrap{grid-template-columns:1fr;justify-items:center;text-align:center;gap:0}
+  .hero h1{font-size:60px;letter-spacing:-2.2px}
+  .hero .sub{margin-left:auto;margin-right:auto;max-width:640px}
+  .hero .cta{justify-content:center}
+  .hero .frame{width:100%;margin-top:46px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 40px 100px rgba(20,20,40,.18)}
+  .hero .frame .shot{display:block;width:100%;height:auto}
+  @media (max-width:980px){ .hero h1{font-size:40px;letter-spacing:-1.2px} }
+  @media (max-width:600px){ .hero h1{font-size:34px} .hero .frame{margin-top:30px} }
 </style>
 </head>
 <body>
@@ -275,9 +285,8 @@
       <a class="hero-scan" href="#scanner"><i><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg></i><span><b>Floor Scanner</b> for iPhone: scan the location, plan it here →</span></a>
     </div>
     <div class="frame" aria-label="Floorboard, the Shot designer">
-      <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Licht — Van Gogh brand film · Scene 1 · Atelier</span></div>
-      <div class="tabs"><div class="seg"><span><b>GROUND</b>Mood</span><span><b>1ST</b>Script</span><span class="on"><b>2ND</b>Shot designer</span><span><b>3RD</b>Shot list</span><span><b>4TH</b>Budget</span><span><b>5TH</b>Production</span></div></div>
-      <img class="shot cover" src="landing/img/shot-designer.jpg" alt="Top-down floor plan of an atelier with two cameras, two actors, LED and Fresnel light and the sun position" style="object-position:38% 42%">
+      <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="name">Floorboard · Shot designer</span></div>
+      <img class="shot" src="landing/img/hero-ui2.jpg" width="2000" height="1250" alt="The Floorboard Shot designer: the floors in the top bar, the library on the left, an L-shaped living room with two cameras, a dolly track, two actors and light, and the camera inspector on the right with lens set, focal lengths and a 28° field of view">
     </div>
   </div>
 </div>
