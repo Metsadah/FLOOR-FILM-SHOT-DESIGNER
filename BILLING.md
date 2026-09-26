@@ -10,9 +10,12 @@ What is already built (v0.66):
 - Edge Function `billing-webhook` — verifies Paddle **or** Lemon Squeezy
   signatures and mirrors the subscription into that table
 - In-app: plan box in the account panel (Upgrade / Manage), Paddle overlay
-  checkout or Lemon Squeezy hosted checkout, and two gates on the free plan:
-  **one cloud production** and **no co-editing invites**. Share links,
-  exports, call sheets etc. stay free on purpose — they are how people find you.
+  checkout or Lemon Squeezy hosted checkout. There is no permanently free
+  hosted plan: every account gets a **free month** (30 days, no card, no
+  auto-renewal), then **Pro** (€7 / month or €77 / year). Without a live plan
+  an account cannot start productions or invite people; it keeps its own
+  productions (stored 12 months, exportable) and works in productions it was
+  invited to. See "Plans v2" below.
 
 Everything below is dashboard work only you can do. Order matters a little.
 
@@ -194,7 +197,9 @@ select note, count(*) from subscriptions where status = 'promo' group by note;
 Codes are case-insensitive. A code on a running trial or another code adds
 its days on top; a paying customer keeps the paid plan unchanged.
 
-**Local mode** (self-host, `billing.provider` empty) has none of this: no
-trial, no seats, everything on. That is the free product; the hosted €7 is
-convenience; a one-time self-host cloud licence (if you want one) is a
-licence-text matter, not something the code can enforce.
+**Self-host** (`billing.provider` empty) has no trial and no seats: every
+floor and export is on, for one person on their own devices. Inviting people
+/ co-editing is hosted-only — `hostedEdition()` in js/07-share.js allows it
+only on the Floorboard Supabase project, and the Elastic License 2.0 forbids
+circumventing that. That is the free product; working together with a crew
+is what the hosted €7 buys.

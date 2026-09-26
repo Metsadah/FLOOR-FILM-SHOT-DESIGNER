@@ -2114,7 +2114,7 @@ async function openProjectPop(){
   nw.style.cssText = 'width:100%;margin-top:8px;';
   nw.textContent = '+ New production';
   nw.addEventListener('click', async ()=>{
-    // hosted free plan: one cloud production (billing off = unlimited)
+    // hosted: starting a production needs a live plan (free month or Pro); billing off = unlimited
     if(window.FLOOR_BILLING && window.FLOOR_BILLING.enabled && !window.FLOOR_BILLING.canCreate()){ window.FLOOR_BILLING.gate('productions'); return; }
     pop.classList.remove('show');
     newProductionOverlay(); // name + template (or the example production) — 14-templates.js
