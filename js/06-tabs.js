@@ -36,6 +36,7 @@ function switchTab(t){
   activeTab = t;
   document.body.className = document.body.className.replace(/\btab-\w+\b/g, '').trim();
   document.body.classList.add('tab-' + t);
+  if(typeof applyFloor === 'function') applyFloor(t);
   document.querySelectorAll('#tabbar button').forEach(b =>
     b.classList.toggle('on', b.dataset.tab === t));
   if(t === 'mood'){

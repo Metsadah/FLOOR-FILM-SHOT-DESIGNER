@@ -206,7 +206,7 @@ function drawSelection(shot){
       const ox = -Math.sin(pc.ang) * 16/s, oy = Math.cos(pc.ang) * 16/s;
       ctx.font = `600 ${11/Math.max(s,.35)}px -apple-system,Segoe UI,sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(75,107,251,.75)';
+      ctx.fillStyle = THEME.accent;
       ctx.fillText(txt, pc.x + ox, pc.y + oy);
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     }
@@ -267,7 +267,7 @@ function drawToolPreview(){
     const cx = pc.x, cy = pc.y;
     ctx.save();
     ctx.beginPath(); ctx.arc(cx,cy, 10/s, 0, 7);
-    ctx.fillStyle = 'rgba(75,107,251,.25)'; ctx.fill();
+    ctx.fillStyle = THEME.accent; ctx.globalAlpha = .25; ctx.fill(); ctx.globalAlpha = 1;
     ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.6/s; ctx.stroke();
     ctx.restore();
   }
@@ -277,7 +277,7 @@ function drawToolPreview(){
     ctx.strokeRect(Math.min(drag.x1,drag.x2), Math.min(drag.y1,drag.y2),
                    Math.abs(drag.x2-drag.x1), Math.abs(drag.y2-drag.y1));
     ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(75,107,251,.05)';
+    ctx.fillStyle = THEME.accent08 || 'rgba(10,124,255,.06)';
     ctx.fillRect(Math.min(drag.x1,drag.x2), Math.min(drag.y1,drag.y2),
                  Math.abs(drag.x2-drag.x1), Math.abs(drag.y2-drag.y1));
     ctx.restore();
@@ -288,7 +288,7 @@ function drawToolPreview(){
     ctx.strokeRect(Math.min(drag.x1,drag.x2), Math.min(drag.y1,drag.y2),
                    Math.abs(drag.x2-drag.x1), Math.abs(drag.y2-drag.y1));
     ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(75,107,251,.06)';
+    ctx.fillStyle = THEME.accent08 || 'rgba(10,124,255,.06)';
     ctx.fillRect(Math.min(drag.x1,drag.x2), Math.min(drag.y1,drag.y2),
                  Math.abs(drag.x2-drag.x1), Math.abs(drag.y2-drag.y1));
     ctx.restore();

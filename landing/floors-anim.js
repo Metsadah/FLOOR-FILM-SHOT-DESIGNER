@@ -2,7 +2,7 @@
 // Script floor shows an AV script being written and a screenplay breaking down
 // into scenes. Same canvas idiom as landing/howto.js. Hover pauses.
 (function(){
-  const ACC = '#4B6BFB', INK = '#2B2A27', INK2 = '#6B675F', INK3 = '#9A968D', LINE = '#E1DED6', CORAL = '#E8734A', SAND = '#E2A93B', LILAC = '#A98BE0', TEAL = '#4FA3A5', SOFT = '#F3F1EC';
+  const ACC = '#0A7CFF', INK = '#2B2A27', INK2 = '#6B675F', INK3 = '#9A968D', LINE = '#E1DED6', CORAL = '#E8734A', SAND = '#E2A93B', LILAC = '#A98BE0', TEAL = '#4FA3A5', SOFT = '#F3F1EC';
   const clamp = (v, a, b)=>v < a ? a : v > b ? b : v;
   const ease = t=>{ t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
   const out = t=>{ t = clamp(t, 0, 1); return 1 - Math.pow(1 - t, 3); };
@@ -70,7 +70,7 @@
     if(card(ctx, 750, 380, 100, 92, ease((t - 4.5) / .4))){ photo(ctx, 8, 8, 84, 52, 6); rr(ctx, 58, 12, 28, 14, 3, '#000'); text(ctx, 'GIF', 72, 22.5, 8.5, '#fff', 800, 'center'); text(ctx, 'Loop · 4 s', 8, 78, 10.5, INK2); ctx.restore(); }
     // 5 · marquee around the first three photos → sub-board
     const m = ease((t - 5.6) / .7);
-    if(m > 0 && t < 7.3){ ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = ACC; ctx.lineWidth = 1.5; const x0 = 56, y0 = 74, x1 = 56 + (610 - 56) * m, y1 = 74 + (140 - 74 + 100) * m; ctx.strokeRect(x0, y0, x1 - x0, y1 - y0); ctx.fillStyle = 'rgba(75,107,251,.07)'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.restore(); cursor(ctx, 56 + (610 - 56) * m, 74 + 166 * m); }
+    if(m > 0 && t < 7.3){ ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = ACC; ctx.lineWidth = 1.5; const x0 = 56, y0 = 74, x1 = 56 + (610 - 56) * m, y1 = 74 + (140 - 74 + 100) * m; ctx.strokeRect(x0, y0, x1 - x0, y1 - y0); ctx.fillStyle = 'rgba(10,124,255,.07)'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.restore(); cursor(ctx, 56 + (610 - 56) * m, 74 + 166 * m); }
     const g = ease((t - 7.3) / .6);
     if(g > 0){
       // the three photos shrink into one sub-board card
@@ -134,7 +134,7 @@
         let yy = 82;
         SCENES.forEach((sc, i)=>{
           const k = clamp((u - .5 - i * 1.1) / .8, 0, 1);
-          if(k > 0){ ctx.font = font(12, 800); const hw = ctx.measureText(sc[0]).width; if(k >= 1 && u > 4.4){ rr(ctx, 14, yy - 14, hw + 8, 20, 4, 'rgba(75,107,251,.14)'); } typed(ctx, sc[0], 18, yy, 12, INK, k, 800); }
+          if(k > 0){ ctx.font = font(12, 800); const hw = ctx.measureText(sc[0]).width; if(k >= 1 && u > 4.4){ rr(ctx, 14, yy - 14, hw + 8, 20, 4, 'rgba(10,124,255,.14)'); } typed(ctx, sc[0], 18, yy, 12, INK, k, 800); }
           const k2 = clamp((u - .9 - i * 1.1) / .9, 0, 1); if(k2 > 0) typed(ctx, sc[1], 18, yy + 20, 11.5, INK2, k2);
           yy += 108;
         });
@@ -154,7 +154,7 @@
         rr(ctx, x + 14, y + 14, 130, 100, 4, '#FBFAF7'); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(x + 22, y + 22, 114, 84);
         if(i === 0){ rr(ctx, x + 40, y + 40, 44, 50, 2, '#E9E6DF', '#A9A395'); } if(i === 1){ rr(ctx, x + 30, y + 30, 90, 16, 2, '#E9E6DF', '#A9A395'); rr(ctx, x + 60, y + 60, 40, 24, 2, '#E9E6DF', '#A9A395'); } if(i === 2){ rr(ctx, x + 22, y + 80, 114, 20, 0, '#DDD9CF'); ctx.fillStyle = '#7FA05A'; ctx.beginPath(); ctx.arc(x + 40, y + 40, 10, 0, 7); ctx.fill(); }
         ctx.fillStyle = CORAL; ctx.beginPath(); ctx.arc(x + 100, y + 70, 5, 0, 7); ctx.fill();
-        rr(ctx, x + 116, y + 92, 9, 6, 1, ACC); ctx.fillStyle = 'rgba(75,107,251,.15)'; ctx.beginPath(); ctx.moveTo(x + 120, y + 95); ctx.lineTo(x + 92, y + 62); ctx.lineTo(x + 124, y + 58); ctx.closePath(); ctx.fill();
+        rr(ctx, x + 116, y + 92, 9, 6, 1, ACC); ctx.fillStyle = 'rgba(10,124,255,.15)'; ctx.beginPath(); ctx.moveTo(x + 120, y + 95); ctx.lineTo(x + 92, y + 62); ctx.lineTo(x + 124, y + 58); ctx.closePath(); ctx.fill();
         text(ctx, (i + 1) + ' · ' + sc[0].replace(/ —.*$/, '').replace(/^(INT|EXT)\. /, ''), x + 160, y + 40, 14, INK, 800);
         text(ctx, sc[0], x + 160, y + 60, 10.5, INK3, 600);
         text(ctx, ['1A wide · 1B close', '2A gimbal · 2B top shot', '3A steadicam'][i], x + 160, y + 84, 11.5, INK2);

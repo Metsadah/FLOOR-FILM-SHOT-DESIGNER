@@ -3,7 +3,8 @@
 # Configure cloud mode (optional) by editing config.js before building,
 # or mount your own: -v $PWD/config.js:/usr/share/nginx/html/config.js:ro
 FROM nginx:alpine
-COPY index.html manifest.json service-worker.js supabase-adapter.js config.js styles.css /usr/share/nginx/html/
+COPY index.html manifest.json service-worker.js supabase-adapter.js config.js tokens.css styles.css ui2.css /usr/share/nginx/html/
+COPY fonts /usr/share/nginx/html/fonts
 COPY js /usr/share/nginx/html/js
 COPY setup/nginx-security.conf /etc/nginx/conf.d/security-headers.conf
 COPY icons /usr/share/nginx/html/icons

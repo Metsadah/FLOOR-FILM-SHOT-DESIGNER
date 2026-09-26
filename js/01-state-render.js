@@ -479,7 +479,7 @@ function updateCrumb(){
     : activeTab === 'shots' ? 'Shot list'
     : activeTab === 'write' ? 'Script & Storyboard'
     : (rootBoard() ? rootBoard().name : 'Scene');
-  el.innerHTML = '<span style="color:#4B6BFB">⬑</span>&nbsp;' + esc(rootName) +
+  el.innerHTML = '<span style="color:var(--accent)">⬑</span>&nbsp;' + esc(rootName) +
     chain.map((s, i)=>' <span style="color:#B9B6AE">›</span> ' +
       (i === chain.length - 1
         ? '<b>' + esc(s.label || 'Sub-board') + '</b>'

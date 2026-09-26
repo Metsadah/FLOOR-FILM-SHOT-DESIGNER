@@ -21,13 +21,13 @@ function loadTheme(){
   return THEME;
 }
 // light values, for exports and for the very first paint before CSS is parsed
-const THEME_LIGHT = {bg:'#F4F3F0', panel:'#FFFFFF', card:'#FFFFFF', hover:'#F6F5F2', soft:'#EEECE7',
-  grid:'#E3E0D9', line:'#E6E3DD', line2:'#D6D2CA', ink:'#2B2A27', body:'#46433B', ink2:'#7E7B73',
-  ink3:'#B5B1A8', ph30:'rgba(70,67,59,.30)', ph35:'rgba(70,67,59,.35)', ph40:'rgba(70,67,59,.40)',
-  chip:'rgba(255,255,255,.92)', toast:'#2A2926', toastInk:'#FFFFFF', accent:'#4B6BFB',
-  accentInk:'#3D5BE8', accentSoft:'#EAEEFF', accent08:'rgba(75,107,251,.08)', danger:'#D55E00',
-  dangerSoft:'#FBEAE0', warn:'#E69F00', warnSoft:'#FBF3E2', ok:'#009E73', okSoft:'#E3F5EF',
-  onAccent:'#FFFFFF', rCard:8, dark:false};
+const THEME_LIGHT = {bg:'#F7F7F8', panel:'#FFFFFF', card:'#FFFFFF', hover:'#F5F5F7', soft:'#F2F2F4',
+  grid:'#DADADF', line:'#E8E8EC', line2:'#D5D5DB', ink:'#1D1D1F', body:'#3A3A3F', ink2:'#5F5F66',
+  ink3:'#8E8E95', ph30:'rgba(29,29,31,.30)', ph35:'rgba(29,29,31,.35)', ph40:'rgba(29,29,31,.40)',
+  chip:'rgba(255,255,255,.92)', toast:'#1D1D1F', toastInk:'#FFFFFF', accent:'#0A7CFF',
+  accentInk:'#096BDB', accentSoft:'#E2EFFF', accent08:'rgba(10,124,255,.08)', danger:'#E5484D',
+  dangerSoft:'#FDECEC', warn:'#E69F00', warnSoft:'#FDF4E1', ok:'#1FA855', okSoft:'#E4F6EA',
+  onAccent:'#FFFFFF', rCard:10, dark:false};
 Object.assign(THEME, THEME_LIGHT);
 // run fn with the light palette active (exports must look the same in dark mode)
 function withLightTheme(fn){

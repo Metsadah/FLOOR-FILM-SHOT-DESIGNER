@@ -5,14 +5,17 @@
 // from the menu, drops photos from outside, groups them into a sub-board,
 // presses play. Everything is a function of time, so hovering pauses cleanly.
 (function(){
-  const W = 1280, H = 760, SIDE = 264, TOP = 92;
-  const C = {bg:'#FFFFFF', canvas:'#FBFAF7', side:'#F7F6F2', line:'#E6E2D9', ink:'#23221F', ink2:'#6B675F', ink3:'#A19C92', acc:'#4B6BFB', accSoft:'#E9EDFF', coral:'#E8734A', sand:'#E2A93B', glass:'#7FA9E6', dot:'#DDD9D0', note:'#FCEFC0', green:'#3E9B6E'};
+  const W = 1280, H = 760, SIDE = 282, TOP = 60;
+  const C = {bg:'#FFFFFF', canvas:'#F7F7F8', side:'#FFFFFF', line:'#E8E8EC', ink:'#1D1D1F', ink2:'#5F5F66', ink3:'#8E8E95', soft:'#F2F2F4', soft2:'#E9E9EC', acc:'#0A7CFF', accSoft:'#E2EFFF', coral:'#FF5E57', sand:'#E2A93B', glass:'#7FA9E6', dot:'#D6D6DC', note:'#FCEFC0', green:'#2DB45A'};
+  // UI 2.0: one colour per floor
+  const FLOOR = {mood:['#FF5E57', '#FFECEB'], write:['#A259FF', '#F4EBFF'], design:['#0A7CFF', '#E2EFFF'], shots:['#14A8C2', '#E3F5F8'], budget:['#2DB45A', '#E6F6EB'], org:['#FF9500', '#FFF2E0']};
+  if(document.fonts && document.fonts.load){ document.fonts.load('600 13px Geist'); document.fonts.load('600 13px "Geist Mono"'); }
   const clamp = (v, a, b)=>v < a ? a : v > b ? b : v;
   const ease = t=>{ t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
   const back = t=>{ t = clamp(t, 0, 1); const c = 1.6; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }; // overshoot pop
   const span = (t, a, b)=>clamp((t - a) / (b - a), 0, 1);
   const lerp = (a, b, k)=>a + (b - a) * k;
-  const font = (px, w)=>`${w || 500} ${px}px -apple-system, "SF Pro Text", "Inter", "Segoe UI", sans-serif`;
+  const font = (px, w)=>`${w || 500} ${px}px Geist, -apple-system, "SF Pro Text", "Segoe UI", sans-serif`;
 
   // ---------------------------------------------------------------- icons
   let sprite = null, iconIdx = {}, CELL = 88;
@@ -36,7 +39,7 @@
     ctx.save(); ctx.translate(x, y); const s = press ? 1.05 : 1.2; ctx.scale(s, s);
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 16); ctx.lineTo(3.8, 12.3); ctx.lineTo(6.8, 18.6); ctx.lineTo(9.6, 17.3); ctx.lineTo(6.7, 11); ctx.lineTo(11.8, 10.8); ctx.closePath();
     ctx.fillStyle = '#111'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke(); ctx.restore();
-    if(press){ ctx.save(); ctx.strokeStyle = 'rgba(75,107,251,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 14, 0, 7); ctx.stroke(); ctx.restore(); }
+    if(press){ ctx.save(); ctx.strokeStyle = C.acc; ctx.globalAlpha = .55; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 14, 0, 7); ctx.stroke(); ctx.restore(); }
   }
   function photo(ctx, x, y, w, h, i, r){
     const pal = [['#7A5C3B', '#E1B86B'], ['#2B3A67', '#7FA9E6'], ['#4A6B3A', '#C8D9A3'], ['#8A2F2F', '#E8A090'], ['#3A3A3A', '#C9C4B9'], ['#B0632A', '#F0C674'], ['#22505A', '#89C2C6'], ['#5B4A7A', '#CDB6F0']];
@@ -54,67 +57,85 @@
   const inAny = (t, ranges)=>ranges.some(([a, b])=>t >= a && t < b);
 
   // ---------------------------------------------------------------- the app window
-  const TABS = [['GROUND', 'Mood', 'mood'], ['1ST', 'Script', 'write'], ['2ND', 'Shot designer', 'design'], ['3RD', 'Shot list', 'shots'], ['4TH', 'Budget', 'budget'], ['5TH', 'Production', 'org']];
+  const TABS = [['Mood', 'mood'], ['Script', 'write'], ['Shot designer', 'design'], ['Shot list', 'shots'], ['Budget', 'budget'], ['Production', 'org']];
   function chrome(ctx, active, crumb){
-    rr(ctx, 0, 0, W, H, 0, C.bg);
-    // top bar
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, 52); ctx.fillStyle = C.line; ctx.fillRect(0, 51.5, W, 1);
-    rr(ctx, 18, 14, 24, 24, 7, C.acc); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; [[25, 31, 35], [25, 26, 32], [25, 21, 29]].forEach(([x, y, x2])=>{ ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y); ctx.stroke(); });
-    const pn = 'Licht — Van Gogh brand film'; const pw = tw(ctx, pn, 13.5, 600) + 34;
-    rr(ctx, 54, 12, pw, 28, 9, '#fff', C.line); txt(ctx, pn, 66, 26, 13.5, C.ink, 600); txt(ctx, '▾', 54 + pw - 16, 26, 10, C.ink3);
-    if(crumb){ txt(ctx, crumb, 54 + pw + 16, 26, 13, C.ink2, 500); }
-    txt(ctx, 'Saved', 1010, 26, 12.5, C.ink3);
-    rr(ctx, 1052, 12, 70, 28, 9, '#fff', C.line); txt(ctx, 'Share', 1087, 26, 12.5, C.ink, 600, 'center');
-    rr(ctx, 1130, 12, 78, 28, 9, C.acc); txt(ctx, 'Export', 1169, 26, 12.5, '#fff', 700, 'center');
-    ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(1236, 26, 13, 0, 7); ctx.stroke(); txt(ctx, '?', 1236, 26.5, 12, C.ink2, 700, 'center');
-    // floors
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 52, W, 40); ctx.fillStyle = C.line; ctx.fillRect(0, 91.5, W, 1);
-    let x = 14;
-    for(const [lvl, name, key] of TABS){
-      const on = key === active; const lw = tw(ctx, lvl, 8.5, 800) + 10, nw = tw(ctx, name, 13, 600);
-      const w = lw + nw + 30;
-      if(on){ rr(ctx, x, 58, w, 28, 8, C.accSoft); }
-      rr(ctx, x + 10, 65, lw, 14, 7, on ? '#fff' : '#F1EFEA'); txt(ctx, lvl, x + 10 + lw / 2, 72.5, 8.5, on ? C.acc : C.ink3, 800, 'center');
-      txt(ctx, name, x + 18 + lw, 72, 13, on ? C.acc : C.ink2, 600);
-      x += w + 6;
-    }
+    C.acc = FLOOR[active][0]; C.accSoft = FLOOR[active][1];
+    rr(ctx, 0, 0, W, H, 0, C.canvas);
+    // glass top bar
+    ctx.fillStyle = 'rgba(255,255,255,.86)'; ctx.fillRect(0, 0, W, TOP); ctx.fillStyle = C.line; ctx.fillRect(0, TOP - .5, W, 1);
+    const ig = ctx.createLinearGradient(16, 15, 46, 45); ig.addColorStop(0, '#0A7CFF'); ig.addColorStop(.55, '#6B5BFF'); ig.addColorStop(1, '#FF5E57');
+    shadow(ctx, 6, 2, .18); rr(ctx, 16, 15, 30, 30, 9, ig); noShadow(ctx);
+    ctx.fillStyle = '#fff'; [[7, 23], [11, 28.5], [15, 34]].forEach(([w, y])=>rr(ctx, 23, y - 1.25, w, 2.5, 1.2, '#fff'));
+    const pn = 'Licht — Van Gogh brand film';
+    txt(ctx, pn + '  ▾', 58, crumb ? 23 : 30, 14, C.ink, 650);
+    if(crumb) txt(ctx, crumb, 58, 41, 11.5, C.ink3, 500);
+    // the floors: one segmented control, a colour per floor
+    const ws = TABS.map(([n, k])=>tw(ctx, n, 13, k === active ? 650 : 500) + 43);
+    const tot = ws.reduce((a, b)=>a + b, 0) + 2 * (TABS.length - 1) + 6;
+    let x = (W - tot) / 2;
+    rr(ctx, x, 11, tot, 38, 12, C.soft2); x += 3;
+    TABS.forEach(([n, k], i)=>{
+      const on = k === active, c = FLOOR[k][0];
+      if(on){ shadow(ctx, 3, 1, .14); rr(ctx, x, 14, ws[i], 32, 9, '#fff'); noShadow(ctx); }
+      ctx.globalAlpha = on ? 1 : .55; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 18, 30, 4, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+      txt(ctx, n, x + 29, 30.5, 13, on ? c : C.ink2, on ? 650 : 500);
+      x += ws[i] + 2;
+    });
+    txt(ctx, 'Saved', 1034, 30, 12, C.ink3, 500, 'right');
+    rr(ctx, 1046, 14, 74, 32, 9, '#fff', '#D5D5DB'); txt(ctx, 'Share', 1083, 30.5, 13, C.ink, 600, 'center');
+    ctx.save(); ctx.shadowColor = C.acc + '66'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 2; rr(ctx, 1128, 14, 80, 32, 9, C.acc); ctx.restore();
+    txt(ctx, 'Export', 1168, 30.5, 13, '#fff', 650, 'center');
+    txt(ctx, '?', 1240, 30.5, 14, C.ink2, 700, 'center');
   }
   // library: groups of tiles; returns rects by label
   function sideLayout(groups){
-    const rects = {}, heads = []; let y = TOP + 16;
+    const rects = {}, heads = []; let y = TOP + 150;
     for(const [head, color, labels] of groups){
       heads.push([head, color, y]); y += 20;
-      labels.forEach((l, i)=>{ const col = i % 3, row = Math.floor(i / 3); rects[l] = {x:12 + col * 81, y:y + row * 88, w:76, h:82}; });
-      y += Math.ceil(labels.length / 3) * 88 + 8;
+      labels.forEach((l, i)=>{ const col = i % 3, row = Math.floor(i / 3); rects[l] = {x:26 + col * 82, y:y + row * 86, w:78, h:82}; });
+      y += Math.ceil(labels.length / 3) * 86 + 10;
     }
     return {rects, heads};
   }
   function sidebar(ctx, lay, hot, press){
-    ctx.fillStyle = C.side; ctx.fillRect(0, TOP, SIDE, H - TOP); ctx.fillStyle = C.line; ctx.fillRect(SIDE - .5, TOP, 1, H - TOP);
-    for(const [h, color, y] of lay.heads){ ctx.fillStyle = color; ctx.beginPath(); ctx.arc(20, y + 4, 3.5, 0, 7); ctx.fill(); txt(ctx, h, 30, y + 4, 10.5, C.ink2, 800); }
+    // a floating panel: rounded, soft shadow, search and category chips on top
+    const px = 14, py = TOP + 14, pw = SIDE - px - 4, ph = H - py - 14;
+    shadow(ctx, 30, 12, .10); rr(ctx, px, py, pw, ph, 22, '#fff'); noShadow(ctx); rr(ctx, px, py, pw, ph, 22, null, C.line);
+    ctx.save(); ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 22); ctx.clip();
+    txt(ctx, 'Library', px + 16, py + 24, 15, C.ink, 700);
+    rr(ctx, px + 12, py + 42, pw - 24, 34, 11, C.soft);
+    ctx.strokeStyle = C.ink3; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(px + 30, py + 58, 5.2, 0, 7); ctx.moveTo(px + 34, py + 62); ctx.lineTo(px + 38, py + 66); ctx.stroke();
+    txt(ctx, 'Search the library…', px + 46, py + 59, 12.5, C.ink3, 500);
+    let cx = px + 12;
+    ['All'].concat(lay.heads.map(h=>h[0].charAt(0) + h[0].slice(1).toLowerCase())).forEach((c, i)=>{
+      const w = tw(ctx, c, 12, 600) + 22; if(cx + w > px + pw - 8) return;
+      rr(ctx, cx, py + 86, w, 26, 13, i ? C.soft : C.ink); txt(ctx, c, cx + w / 2, py + 99.5, 12, i ? C.ink2 : '#fff', 600, 'center'); cx += w + 6;
+    });
+    for(const [h, color, y] of lay.heads){ txt(ctx, h, px + 14, y + 4, 10.5, C.ink3, 700); }
     for(const [l, r] of Object.entries(lay.rects)){
       const isHot = l === hot, s = isHot && press ? .94 : 1;
       ctx.save(); ctx.translate(r.x + r.w / 2, r.y + r.h / 2); ctx.scale(s, s); ctx.translate(-r.w / 2, -r.h / 2);
-      rr(ctx, 0, 0, r.w, r.h, 14, isHot ? '#fff' : '#F0EEE8', isHot ? C.acc : null, 1.5);
-      icon(ctx, l, (r.w - 46) / 2, 8, 46);
-      txt(ctx, l.length > 12 ? l.slice(0, 11) + '…' : l, r.w / 2, r.h - 13, 11, C.ink2, 600, 'center');
+      if(isHot) rr(ctx, 0, 0, r.w, r.h, 14, C.soft);
+      shadow(ctx, 8, 3, .14); icon(ctx, l, (r.w - 48) / 2, 7, 48); noShadow(ctx);
+      txt(ctx, l.length > 12 ? l.slice(0, 11) + '…' : l, r.w / 2, r.h - 12, 11, C.ink2, 550, 'center');
       ctx.restore();
     }
+    ctx.restore();
   }
   function canvasBg(ctx){
-    ctx.save(); ctx.beginPath(); ctx.rect(SIDE, TOP, W - SIDE, H - TOP); ctx.clip();
-    ctx.fillStyle = C.canvas; ctx.fillRect(SIDE, TOP, W - SIDE, H - TOP);
-    ctx.fillStyle = C.dot; for(let x = SIDE + 14; x < W; x += 24) for(let y = TOP + 14; y < H; y += 24){ ctx.beginPath(); ctx.arc(x, y, .9, 0, 7); ctx.fill(); }
+    ctx.save(); ctx.beginPath(); ctx.rect(0, TOP, W, H - TOP); ctx.clip();
+    ctx.fillStyle = C.canvas; ctx.fillRect(0, TOP, W, H - TOP);
+    ctx.fillStyle = C.dot; for(let x = 11; x < W; x += 22) for(let y = TOP + 11; y < H; y += 22){ ctx.beginPath(); ctx.arc(x, y, 1, 0, 7); ctx.fill(); }
   }
   function toolbar(ctx, withPlay, playHot){
     const items = withPlay ? ['sel', 'box', 'wall', 'room', 'pen', 'text', 'play'] : ['sel', 'box', 'pen', 'text', 'note', 'img', 'fit'];
-    const w = items.length * 40 + 12, x0 = SIDE + (W - SIDE - w) / 2, y0 = TOP + 14;
-    shadow(ctx, 18, 6, .12); rr(ctx, x0, y0, w, 44, 14, '#fff'); noShadow(ctx); rr(ctx, x0, y0, w, 44, 14, null, C.line);
+    const w = items.length * 42 + 12, x0 = SIDE + (W - SIDE - w) / 2, y0 = H - 20 - 54;
+    shadow(ctx, 30, 12, .10); rr(ctx, x0, y0, w, 54, 16, '#fff'); noShadow(ctx); rr(ctx, x0, y0, w, 54, 16, null, C.line);
     items.forEach((k, i)=>{
-      const cx = x0 + 6 + i * 40 + 20, cy = y0 + 22;
-      if(k === 'sel') rr(ctx, cx - 16, cy - 16, 32, 32, 9, C.accSoft);
-      if(k === 'play' && playHot) rr(ctx, cx - 16, cy - 16, 32, 32, 9, C.accSoft);
-      ctx.strokeStyle = k === 'sel' || (k === 'play' && playHot) ? C.acc : C.ink2; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      const cx = x0 + 6 + i * 42 + 21, cy = y0 + 27;
+      if(k === 'sel') rr(ctx, cx - 20, cy - 20, 40, 40, 11, C.accSoft);
+      if(k === 'play' && playHot) rr(ctx, cx - 20, cy - 20, 40, 40, 11, C.acc);
+      ctx.strokeStyle = k === 'play' && playHot ? '#fff' : k === 'sel' ? C.acc : C.ink2; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.beginPath();
       if(k === 'sel'){ ctx.moveTo(cx - 5, cy - 8); ctx.lineTo(cx - 5, cy + 7); ctx.lineTo(cx - 1, cy + 3); ctx.lineTo(cx + 2, cy + 9); ctx.lineTo(cx + 4, cy + 8); ctx.lineTo(cx + 1, cy + 2); ctx.lineTo(cx + 6, cy + 2); ctx.closePath(); ctx.fill(); }
       else if(k === 'box'){ ctx.setLineDash([3, 3]); ctx.strokeRect(cx - 8, cy - 7, 16, 14); ctx.setLineDash([]); }
@@ -128,15 +149,15 @@
       else if(k === 'play'){ ctx.moveTo(cx - 5, cy - 7); ctx.lineTo(cx + 7, cy); ctx.lineTo(cx - 5, cy + 7); ctx.closePath(); ctx.fill(); }
       ctx.stroke();
     });
-    return {x0, y0, w, play:withPlay ? {x:x0 + 6 + 6 * 40 + 20, y:y0 + 22} : null};
+    return {x0, y0, w, play:withPlay ? {x:x0 + 6 + 6 * 42 + 21, y:y0 + 27} : null};
   }
-  function zoomPill(ctx){ shadow(ctx, 12, 4, .1); rr(ctx, W - 124, H - 52, 104, 34, 11, '#fff'); noShadow(ctx); rr(ctx, W - 124, H - 52, 104, 34, 11, null, C.line); txt(ctx, '−', W - 104, H - 35, 16, C.ink2, 500, 'center'); txt(ctx, '82%', W - 72, H - 35, 12, C.ink, 700, 'center'); txt(ctx, '+', W - 40, H - 35, 16, C.ink2, 500, 'center'); }
+  function zoomPill(ctx){ const y = TOP + 16; shadow(ctx, 16, 6, .1); rr(ctx, W - 130, y, 112, 38, 12, '#fff'); noShadow(ctx); rr(ctx, W - 130, y, 112, 38, 12, null, C.line); txt(ctx, '−', W - 110, y + 19, 17, C.ink2, 500, 'center'); ctx.font = '600 12.5px "Geist Mono", ui-monospace, monospace'; ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.fillText('82%', W - 74, y + 19); ctx.textAlign = 'left'; txt(ctx, '+', W - 38, y + 19, 17, C.ink2, 500, 'center'); }
   // selection bar: chips laid out centred under the toolbar; returns chip rects
   function selBar(ctx, chips, k){
     if(k <= 0) return {};
     const gap = 6, pad = 12; const ws = chips.map(c=>c.w || (tw(ctx, c.t, 12.5, 600) + (c.dd ? 34 : 24)));
     const w = ws.reduce((a, b)=>a + b, 0) + gap * (chips.length - 1) + pad * 2;
-    const x0 = SIDE + (W - SIDE - w) / 2, y0 = TOP + 70 - (1 - k) * 12;
+    const x0 = SIDE + (W - SIDE - w) / 2, y0 = TOP + 16 - (1 - k) * 12;
     ctx.save(); ctx.globalAlpha = k;
     shadow(ctx, 22, 8, .14); rr(ctx, x0, y0, w, 44, 14, '#fff'); noShadow(ctx); rr(ctx, x0, y0, w, 44, 14, null, C.line);
     const out = {}; let x = x0 + pad;
@@ -144,7 +165,7 @@
       const cw = ws[i];
       if(c.sw){ c.sw.forEach((col, j)=>{ ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x + 10 + j * 22, y0 + 22, 8, 0, 7); ctx.fill(); if(j === 0){ ctx.strokeStyle = C.acc; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 10, y0 + 22, 11, 0, 7); ctx.stroke(); } }); }
       else {
-        rr(ctx, x, y0 + 7, cw, 30, 9, c.hot ? C.accSoft : (c.primary ? C.acc : '#F4F2EE'), c.hot ? C.acc : null, 1.2);
+        rr(ctx, x, y0 + 7, cw, 30, 8, c.hot ? C.accSoft : (c.primary ? C.acc : C.soft), c.hot ? C.acc : null, 1.2);
         txt(ctx, c.t, x + 11, y0 + 22.5, 12.5, c.primary ? '#fff' : (c.hot ? C.acc : C.ink), 600);
         if(c.dd) txt(ctx, '▾', x + cw - 15, y0 + 22.5, 10, c.hot ? C.acc : C.ink3);
       }
@@ -190,12 +211,12 @@
     const s = back(k);
     // field of view
     const R = 360 * ease(k), a0 = rot - fov / 2 * Math.PI / 180, a1 = rot + fov / 2 * Math.PI / 180;
-    const g = ctx.createRadialGradient(x, y, 10, x, y, R); g.addColorStop(0, 'rgba(75,107,251,.26)'); g.addColorStop(1, 'rgba(75,107,251,.03)');
+    const g = ctx.createRadialGradient(x, y, 10, x, y, R); g.addColorStop(0, 'rgba(10,124,255,.24)'); g.addColorStop(1, 'rgba(10,124,255,.03)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, R, a0, a1); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(75,107,251,.55)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a0) * R, y + Math.sin(a0) * R); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a1) * R, y + Math.sin(a1) * R); ctx.stroke();
+    ctx.strokeStyle = 'rgba(10,124,255,.55)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a0) * R, y + Math.sin(a0) * R); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a1) * R, y + Math.sin(a1) * R); ctx.stroke();
     ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s);
     shadow(ctx, 10, 3, .2); rr(ctx, -24, -15, 48, 30, 7, C.acc); noShadow(ctx);
-    rr(ctx, 14, -8, 16, 16, 3, '#2E46C9'); rr(ctx, -14, -8, 22, 16, 4, 'rgba(255,255,255,.3)');
+    rr(ctx, 14, -8, 16, 16, 3, '#0558C4'); rr(ctx, -14, -8, 22, 16, 4, 'rgba(255,255,255,.3)');
     ctx.restore();
   }
   function actor(ctx, x, y, rot, k, name){
@@ -233,7 +254,6 @@
     const press = inAny(t, [[1.3, 2.7], [4.4, 4.55], [5.45, 5.6], [6.5, 7.9], [9.2, 10.6], [11.95, 12.9], [14.1, 14.25]]);
     const hot = t >= 1.1 && t < 2.7 ? 'Camera' : t >= 6.3 && t < 7.9 ? 'Actor' : t >= 9.0 && t < 10.6 ? 'LED panel' : null;
     chrome(ctx, 'design', 'Scene 1 · Atelier');
-    sidebar(ctx, lay, hot, press && hot);
     canvasBg(ctx);
     roomD(ctx);
     // lens state
@@ -258,6 +278,7 @@
     handles(ctx, ld.x, ld.y, 32, 52, Math.PI * .95, t >= 10.8 && t < 11.7 ? 1 : 0);
     dropRing(ctx, cam.x, cam.y, span(t, 2.7, 3.3)); dropRing(ctx, act.x, act.y, span(t, 7.9, 8.5)); dropRing(ctx, ld.x, ld.y, span(t, 10.6, 11.2));
     ctx.restore(); // canvas clip
+    sidebar(ctx, lay, hot, press && hot);
     // floating UI over the canvas
     const tb = toolbar(ctx, true, t >= 14.1 && t < 16.4); D.play = tb.play;
     // selection bar
@@ -300,7 +321,6 @@
     const press = inAny(t, [[1.2, 2.5], [4.7, 5.8], [7.45, 7.6], [8.4, 9.8], [12.3, 13.7]]);
     const hot = t >= 1.0 && t < 2.5 ? 'Sticky note' : t >= 8.2 && t < 9.8 ? 'Column' : t >= 12.1 && t < 13.7 ? 'Link' : null;
     chrome(ctx, 'mood', null);
-    sidebar(ctx, lay, hot, press && hot);
     canvasBg(ctx);
     txt(ctx, 'LICHT — a brand film in three rooms', 312, TOP + 148, 20, C.ink, 800);
     // two photos already there
@@ -361,11 +381,12 @@
     }
     dropRing(ctx, N.x, N.y, span(t, 2.5, 3.1)); dropRing(ctx, CL.x, CL.y, span(t, 9.8, 10.4)); dropRing(ctx, LK.x, LK.y, span(t, 13.7, 14.3));
     ctx.restore(); // clip
+    sidebar(ctx, lay, hot, press && hot);
     toolbar(ctx, false);
     // selection bars
     if(t >= 2.7 && t < 4.6) selBar(ctx, [{t:'Note', dd:1}, {sw:['#FCEFC0', '#FBD7C9', '#D8E7F8', '#DCEFD9', '#E8DDF7'], w:112}, {t:'A−'}, {t:'A+'}, {t:'Lock'}], ease(span(t, 2.7, 2.95)));
     else if(t >= 6.3 && t < 7.7){ const out = selBar(ctx, [{t:'4 items'}, {t:'Group'}, {id:'sub', t:'→ Sub-board', hot:t >= 7.2, primary:t < 7.2 ? false : false}, {t:'Align', dd:1}, {t:'Delete'}], ease(span(t, 6.3, 6.55))); if(out.sub) M.subChip = out.sub; }
-    else if(t >= 10.0 && t < 12.1) selBar(ctx, [{t:'Column', dd:1}, {sw:['#3E9B6E', '#E2A93B', '#E8734A', '#4B6BFB'], w:90}, {t:'+ Item'}, {t:'Lock'}], 1);
+    else if(t >= 10.0 && t < 12.1) selBar(ctx, [{t:'Column', dd:1}, {sw:['#2DB45A', '#E2A93B', '#FF5E57', '#0A7CFF'], w:90}, {t:'+ Item'}, {t:'Lock'}], 1);
     else if(t >= 13.9) selBar(ctx, [{t:'Link'}, {t:'vimeo.com/…', w:170}, {t:'Open ↗'}], ease(span(t, 13.9, 14.2)));
     zoomPill(ctx);
     if(hot && press){ const t0 = t < 2.5 ? 1.25 : t < 9.8 ? 8.45 : 12.35; ghost(ctx, hot, cur.x, cur.y, ease(span(t, t0, t0 + .25))); }

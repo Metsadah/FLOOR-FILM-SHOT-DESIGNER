@@ -13,7 +13,7 @@
   const items = [...box.querySelectorAll('.stepsl li')], nameEl = document.getElementById('stageName'), bar = box.querySelector('.stage-bar i');
   const NAMES = ['Scene 1 · Atelier — drawing the walls', 'Scene 1 · Atelier — doors & windows', 'Scene 1 · Atelier — set dressing', 'Scene 1 · Atelier — cast, cameras, lens', 'Scene 1 · Atelier — blocking: dolly + walk', 'Room library — scanned with Floor Scanner'];
   const DUR = [4.0, 3.0, 4.0, 6.2, 7.2, 3.4];
-  const ACC = '#4B6BFB', INK = '#2B2A27', INK2 = '#6B675F', CORAL = '#E8734A', SAND = '#E2A93B', SOFT = '#EDEAE2', EDGE = '#A9A395', GLASS = '#7FA9E6';
+  const ACC = '#0A7CFF', INK = '#2B2A27', INK2 = '#6B675F', CORAL = '#E8734A', SAND = '#E2A93B', SOFT = '#EDEAE2', EDGE = '#A9A395', GLASS = '#7FA9E6';
   const BB = {x0:-90, y0:-200, x1:960, y1:640};
   let W = 0, H = 0, S = 1, OX = 0, OY = 0, dpr = 1;
   function fit(){
@@ -113,7 +113,7 @@
       rrect(-w / 2, -h / 2, w, 90, 10, fill, edge, lw); rrect(-w / 2, -h / 2, 95, h, 10, fill, edge, lw);
       ctx.strokeStyle = edge; ctx.beginPath(); ctx.moveTo(-w / 2 + 95, -h / 2 + 20); ctx.lineTo(w / 2 - 12, -h / 2 + 20); ctx.moveTo(-w / 2 + 20, -h / 2 + 90); ctx.lineTo(-w / 2 + 20, h / 2 - 12); ctx.stroke();
     } else if(p.kind === 'rug'){
-      ctx.setLineDash([6 , 5]); rrect(-w / 2, -h / 2, w, h, 4, 'rgba(75,107,251,.06)', '#B8B3A8', lw); ctx.setLineDash([]);
+      ctx.setLineDash([6 , 5]); rrect(-w / 2, -h / 2, w, h, 4, 'rgba(10,124,255,.06)', '#B8B3A8', lw); ctx.setLineDash([]);
     } else if(p.kind === 'chair'){
       rrect(-w / 2, -h / 2, w, h, 6, fill, edge, lw); ctx.strokeStyle = INK2; ctx.lineWidth = 3 / sc; ctx.beginPath(); ctx.moveTo(-w / 2 + 4, -h / 2 + 3); ctx.lineTo(w / 2 - 4, -h / 2 + 3); ctx.stroke();
     } else if(p.kind === 'plant'){
@@ -161,7 +161,7 @@
   function wedge(x, y, rot, fov, k, hot){
     const R = 320 * ease(k), a0 = rot - fov / 2 * Math.PI / 180, a1 = rot + fov / 2 * Math.PI / 180;
     ctx.beginPath(); ctx.moveTo(X(x), Y(y)); ctx.arc(X(x), Y(y), R * S, a0, a1); ctx.closePath();
-    ctx.fillStyle = hot ? 'rgba(75,107,251,.20)' : 'rgba(75,107,251,.12)'; ctx.fill(); ctx.strokeStyle = 'rgba(75,107,251,.55)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = hot ? 'rgba(10,124,255,.20)' : 'rgba(10,124,255,.12)'; ctx.fill(); ctx.strokeStyle = 'rgba(10,124,255,.55)'; ctx.lineWidth = 1; ctx.stroke();
   }
   function drawCam(c, x, y, rot, fov, k, hot){
     if(k <= 0) return;

@@ -23,7 +23,7 @@ const TPL = {
 function tplBlank(name){
   const p = {v:4, scenes:[newShot(1)], activeSceneId:null, customProps:[], shootName:name || ''};
   p.activeSceneId = p.scenes[0].id;
-  p.production = {people:[], locations:[], company:'', email:'', phone:'', logo:null, brand:{accent:'#4B6BFB', style:'band', footer:''}};
+  p.production = {people:[], locations:[], company:'', email:'', phone:'', logo:null, brand:{accent:'#0A7CFF', style:'band', footer:''}};
   return p;
 }
 // production-floor skeleton shared by every template: day header, lists, location, prop list, call sheet

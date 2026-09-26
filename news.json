@@ -1,37 +1,44 @@
 [
-  {
-    "date": "2026-09-25",
-    "title": "Pro is €7 a month, and the first month is free",
-    "text": "Every new account gets a free month with every floor, no card and nothing that renews by itself. After that Pro is €7 a month or €77 a year, billed by Paddle with VAT handled. If you stop, your productions stay stored for a year. Also new: museum benches, poufs, paintings, radiators and built-in closets in the library.",
-    "link": "landing.html#plans",
-    "tag": "Plans"
-  },
-  {
-    "date": "2026-09-23",
-    "title": "Floor Scanner: the iPhone companion for scouting",
-    "text": "Scan a room with LiDAR or measure it with the camera, photograph the location through a director's viewfinder with real lens sets, export a PDF — and, signed in, find it all in Floorboard's room library. Coming to the App Store; TestFlight first.",
-    "link": "landing.html#scanner",
-    "tag": "New"
-  },
-  {
-    "date": "2026-09-22",
-    "title": "Templates and an example production",
-    "text": "New productions start from a template — commercial, brand film, documentary, fiction, music video, socials — with the right tools laid out on every floor. Or open “Haver”, a 15-second commercial with five shots in three locations, to see how the floors connect.",
-    "link": "index.html?start=1",
-    "tag": "Update"
-  },
-  {
-    "date": "2026-09-22",
-    "title": "Floor access per co-editor",
-    "text": "Invite crew without the Budget and Production floors, or switch any floor on or off per member. Rooms scanned on the iPhone level themselves; the whole selection can now be turned with a handle that snaps to 90°.",
-    "link": "landing.html#plans",
-    "tag": "Update"
-  },
-  {
-    "date": "2026-09-10",
-    "title": "Floorboard has six floors",
-    "text": "FLOOR Studio became Floorboard: Mood, Script, Shot designer, Shot list, Budget and Production, each a floor of the same building. New logo, new document PDFs in your house style, a budget laid out like a quote.",
-    "link": "landing.html#floors",
-    "tag": "Release"
-  }
+ {
+  "date": "2026-09-26",
+  "title": "A new look: one colour per floor",
+  "text": "Floorboard got a redesign. The floors sit in one switcher at the top, each with its own colour. The library floats beside the plan with a search field and category chips, and a camera now has its own inspector: body, lens set, focal lengths as chips, squeeze and the field of view at a glance. New typeface, a calmer canvas and a refined dark mode.",
+  "link": "index.html",
+  "tag": "Update"
+ },
+ {
+  "date": "2026-09-25",
+  "title": "Pro is €7 a month, and the first month is free",
+  "text": "Every new account gets a free month with every floor, no card and nothing that renews by itself. After that Pro is €7 a month or €77 a year, billed by Paddle with VAT handled. If you stop, your productions stay stored for a year. Also new: museum benches, poufs, paintings, radiators and built-in closets in the library.",
+  "link": "landing.html#plans",
+  "tag": "Plans"
+ },
+ {
+  "date": "2026-09-23",
+  "title": "Floor Scanner: the iPhone companion for scouting",
+  "text": "Scan a room with LiDAR or measure it with the camera, photograph the location through a director's viewfinder with real lens sets, export a PDF — and, signed in, find it all in Floorboard's room library. Coming to the App Store; TestFlight first.",
+  "link": "landing.html#scanner",
+  "tag": "New"
+ },
+ {
+  "date": "2026-09-22",
+  "title": "Templates and an example production",
+  "text": "New productions start from a template — commercial, brand film, documentary, fiction, music video, socials — with the right tools laid out on every floor. Or open “Haver”, a 15-second commercial with five shots in three locations, to see how the floors connect.",
+  "link": "index.html?start=1",
+  "tag": "Update"
+ },
+ {
+  "date": "2026-09-22",
+  "title": "Floor access per co-editor",
+  "text": "Invite crew without the Budget and Production floors, or switch any floor on or off per member. Rooms scanned on the iPhone level themselves; the whole selection can now be turned with a handle that snaps to 90°.",
+  "link": "landing.html#plans",
+  "tag": "Update"
+ },
+ {
+  "date": "2026-09-10",
+  "title": "Floorboard has six floors",
+  "text": "FLOOR Studio became Floorboard: Mood, Script, Shot designer, Shot list, Budget and Production, each a floor of the same building. New logo, new document PDFs in your house style, a budget laid out like a quote.",
+  "link": "landing.html#floors",
+  "tag": "Release"
+ }
 ]

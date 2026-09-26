@@ -303,6 +303,55 @@ before trusting any test result.
 is 2 chars so the prop-list SCRIPT scan skips it (min length 3 — avoids
 false hits); board placement still lists it.
 
+## v1.0-rc8 — UI 2.0
+The design canvas "UI 2.0" built into the app. Everything new lives in
+ui2.css (loads after styles.css and wins the cascade) and js/17-ui2.js;
+tokens.css got the new palette. Nothing in the data model changed.
+- Type: Geist + Geist Mono, self-hosted in fonts/ (variable woff2, SIL OFL,
+  fonts/OFL.txt) because the CSP only allows font-src 'self'. Numbers
+  (zoom %, focal chips, FOV, version chip) use Geist Mono.
+- Colour per floor: <html data-floor> is set by switchTab → applyFloor(t)
+  (06-tabs.js calls it), which re-runs loadTheme() so the canvas selection,
+  handles and chips follow. Floors: Mood #FF5E57, Script #A259FF, Shot
+  designer #0A7CFF, Shot list #14A8C2, Budget #2DB45A, Production #FF9500.
+  tokens.css generates light and dark accent sets per floor. Exports still
+  use THEME_LIGHT (accent #0A7CFF).
+- Top bar: one row. #tabbar moved INSIDE #topbar as a segmented control
+  (dot + name); fitFloors() adds #topbar.floors-compact when the bar would
+  overflow, then only the active floor keeps its name. #app is now two grid
+  rows (auto, 1fr) everywhere; phones wrap the floors to a second row.
+  App icon = CSS gradient squircle (.app-icon). #projBtn + scene name are
+  stacked in .crumb.
+- Floating panels: #sidebar / #rightPanel have a 12px margin, radius 22,
+  shadow; #main columns are --lw / --rw (292px). The hideL/hideR board
+  floors now collapse to one column (was an empty 266px column).
+- Library: libDecorate() (wraps buildLibrary → buildLibraryInner) adds a
+  sticky search field and category chips built from the section headers.
+  Filtering only toggles classes (.lib-miss / .lib-off); state (libQ,
+  libCat) survives rebuilds. Tiles: tileCanvas draws a vivid gradient
+  squircle (TILE_VIVID maps the muted object palette to Apple-ish pairs).
+- Camera inspector: on the Shot designer with the right panel visible
+  (desktop > 900px, not read-only) a selected camera is edited in #camInsp
+  — type, body/format, lens set, focal-length chips + Other…, squeeze
+  segmented, FOV readout with a wedge, framing chips, shot, support,
+  description, Frame…, Shot list →. The selection bar then only keeps
+  move / order / lock / duplicate / delete. Hidden right panel, iPad
+  portrait and phones keep the old selects in the selection bar.
+  "Shot list →" is not shown in the lite (iPad) build.
+- Canvas chrome: tool dock bottom-centre (hides while the bin shows),
+  zoom pill top-right, hint top-left, selection bar keeps 78px clear of
+  the dock. Touch ≥ 601px: the dock becomes a vertical rail on the left.
+- Landing: Geist, gradient app icon, floor colours per section (#mood,
+  #script, #draw/#designer, #shotlist, #budget, #production set --accent),
+  floor cards as app icons, the hero tabs as the segmented control, fixed
+  two list bugs (inline <b> inside flex <li>, li.scan inheriting .scan's
+  grid). landing/ui-anim.js redrawn in the new chrome (glass bar, floating
+  library with search + chips, bottom dock); landing/img/ui-icons.png was
+  re-captured from the app with the gradient tiles (same .json index).
+- Test recipe used: headless Chrome over CDP (scratch cdp.js) against
+  local.html — screenshots at 1440/1600/1280, iPad lite touch 1180×820,
+  phone 390×844, dark mode.
+
 ## v1.0-rc7 — the interface in action on the landing
 landing/ui-anim.js redraws the app window (top bar, floors, library with
 the real tile icons from landing/img/ui-icons.png + .json — a sprite of
@@ -1938,3 +1987,4 @@ confirm the presence warning + last-save-wins behaviour.
 The **call-sheet PDF generator** — Day header + Crew + Location + Weather
 cards are its direct inputs, all live now. Then validate sharing, then
 memberships (rung 3).
+

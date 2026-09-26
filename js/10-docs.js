@@ -12,7 +12,7 @@ function docBrand(){
   const P = project.production || (project.production = {});
   P.brand = P.brand || {};
   return {
-    accent: P.brand.accent || '#4B6BFB',
+    accent: P.brand.accent || '#0A7CFF',
     style: P.brand.style || 'band',          // 'band' | 'minimal'
     footer: P.brand.footer || '',
     logo: P.logo || null,
@@ -428,7 +428,7 @@ function exportCallSheetDoc(o){
 function docStyleOverlay(){
   const B = docBrand();
   const P = project.production;
-  const swatches = [['#4B6BFB', 'Blue'], ...Object.entries(PAL).map(([k, v])=>[v, k]), ['#2B2A28', 'Ink']];
+  const swatches = [['#0A7CFF', 'Blue'], ...Object.entries(PAL).map(([k, v])=>[v, k]), ['#2B2A28', 'Ink']];
   const el = document.createElement('div');
   el.className = 'fb-ov';
   el.innerHTML = `

@@ -98,6 +98,7 @@ function vsep(){ selBar.insertAdjacentHTML('beforeend','<div class="vsep"></div>
 
 function refreshSelBar(){
   selBar.innerHTML = '';
+  if(typeof hideCamInsp === 'function') hideCamInsp();
   if(!sel){ selBar.classList.remove('show'); return; }
   const shot = activeShot();
 
@@ -874,7 +875,10 @@ function refreshSelBar(){
       return;
     }
 
-    if(o.cat === 'camera'){
+    // UI 2.0: on the desktop the camera is edited in the right-panel inspector
+    const camInsp = o.cat === 'camera' && typeof camInspOn === 'function' && camInspOn();
+    if(camInsp) buildCamInsp(o, shot);
+    else if(o.cat === 'camera'){
       const typ = document.createElement('select');
       typ.title = 'Camera type';
       for(const [v,n] of CAM_TYPES) typ.insertAdjacentHTML('beforeend', `<option value="${v}">${n}</option>`);
@@ -997,7 +1001,7 @@ function refreshSelBar(){
       vsep();
     }
 
-    if(!['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','callsheet','schedule','proplist','gearlist','file','colorcard','audio'].includes(o.cat)){
+    if(!camInsp && !['text','ink','infocard','script','sbrow','table','listcard','fieldcard','dayheader','colcard','callsheet','schedule','proplist','gearlist','file','colorcard','audio'].includes(o.cat)){
       const inp = document.createElement('input');
       inp.className = 'lbl';
       inp.placeholder = o.cat==='note' ? 'Title'
@@ -1196,7 +1200,10 @@ function updateSelBarPos(){
     top = p.y + r*view.scale + 26;
     if(top + bh > wrap.clientHeight - 8) top = p.y - r*view.scale - bh - 26;
   }
-  top = clamp(top, 8, wrap.clientHeight - bh - 8);
+  // UI 2.0: keep clear of the tool dock at the bottom centre (desktop)
+  const dock = document.getElementById('toolbar');
+  const floorRes = (!document.body.classList.contains('touch') && dock && dock.offsetParent) ? 78 : 8;
+  top = clamp(top, 8, wrap.clientHeight - bh - floorRes);
   selBar.style.left = left+'px';
   selBar.style.top = top+'px';
 }
@@ -1741,22 +1748,60 @@ function closeNoteEditor(save){
 // Floorboard tiles: a filled rounded square in the item's hue with a bold white
 // glyph (TILE_GLYPH). Kinds without a glyph keep their canvas drawing on a
 // soft tint of the same hue.
+// UI 2.0: library tiles are colourful gradient squircles — the muted object
+// palette maps to vivid pairs (light top-left → deep bottom-right)
+const TILE_VIVID = {'#7A8194':['#A3ABBD','#6B7385'], '#6FA3E8':['#5AB0FF','#0A7CFF'], '#E58A6F':['#FF9A8A','#FF5E57'],
+  '#9BA85A':['#7BD88F','#2DB45A'], '#E1B46A':['#FFC24D','#FF9500'], '#A98BE0':['#C49BFF','#A259FF'], '#6DBBAF':['#4FD8CF','#14A8C2']};
+function tileVivid(hex){
+  const k = String(hex || '').toUpperCase();
+  if(TILE_VIVID[k]) return TILE_VIVID[k];
+  const m = /^#([0-9A-F]{6})$/.exec(k);
+  if(!m) return [hex, hex];
+  const n = parseInt(m[1], 16);
+  let r = (n >> 16) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  let h = 0, sat = 0;
+  if(mx !== mn){
+    const d = mx - mn;
+    sat = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+    h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h *= 60;
+  }
+  const s2 = Math.min(1, sat * 1.4 + .12);
+  return ['hsl(' + h.toFixed(0) + ' ' + (s2 * 100).toFixed(0) + '% ' + Math.min(78, l * 100 + 12).toFixed(0) + '%)',
+          'hsl(' + h.toFixed(0) + ' ' + (s2 * 100).toFixed(0) + '% ' + Math.max(38, l * 100 - 8).toFixed(0) + '%)'];
+}
 function tileCanvas(drawFn, w, h, c, def, tint, key){
   if(!c || c === '#5B6472') c = PAL.slate;
   key = key || (def && (def.kind || def.cat)) || null;
   const glyph = key && TILE_GLYPH[key];
   const hue = (key && TILE_COLOR[key]) || tint || c;
   const t = document.createElement('canvas');
-  const s = 44, d = window.devicePixelRatio||1;
+  const s = 50, d = window.devicePixelRatio||1;
   t.width = s*d; t.height = s*d; t.style.width = s+'px'; t.style.height = s+'px';
   const tc = t.getContext('2d');
   tc.setTransform(d,0,0,d,0,0);
   tc.translate(s/2, s/2);
-  tc.beginPath(); tc.roundRect(-s/2, -s/2, s, s, 11);
+  tc.beginPath(); tc.roundRect(-s/2, -s/2, s, s, 14);
+  if(glyph){
+    const [c1, c2] = tileVivid(hue);
+    const gr = tc.createLinearGradient(-s/2, -s/2, s/2, s/2);
+    gr.addColorStop(0, c1); gr.addColorStop(1, c2);
+    tc.fillStyle = gr; tc.fill();
+    // a hairline of light along the top edge, like a glazed icon
+    tc.save(); tc.clip();
+    const hl = tc.createLinearGradient(0, -s/2, 0, -s/2 + 10);
+    hl.addColorStop(0, 'rgba(255,255,255,.35)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    tc.fillStyle = hl; tc.fillRect(-s/2, -s/2, s, 10);
+    tc.restore();
+    t.style.setProperty('--tile-glow', c2);
+    tc.scale(s/44*.9, s/44*.9);
+    glyph(tc, 44);
+    return t;
+  }
   tc.fillStyle = hue;
-  if(glyph){ tc.fill(); glyph(tc, s); return t; }
   tc.globalAlpha = THEME.dark ? .28 : .16; tc.fill(); tc.globalAlpha = 1;
-  const k = Math.min((s-16)/w, (s-16)/h);
+  const k = Math.min((s-18)/w, (s-18)/h);
   tc.scale(k, k);
   tc.lineWidth = 2/k;
   drawFn(tc, w, h, c, def);
@@ -1788,6 +1833,10 @@ function libTile(spec, tint){
   return el;
 }
 function buildLibrary(){
+  buildLibraryInner();
+  if(typeof libDecorate === 'function') libDecorate();
+}
+function buildLibraryInner(){
   const lib = document.getElementById('library');
   lib.innerHTML = '';
   for(const cat of (BOARD_TABS.has(activeTab) ? [] : CATS)){

@@ -9,7 +9,7 @@
   const ctx = cv.getContext('2d');
   const W = 760, H = 700, P = {x:70, y:30, w:318, h:650, r:52};
   const STEPS = [[0, 5.2], [5.2, 10.6], [10.6, 15.4], [15.4, 20]], PERIOD = 20;
-  const ACC = '#4B6BFB', CORAL = '#E8734A', INK = '#1C1B19', INK2 = '#6B675F', LINE = '#E6E2D9', SAND = '#E2A93B';
+  const ACC = '#0A7CFF', CORAL = '#E8734A', INK = '#1C1B19', INK2 = '#6B675F', LINE = '#E6E2D9', SAND = '#E2A93B';
   const clamp = (v, a, b)=>v < a ? a : v > b ? b : v;
   const ease = t=>{ t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
   const back = t=>{ t = clamp(t, 0, 1); const c = 1.5; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
@@ -93,7 +93,7 @@
     const pieces = PIECES.map(p=>p.k === 'storage' && picked ? {...p, label:'Corner sofa'} : p);
     plan(SX + SW / 2, SY + 246, .45, {rot, pieces});
     // tap chips on the plan
-    const chip = (x, y, s, hot)=>{ ctx.font = font(10.5, 700); const w = ctx.measureText(s).width + 16; rr(x - w / 2, y - 10, w, 20, 10, hot ? ACC : 'rgba(75,107,251,.88)'); txt(s, x, y + .5, 10.5, '#fff', 700, 'center'); };
+    const chip = (x, y, s, hot)=>{ ctx.font = font(10.5, 700); const w = ctx.measureText(s).width + 16; rr(x - w / 2, y - 10, w, 20, 10, hot ? ACC : 'rgba(10,124,255,.88)'); txt(s, x, y + .5, 10.5, '#fff', 700, 'center'); };
     chip(SX + SW / 2 - 63, SY + 300, 'Sofa'); chip(SX + SW / 2 + 18, SY + 206, 'Table'); chip(SX + SW / 2 + 88, SY + 179, picked ? 'Corner sofa' : 'Storage', t > .9 && t < 2.8);
     tap(SX + SW / 2 + 88, SY + 179, span(t, .8, 1.3));
     // buttons
