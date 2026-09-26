@@ -348,6 +348,12 @@ tokens.css got the new palette. Nothing in the data model changed.
   grid). landing/ui-anim.js redrawn in the new chrome (glass bar, floating
   library with search + chips, bottom dock); landing/img/ui-icons.png was
   re-captured from the app with the gradient tiles (same .json index).
+- Icons: icons/*.png regenerated in the brand gradient (#0A7CFF → #6B5BFF →
+  #FF5E57) with the three white bars of .app-icon; 144/152/167/180 full
+  bleed (Apple masks them), the rest rounded, maskables with a 78% safe
+  zone. Floor Scanner (floor-ipad/scout) got the same UI 2.0 treatment and
+  a sibling icon (viewfinder corners around a room) — see that repo.
+- Landing canvases (howto, floors-anim, scanner-anim) draw in Geist too.
 - Test recipe used: headless Chrome over CDP (scratch cdp.js) against
   local.html — screenshots at 1440/1600/1280, iPad lite touch 1180×820,
   phone 390×844, dark mode.

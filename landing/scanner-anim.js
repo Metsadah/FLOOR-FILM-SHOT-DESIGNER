@@ -15,7 +15,7 @@
   const back = t=>{ t = clamp(t, 0, 1); const c = 1.5; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
   const span = (t, a, b)=>clamp((t - a) / (b - a), 0, 1);
   const lerp = (a, b, k)=>a + (b - a) * k;
-  const font = (px, w)=>`${w || 500} ${px}px -apple-system, "SF Pro Text", "Inter", "Segoe UI", sans-serif`;
+  const font = (px, w)=>`${w || 500} ${px}px Geist, -apple-system, "SF Pro Text", "Inter", "Segoe UI", sans-serif`;
   function rr(x, y, w, h, r, fill, stroke, lw){ ctx.beginPath(); ctx.roundRect(x, y, w, h, r); if(fill){ ctx.fillStyle = fill; ctx.fill(); } if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); } }
   function txt(s, x, y, px, col, w, al){ ctx.font = font(px, w); ctx.fillStyle = col; ctx.textAlign = al || 'left'; ctx.textBaseline = 'middle'; ctx.fillText(s, x, y); }
   function shadow(b, y, a){ ctx.shadowColor = `rgba(20,20,24,${a})`; ctx.shadowBlur = b; ctx.shadowOffsetY = y; }

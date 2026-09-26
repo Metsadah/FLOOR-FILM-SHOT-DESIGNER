@@ -6,7 +6,7 @@
   const clamp = (v, a, b)=>v < a ? a : v > b ? b : v;
   const ease = t=>{ t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
   const out = t=>{ t = clamp(t, 0, 1); return 1 - Math.pow(1 - t, 3); };
-  const font = (px, w)=>`${w || 500} ${px}px -apple-system, "Inter", "Segoe UI", sans-serif`;
+  const font = (px, w)=>`${w || 500} ${px}px Geist, -apple-system, "Inter", "Segoe UI", sans-serif`;
 
   function stage(canvas, W, H, draw, period){
     if(!canvas) return;

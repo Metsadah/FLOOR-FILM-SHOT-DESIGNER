@@ -28,7 +28,7 @@
   const ease = t=>{ t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
   const lerp = (a, b, k)=>a + (b - a) * k;
   const rotA = (a, b, k)=>{ let d = b - a; while(d > Math.PI) d -= 2 * Math.PI; while(d < -Math.PI) d += 2 * Math.PI; return a + d * k; };
-  const font = (px, w)=>`${w || 600} ${px}px -apple-system, "Inter", "Segoe UI", sans-serif`;
+  const font = (px, w)=>`${w || 600} ${px}px Geist, -apple-system, "Inter", "Segoe UI", sans-serif`;
 
   // ---- geometry of the walls: total length + point at a distance along the drawing
   const walls = D.walls.map(w=>{ const dx = w[2] - w[0], dy = w[3] - w[1], L = Math.hypot(dx, dy); return {x1:w[0], y1:w[1], x2:w[2], y2:w[3], L, ux:dx / L, uy:dy / L, nx:-dy / L, ny:dx / L, ops:w[4] || []}; });
